@@ -54,6 +54,8 @@ void IRAM_ATTR dmpDataReady() {
 
 class MPU6050Driver : public Usermod {
   private:
+    static const char _name[];
+
     MPU6050 mpu;
     bool enabled = true;
 
@@ -64,6 +66,10 @@ class MPU6050Driver : public Usermod {
     uint16_t packetSize;    // expected DMP packet size (default is 42 bytes)
     uint16_t fifoCount;     // count of all bytes currently in FIFO
     uint8_t fifoBuffer[64]; // FIFO storage buffer
+
+    // calibration values
+    int16_t gyro_offset[3]; // 94, -20, -20 for katana;  53,  -18, 30 for test board
+    int16_t accel_offset[3];  // test board: -1250, -6433, 1345
 
     //NOTE: some of these can be removed to save memory, processing time
     //      if the measurement isn't needed
@@ -85,7 +91,7 @@ class MPU6050Driver : public Usermod {
      * setup() is called once at boot. WiFi is not yet connected at this point.
      */
     void setup() {
-      if (i2c_scl<0 || i2c_sda<0) { enabled = false; return; }
+      if (i2c_scl<0 || i2c_sda<0) { enabled = false; DEBUG_PRINTLN(F("MPU6050: I2C is no good."));  return; }
       #if I2CDEV_IMPLEMENTATION == I2CDEV_ARDUINO_WIRE
         Wire.setClock(400000U); // 400kHz I2C clock. Comment this line if having compilation difficulties
       #elif I2CDEV_IMPLEMENTATION == I2CDEV_BUILTIN_FASTWIRE
@@ -95,7 +101,7 @@ class MPU6050Driver : public Usermod {
       // initialize device
       DEBUG_PRINTLN(F("Initializing I2C devices..."));
       mpu.initialize();
-      pinMode(INTERRUPT_PIN, INPUT);
+      //pinMode(INTERRUPT_PIN, INPUT);
 
       // verify connection
       DEBUG_PRINTLN(F("Testing device connections..."));
@@ -106,24 +112,21 @@ class MPU6050Driver : public Usermod {
       devStatus = mpu.dmpInitialize();
 
       // supply your own gyro offsets here, scaled for min sensitivity
-      mpu.setXGyroOffset(220);
-      mpu.setYGyroOffset(76);
-      mpu.setZGyroOffset(-85);
-      mpu.setZAccelOffset(1788); // 1688 factory default for my test chip
-
+      mpu.setXGyroOffset(gyro_offset[0]);
+      mpu.setYGyroOffset(gyro_offset[1]);
+      mpu.setZGyroOffset(gyro_offset[2]);
+      mpu.setXAccelOffset(accel_offset[0]);
+      mpu.setYAccelOffset(accel_offset[1]);
+      mpu.setZAccelOffset(accel_offset[2]);
+      
       // make sure it worked (returns 0 if so)
       if (devStatus == 0) {
         // turn on the DMP, now that it's ready
         DEBUG_PRINTLN(F("Enabling DMP..."));
         mpu.setDMPEnabled(true);
 
-        // enable Arduino interrupt detection
-        DEBUG_PRINTLN(F("Enabling interrupt detection (Arduino external interrupt 0)..."));
-        attachInterrupt(digitalPinToInterrupt(INTERRUPT_PIN), dmpDataReady, RISING);
-        mpuIntStatus = mpu.getIntStatus();
-
         // set our DMP Ready flag so the main loop() function knows it's okay to use it
-        DEBUG_PRINTLN(F("DMP ready! Waiting for first interrupt..."));
+        DEBUG_PRINTLN(F("DMP ready!"));
         dmpReady = true;
 
         // get expected DMP packet size for later comparison
@@ -155,11 +158,7 @@ class MPU6050Driver : public Usermod {
       // if programming failed, don't try to do anything
       if (!enabled || !dmpReady || strip.isUpdating()) return;
 
-      // wait for MPU interrupt or extra packet(s) available
-      if (!mpuInterrupt && fifoCount < packetSize) return;
-
       // reset interrupt flag and get INT_STATUS byte
-      mpuInterrupt = false;
       mpuIntStatus = mpu.getIntStatus();
 
       // get current FIFO count
@@ -174,15 +173,10 @@ class MPU6050Driver : public Usermod {
         // otherwise, check for DMP data ready interrupt (this should happen frequently)
       } else if (mpuIntStatus & 0x02) {
         // wait for correct available data length, should be a VERY short wait
-        while (fifoCount < packetSize) fifoCount = mpu.getFIFOCount();
+        if (fifoCount < packetSize) return; // next time
 
         // read a packet from FIFO
         mpu.getFIFOBytes(fifoBuffer, packetSize);
-
-        // track FIFO count here in case there is > 1 packet available
-        // (this lets us immediately read more without waiting for an interrupt)
-        fifoCount -= packetSize;
-
 
         //NOTE: some of these can be removed to save memory, processing time
         //      if the measurement isn't needed
@@ -201,8 +195,6 @@ class MPU6050Driver : public Usermod {
 
     void addToJsonInfo(JsonObject& root)
     {
-      int reading = 20;
-      //this code adds "u":{"Light":[20," lux"]} to the info object
       JsonObject user = root["u"];
       if (user.isNull()) user = root.createNestedObject("u");
 
@@ -268,13 +260,73 @@ class MPU6050Driver : public Usermod {
      * It will be called by WLED when settings are actually saved (for example, LED settings are saved)
      * I highly recommend checking out the basics of ArduinoJson serialization and deserialization in order to use custom settings!
      */
-//    void addToConfig(JsonObject& root)
-//    {
-//      JsonObject top = root.createNestedObject("MPU6050_IMU");
-//      JsonArray pins = top.createNestedArray("pin");
-//      pins.add(HW_PIN_SCL);
-//      pins.add(HW_PIN_SDA);
-//    }
+    void addToConfig(JsonObject& root)
+    {
+      JsonObject top = root.createNestedObject(FPSTR(_name));
+
+      //save these vars persistently whenever settings are saved
+      top["x_acc_bias"] = accel_offset[0];
+      top["y_acc_bias"] = accel_offset[1];
+      top["z_acc_bias"] = accel_offset[2];
+      top["x_gyro_bias"] = gyro_offset[0];
+      top["y_gyro_bias"] = gyro_offset[1];
+      top["z_gyro_bias"] = gyro_offset[2];
+    }
+
+    /*
+     * readFromConfig() can be used to read back the custom settings you added with addToConfig().
+     * This is called by WLED when settings are loaded (currently this only happens immediately after boot, or after saving on the Usermod Settings page)
+     * 
+     * readFromConfig() is called BEFORE setup(). This means you can use your persistent values in setup() (e.g. pin assignments, buffer sizes),
+     * but also that if you want to write persistent values to a dynamic buffer, you'd need to allocate it here instead of in setup.
+     * If you don't know what that is, don't fret. It most likely doesn't affect your use case :)
+     * 
+     * Return true in case the config values returned from Usermod Settings were complete, or false if you'd like WLED to save your defaults to disk (so any missing values are editable in Usermod Settings)
+     * 
+     * getJsonValue() returns false if the value is missing, or copies the value into the variable provided and returns true if the value is present
+     * The configComplete variable is true only if the "exampleUsermod" object and all values are present.  If any values are missing, WLED will know to call addToConfig() to save them
+     * 
+     * This function is guaranteed to be called on boot, but could also be called every time settings are updated
+     */
+    bool readFromConfig(JsonObject& root)
+    {
+      // default settings values could be set here (or below using the 3-argument getJsonValue()) instead of in the class definition or constructor
+      // setting them inside readFromConfig() is slightly more robust, handling the rare but plausible use case of single value being missing after boot (e.g. if the cfg.json was manually edited and a value was removed)
+
+      JsonObject top = root[FPSTR(_name)];
+
+      bool configComplete = !top.isNull();
+
+      configComplete &= getJsonValue(top["x_acc_bias"], accel_offset[0], 0);
+      configComplete &= getJsonValue(top["y_acc_bias"], accel_offset[1], 0);
+      configComplete &= getJsonValue(top["z_acc_bias"], accel_offset[2], 0);
+      configComplete &= getJsonValue(top["x_gyro_bias"], gyro_offset[0], 0);
+      configComplete &= getJsonValue(top["y_gyro_bias"], gyro_offset[1], 0);
+      configComplete &= getJsonValue(top["z_gyro_bias"], gyro_offset[2], 0);
+
+      if (dmpReady) {
+        mpu.setXGyroOffset(gyro_offset[0]);
+        mpu.setYGyroOffset(gyro_offset[1]);
+        mpu.setZGyroOffset(gyro_offset[2]);
+        mpu.setXAccelOffset(accel_offset[0]);
+        mpu.setYAccelOffset(accel_offset[1]);
+        mpu.setZAccelOffset(accel_offset[2]);
+      }
+
+      return configComplete;
+    }
+
+
+    /*
+     * appendConfigData() is called when user enters usermod settings page
+     * it may add additional metadata for certain entry fields (adding drop down is possible)
+     * be careful not to add too much as oappend() buffer is limited to 3k
+     */
+    void appendConfigData()
+    {
+
+    }
+
 
     /*
      * getId() allows you to optionally give your V2 usermod an unique ID (please define it in const.h!).
@@ -285,3 +337,6 @@ class MPU6050Driver : public Usermod {
     }
 
 };
+
+
+const char MPU6050Driver::_name[] PROGMEM = "MPU6050_IMU";
