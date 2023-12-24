@@ -82,8 +82,6 @@ class MPU6050Driver : public Usermod {
     VectorInt16 aaWorld;    // [x, y, z]            world-frame accel sensor measurements
     VectorFloat gravity;    // [x, y, z]            gravity vector
 
-    static const int INTERRUPT_PIN = 15; // use pin 15 on ESP8266
-
   public:
     //Functions called by WLED
 
@@ -101,7 +99,6 @@ class MPU6050Driver : public Usermod {
       // initialize device
       DEBUG_PRINTLN(F("Initializing I2C devices..."));
       mpu.initialize();
-      //pinMode(INTERRUPT_PIN, INPUT);
 
       // verify connection
       DEBUG_PRINTLN(F("Testing device connections..."));
