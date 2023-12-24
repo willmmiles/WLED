@@ -20,11 +20,11 @@
   XCL     not connected
   AD0     not connected
   INT     D8 (GPIO15)   Interrupt pin
-  
+
   Using usermod:
   1. Copy the usermod into the sketch folder (same folder as wled00.ino)
   2. Register the usermod by adding #include "usermod_filename.h" in the top and registerUsermod(new MyUsermodClass()) in the bottom of usermods_list.cpp
-  3. I2Cdev and MPU6050 must be installed as libraries, or else the .cpp/.h file 
+  3. I2Cdev and MPU6050 must be installed as libraries, or else the .cpp/.h file
      for both classes must be in the include path of your project. To install the
      libraries add I2Cdevlib-MPU6050@fbde122cc5 to lib_deps in the platformio.ini file.
   4. You also need to change lib_compat_mode from strict to soft in platformio.ini (This ignores that I2Cdevlib-MPU6050 doesn't list platform compatibility)
@@ -71,6 +71,8 @@ class MPU6050Driver : public Usermod {
     int16_t gyro_offset[3]; // 94, -20, -20 for katana;  53,  -18, 30 for test board
     int16_t accel_offset[3];  // test board: -1250, -6433, 1345
 
+    uint32 sample_count;
+
     //NOTE: some of these can be removed to save memory, processing time
     //      if the measurement isn't needed
     Quaternion qat;         // [w, x, y, z]         quaternion container
@@ -82,6 +84,9 @@ class MPU6050Driver : public Usermod {
     VectorInt16 aaWorld;    // [x, y, z]            world-frame accel sensor measurements
     VectorFloat gravity;    // [x, y, z]            gravity vector
 
+    // Usermod output
+    um_data_t* um_data = nullptr;
+
   public:
     //Functions called by WLED
 
@@ -89,6 +94,7 @@ class MPU6050Driver : public Usermod {
      * setup() is called once at boot. WiFi is not yet connected at this point.
      */
     void setup() {
+
       if (i2c_scl<0 || i2c_sda<0) { enabled = false; DEBUG_PRINTLN(F("MPU6050: I2C is no good."));  return; }
       #if I2CDEV_IMPLEMENTATION == I2CDEV_ARDUINO_WIRE
         Wire.setClock(400000U); // 400kHz I2C clock. Comment this line if having compilation difficulties
@@ -108,14 +114,14 @@ class MPU6050Driver : public Usermod {
       DEBUG_PRINTLN(F("Initializing DMP..."));
       devStatus = mpu.dmpInitialize();
 
-      // supply your own gyro offsets here, scaled for min sensitivity
+      // set offsets (from config)
       mpu.setXGyroOffset(gyro_offset[0]);
       mpu.setYGyroOffset(gyro_offset[1]);
       mpu.setZGyroOffset(gyro_offset[2]);
       mpu.setXAccelOffset(accel_offset[0]);
       mpu.setYAccelOffset(accel_offset[1]);
       mpu.setZAccelOffset(accel_offset[2]);
-      
+
       // make sure it worked (returns 0 if so)
       if (devStatus == 0) {
         // turn on the DMP, now that it's ready
@@ -137,6 +143,34 @@ class MPU6050Driver : public Usermod {
         DEBUG_PRINT(devStatus);
         DEBUG_PRINTLN(")");
       }
+
+      // usermod data setup
+      if (!um_data) {
+        um_data = new um_data_t;
+        um_data->u_size = 9;
+        um_data->u_type = new um_types_t[um_data->u_size];
+        um_data->u_data = new void*[um_data->u_size];
+        um_data->u_data[0] = &qat;
+        um_data->u_type[0] = UMT_FLOAT_ARR;
+        um_data->u_data[1] = &euler;
+        um_data->u_type[1] = UMT_FLOAT_ARR;
+        um_data->u_data[2] = &ypr;
+        um_data->u_type[2] = UMT_FLOAT_ARR;
+        um_data->u_data[3] = &aa;
+        um_data->u_type[3] = UMT_INT16_ARR;
+        um_data->u_data[4] = &gy;
+        um_data->u_type[4] = UMT_INT16_ARR;
+        um_data->u_data[5] = &aaReal;
+        um_data->u_type[5] = UMT_INT16_ARR;
+        um_data->u_data[6] = &aaWorld;
+        um_data->u_type[6] = UMT_INT16_ARR;
+        um_data->u_data[7] = &gravity;
+        um_data->u_type[7] = UMT_FLOAT_ARR;
+        um_data->u_data[8] = &sample_count;
+        um_data->u_type[8] = UMT_UINT32;
+      }
+
+      sample_count = 0;
     }
 
     /*
@@ -185,6 +219,7 @@ class MPU6050Driver : public Usermod {
         mpu.dmpGetLinearAccel(&aaReal, &aa, &gravity);
         mpu.dmpGetLinearAccelInWorld(&aaWorld, &aaReal, &qat);
         mpu.dmpGetYawPitchRoll(ypr, &qat, &gravity);
+        ++sample_count;
       }
     }
 
@@ -273,16 +308,16 @@ class MPU6050Driver : public Usermod {
     /*
      * readFromConfig() can be used to read back the custom settings you added with addToConfig().
      * This is called by WLED when settings are loaded (currently this only happens immediately after boot, or after saving on the Usermod Settings page)
-     * 
+     *
      * readFromConfig() is called BEFORE setup(). This means you can use your persistent values in setup() (e.g. pin assignments, buffer sizes),
      * but also that if you want to write persistent values to a dynamic buffer, you'd need to allocate it here instead of in setup.
      * If you don't know what that is, don't fret. It most likely doesn't affect your use case :)
-     * 
+     *
      * Return true in case the config values returned from Usermod Settings were complete, or false if you'd like WLED to save your defaults to disk (so any missing values are editable in Usermod Settings)
-     * 
+     *
      * getJsonValue() returns false if the value is missing, or copies the value into the variable provided and returns true if the value is present
      * The configComplete variable is true only if the "exampleUsermod" object and all values are present.  If any values are missing, WLED will know to call addToConfig() to save them
-     * 
+     *
      * This function is guaranteed to be called on boot, but could also be called every time settings are updated
      */
     bool readFromConfig(JsonObject& root)
@@ -323,6 +358,16 @@ class MPU6050Driver : public Usermod {
     {
 
     }
+
+
+
+    bool getUMData(um_data_t **data)
+    {
+      if (!data || !enabled || !dmpReady || !um_data) return false; // no pointer provided by caller or not enabled -> exit
+      *data = um_data;
+      return true;
+    }
+
 
 
     /*
