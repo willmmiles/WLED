@@ -201,8 +201,9 @@
 #include "../usermods/LDR_Dusk_Dawn_v2/usermod_LDR_Dusk_Dawn_v2.h"
 #endif
 
-#include "../usermods/blynk_v2/usermod_blynk_v2.h"
+//#include "../usermods/blynk_v2/usermod_blynk_v2.h"
 #include "../usermods/mpu6050_imu/usermod_mpu6050_imu.h"
+#include "../usermods/mpu6050_imu/usermod_acc_surge.h"
 
 void registerUsermods()
 {
@@ -213,7 +214,8 @@ void registerUsermods()
    */
   //usermods.add(new MyExampleUsermod());
   static MPU6050Driver mpu6050; usermods.add(&mpu6050);
-  static BlynkV2Mod blynk_v2; usermods.add(&blynk_v2);
+  static AccSurge accsurge; usermods.add(&accsurge);
+  //static BlynkV2Mod blynk_v2; usermods.add(&blynk_v2);
 
   #ifdef USERMOD_BATTERY
   usermods.add(new UsermodBattery());
