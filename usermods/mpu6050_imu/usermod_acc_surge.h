@@ -52,7 +52,10 @@ class AccSurge : public Usermod {
 
     // State
     uint32_t last_sample;
-    xir_filter<float, 3> filter = { 14.824637753965225, {0.41280159809618855,-1.142980502539901,1}, {1,2,1} };
+    // ~70hz input
+    // 20hz butterworth
+    xir_filter<float, 3> filter = //{ 0.6909403720411788, { 0.18386758, 0.26343532, 1.}, {0.36182572, 0.72365145, 0.36182572} };
+                                  { 1., { 0., 0., 1.}, { 0., 0., 1. } }; // no filter
 
 
   public:
@@ -108,21 +111,14 @@ class AccSurge : public Usermod {
       return configComplete;
     }
 
-    void loop() {}; // noop
-
-    /*
-     * handleOverlayDraw() is called just before every show() (LED strip update frame) after effects have set the colors.
-     * Use this to blank out some LEDs or set them to a different color regardless of the set effect mode.
-     * Commonly used for custom clocks (Cronixie, 7 segment)
-     */
-    void handleOverlayDraw()
-    {
-
-      // TODO: some kind of timing analysis for filtering ...
-
+    void loop() {
       // get IMU data
       um_data_t *um_data;
-      if (!usermods.getUMData(&um_data, USERMOD_ID_IMU)) return;
+      if (!usermods.getUMData(&um_data, USERMOD_ID_IMU)) {
+        // Apply max
+        strip.getSegment(0).fadeToBlackBy(max);
+        return;
+      }
       uint32_t sample_count = *(uint32_t*)(um_data->u_data[8]);
 
       if (sample_count != last_sample) {        
@@ -147,8 +143,19 @@ class AccSurge : public Usermod {
         Serial.print(sensitivity * gyro_q.angle());
         Serial.print(" --> ");
         Serial.println(filter.last());
-*/        
+*/
       }
+    }; // noop
+
+    /*
+     * handleOverlayDraw() is called just before every show() (LED strip update frame) after effects have set the colors.
+     * Use this to blank out some LEDs or set them to a different color regardless of the set effect mode.
+     * Commonly used for custom clocks (Cronixie, 7 segment)
+     */
+    void handleOverlayDraw()
+    {
+
+      // TODO: some kind of timing analysis for filtering ...
 
       // Calculate brightness boost
       auto r_float = std::max(std::min(filter.last(), 1.0f), 0.f);
