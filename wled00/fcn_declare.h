@@ -260,21 +260,21 @@ typedef enum UM_Data_Types {
   UMT_FLOAT_ARR,
   UMT_DOUBLE_ARR
 } um_types_t;
-typedef struct UM_Exchange_Data {
+struct um_data_t {
   // should just use: size_t arr_size, void **arr_ptr, byte *ptr_type
   size_t       u_size;                 // size of u_data array
   um_types_t  *u_type;                 // array of data types
   void       **u_data;                 // array of pointers to data
-  UM_Exchange_Data() {
+  um_data_t() {
     u_size = 0;
     u_type = nullptr;
     u_data = nullptr;
   }
-  ~UM_Exchange_Data() {
+  ~um_data_t() {
     if (u_type) delete[] u_type;
     if (u_data) delete[] u_data;
   }
-} um_data_t;
+};
 const unsigned int um_data_size = sizeof(um_data_t);  // 12 bytes
 
 class Usermod {
