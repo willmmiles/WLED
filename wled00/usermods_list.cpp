@@ -205,172 +205,172 @@ void registerUsermods()
    * || || ||
    * \/ \/ \/
    */
-  //usermods.add(new MyExampleUsermod());
+  //static MyExampleUsermod _MyExampleUsermod; usermods.add(&_MyExampleUsermod);
   #ifdef USERMOD_BATTERY
-  usermods.add(new UsermodBattery());
+  static UsermodBattery _UsermodBattery; usermods.add(&_UsermodBattery);
   #endif
 
   #ifdef USERMOD_DALLASTEMPERATURE
-  usermods.add(new UsermodTemperature());
+  static UsermodTemperature _UsermodTemperature; usermods.add(&_UsermodTemperature);
   #endif
 
   #ifdef USERMOD_SN_PHOTORESISTOR
-  usermods.add(new Usermod_SN_Photoresistor());
+  static Usermod_SN_Photoresistor _Usermod_SN_Photoresistor; usermods.add(&_Usermod_SN_Photoresistor);
   #endif
 
   #ifdef USERMOD_PWM_FAN
-  usermods.add(new PWMFanUsermod());
+  static PWMFanUsermod _PWMFanUsermod; usermods.add(&_PWMFanUsermod);
   #endif
 
   #ifdef USERMOD_BUZZER
-  usermods.add(new BuzzerUsermod());
+  static BuzzerUsermod _BuzzerUsermod; usermods.add(&_BuzzerUsermod);
   #endif
 
   #ifdef USERMOD_BH1750
-  usermods.add(new Usermod_BH1750());
+  static Usermod_BH1750 _Usermod_BH1750; usermods.add(&_Usermod_BH1750);
   #endif
 
   #ifdef USERMOD_BME280
-  usermods.add(new UsermodBME280());
+  static UsermodBME280 _UsermodBME280; usermods.add(&_UsermodBME280);
   #endif
 
   #ifdef USERMOD_SENSORSTOMQTT
-  usermods.add(new UserMod_SensorsToMQTT());
+  static UserMod_SensorsToMQTT _UserMod_SensorsToMQTT; usermods.add(&_UserMod_SensorsToMQTT);
   #endif
 
   #ifdef USERMOD_PIRSWITCH
-  usermods.add(new PIRsensorSwitch());
+  static PIRsensorSwitch _PIRsensorSwitch; usermods.add(&_PIRsensorSwitch);
   #endif
 
   #ifdef USERMOD_MODE_SORT
-  usermods.add(new ModeSortUsermod());
+  static ModeSortUsermod _ModeSortUsermod; usermods.add(&_ModeSortUsermod);
   #endif
 
   #ifdef USERMOD_FOUR_LINE_DISPLAY
-  usermods.add(new FourLineDisplayUsermod());
+  static FourLineDisplayUsermod _FourLineDisplayUsermod; usermods.add(&_FourLineDisplayUsermod);
   #endif
 
   #ifdef USERMOD_ROTARY_ENCODER_UI
-  usermods.add(new RotaryEncoderUIUsermod()); // can use USERMOD_FOUR_LINE_DISPLAY
+  static RotaryEncoderUIUsermod _RotaryEncoderUIUsermod; usermods.add(&_RotaryEncoderUIUsermod); // can use USERMOD_FOUR_LINE_DISPLAY
   #endif
 
   #ifdef USERMOD_AUTO_SAVE
-  usermods.add(new AutoSaveUsermod());  // can use USERMOD_FOUR_LINE_DISPLAY
+  static AutoSaveUsermod _AutoSaveUsermod; usermods.add(&_AutoSaveUsermod);  // can use USERMOD_FOUR_LINE_DISPLAY
   #endif
 
   #ifdef USERMOD_DHT
-  usermods.add(new UsermodDHT());
+  static UsermodDHT _UsermodDHT; usermods.add(&_UsermodDHT);
   #endif
 
   #ifdef USERMOD_VL53L0X_GESTURES
-  usermods.add(new UsermodVL53L0XGestures());
+  static UsermodVL53L0XGestures _UsermodVL53L0XGestures; usermods.add(&_UsermodVL53L0XGestures);
   #endif
 
   #ifdef USERMOD_ANIMATED_STAIRCASE
-  usermods.add(new Animated_Staircase());
+  static Animated_Staircase _Animated_Staircase; usermods.add(&_Animated_Staircase);
   #endif
 
   #ifdef USERMOD_MULTI_RELAY
-  usermods.add(new MultiRelay());
+  static MultiRelay _MultiRelay; usermods.add(&_MultiRelay);
   #endif
 
   #ifdef USERMOD_RTC
-  usermods.add(new RTCUsermod());
+  static RTCUsermod _RTCUsermod; usermods.add(&_RTCUsermod);
   #endif
 
   #ifdef USERMOD_ELEKSTUBE_IPS
-  usermods.add(new ElekstubeIPSUsermod());
+  static ElekstubeIPSUsermod _ElekstubeIPSUsermod; usermods.add(&_ElekstubeIPSUsermod);
   #endif
 
   #ifdef USERMOD_ROTARY_ENCODER_BRIGHTNESS_COLOR
-  usermods.add(new RotaryEncoderBrightnessColor());
+  static RotaryEncoderBrightnessColor _RotaryEncoderBrightnessColor; usermods.add(&_RotaryEncoderBrightnessColor);
   #endif
 
   #ifdef RGB_ROTARY_ENCODER
-  usermods.add(new RgbRotaryEncoderUsermod());
+  static RgbRotaryEncoderUsermod _RgbRotaryEncoderUsermod; usermods.add(&_RgbRotaryEncoderUsermod);
   #endif
 
   #ifdef USERMOD_ST7789_DISPLAY
-  usermods.add(new St7789DisplayUsermod());
+  static St7789DisplayUsermod _St7789DisplayUsermod; usermods.add(&_St7789DisplayUsermod);
   #endif
 
   #ifdef USERMOD_SEVEN_SEGMENT
-  usermods.add(new SevenSegmentDisplay());
+  static SevenSegmentDisplay _SevenSegmentDisplay; usermods.add(&_SevenSegmentDisplay);
   #endif
 
   #ifdef USERMOD_SSDR
-  usermods.add(new UsermodSSDR());
+  static UsermodSSDR _UsermodSSDR; usermods.add(&_UsermodSSDR);
   #endif
 
   #ifdef USERMOD_CRONIXIE
-  usermods.add(new UsermodCronixie());
+  static UsermodCronixie _UsermodCronixie; usermods.add(&_UsermodCronixie);
   #endif
 
   #ifdef QUINLED_AN_PENTA
-  usermods.add(new QuinLEDAnPentaUsermod());
+  static QuinLEDAnPentaUsermod _QuinLEDAnPentaUsermod; usermods.add(&_QuinLEDAnPentaUsermod);
   #endif
 
   #ifdef USERMOD_WIZLIGHTS
-  usermods.add(new WizLightsUsermod());
+  static WizLightsUsermod _WizLightsUsermod; usermods.add(&_WizLightsUsermod);
   #endif
 
   #ifdef USERMOD_WIREGUARD
-  usermods.add(new WireguardUsermod());
+  static WireguardUsermod _WireguardUsermod; usermods.add(&_WireguardUsermod);
   #endif
 
   #ifdef USERMOD_WORDCLOCK
-  usermods.add(new WordClockUsermod());
+  static WordClockUsermod _WordClockUsermod; usermods.add(&_WordClockUsermod);
   #endif
 
   #ifdef USERMOD_MY9291
-  usermods.add(new MY9291Usermod());
+  static MY9291Usermod _MY9291Usermod; usermods.add(&_MY9291Usermod);
   #endif
 
   #ifdef USERMOD_SI7021_MQTT_HA
-  usermods.add(new Si7021_MQTT_HA());
+  static Si7021_MQTT_HA _Si7021_MQTT_HA; usermods.add(&_Si7021_MQTT_HA);
   #endif
 
   #ifdef USERMOD_SMARTNEST
-  usermods.add(new Smartnest());
+  static Smartnest _Smartnest; usermods.add(&_Smartnest);
   #endif
 
   #ifdef USERMOD_AUDIOREACTIVE
-  usermods.add(new AudioReactive());
+  static AudioReactive _AudioReactive; usermods.add(&_AudioReactive);
   #endif
 
   #ifdef USERMOD_ANALOG_CLOCK
-  usermods.add(new AnalogClockUsermod());
+  static AnalogClockUsermod _AnalogClockUsermod; usermods.add(&_AnalogClockUsermod);
   #endif
 
   #ifdef USERMOD_PING_PONG_CLOCK
-  usermods.add(new PingPongClockUsermod());
+  static PingPongClockUsermod _PingPongClockUsermod; usermods.add(&_PingPongClockUsermod);
   #endif
 
   #ifdef USERMOD_ADS1115
-  usermods.add(new ADS1115Usermod());
+  static ADS1115Usermod _ADS1115Usermod; usermods.add(&_ADS1115Usermod);
   #endif
 
   #ifdef USERMOD_KLIPPER_PERCENTAGE
-  usermods.add(new klipper_percentage());
+  static klipper_percentage _klipper_percentage; usermods.add(&_klipper_percentage);
   #endif
 
   #ifdef USERMOD_BOBLIGHT
-  usermods.add(new BobLightUsermod());
+  static BobLightUsermod _BobLightUsermod; usermods.add(&_BobLightUsermod);
   #endif
 
   #ifdef SD_ADAPTER
-  usermods.add(new UsermodSdCard());
+  static UsermodSdCard _UsermodSdCard; usermods.add(&_UsermodSdCard);
   #endif
 
   #ifdef USERMOD_PWM_OUTPUTS
-  usermods.add(new PwmOutputsUsermod());
+  static PwmOutputsUsermod _PwmOutputsUsermod; usermods.add(&_PwmOutputsUsermod);
   #endif
 
   #ifdef USERMOD_SHT
-  usermods.add(new ShtUsermod());
+  static ShtUsermod _ShtUsermod; usermods.add(&_ShtUsermod);
   #endif
 
   #ifdef USERMOD_INTERNAL_TEMPERATURE
-  usermods.add(new InternalTemperatureUsermod());
+  static InternalTemperatureUsermod _InternalTemperatureUsermod; usermods.add(&_InternalTemperatureUsermod);
   #endif
 }
