@@ -430,7 +430,7 @@ typedef enum UM_SoundSimulations {
   UMS_14_3
 } um_soundSimulations_t;
 
-um_data_t* simulateSound(uint8_t simulationId)
+const um_data_t* simulateSound(uint8_t simulationId)
 {
   static uint8_t samplePeak;
   static float   FFT_MajorPeak;

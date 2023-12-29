@@ -1378,7 +1378,7 @@ class AudioReactive : public Usermod {
     }
 
 
-    bool getUMData(um_data_t **data)
+    bool getUMData(const um_data_t **data)
     {
       if (!enabled) return false; // no pointer provided by caller or not enabled -> exit
       *data = &um_data;

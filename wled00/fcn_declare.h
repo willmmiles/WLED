@@ -285,7 +285,7 @@ class Usermod {
     virtual void loop() = 0;  // pure virtual, has to be overriden
     virtual void handleOverlayDraw() {}                                      // called after all effects have been processed, just before strip.show()
     virtual bool handleButton(uint8_t b) { return false; }                   // button overrides are possible here
-    virtual bool getUMData(um_data_t **data) { if (data) *data = nullptr; return false; }; // usermod data exchange [see examples for audio effects]
+    virtual bool getUMData(const um_data_t **data) { if (data) *data = nullptr; return false; }; // usermod data exchange [see examples for audio effects]
     virtual void connected() {}                                              // called when WiFi is (re)connected
     virtual void appendConfigData() {}                                       // helper function called from usermod settings page to add metadata for entry fields
     virtual void addToJsonState(JsonObject& obj) {}                          // add JSON objects for WLED state
@@ -309,7 +309,7 @@ class UsermodManager {
     void loop();
     void handleOverlayDraw();
     bool handleButton(uint8_t b);
-    bool getUMData(um_data_t **um_data, uint8_t mod_id = USERMOD_ID_RESERVED); // USERMOD_ID_RESERVED will poll all usermods
+    bool getUMData(const um_data_t **um_data, uint8_t mod_id = USERMOD_ID_RESERVED); // USERMOD_ID_RESERVED will poll all usermods
     void setup();
     void connected();
     void appendConfigData();
@@ -354,7 +354,7 @@ uint8_t extractModeSlider(uint8_t mode, uint8_t slider, char *dest, uint8_t maxL
 int16_t extractModeDefaults(uint8_t mode, const char *segVar);
 void checkSettingsPIN(const char *pin);
 uint16_t crc16(const unsigned char* data_p, size_t length);
-um_data_t* simulateSound(uint8_t simulationId);
+const um_data_t* simulateSound(uint8_t simulationId);
 void enumerateLedmaps();
 uint8_t get_random_wheel_index(uint8_t pos);
 
