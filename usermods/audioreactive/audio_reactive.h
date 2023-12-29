@@ -660,6 +660,9 @@ class AudioReactive : public Usermod {
     static const char UDP_SYNC_HEADER[];
     static const char UDP_SYNC_HEADER_v1[];
 
+    // data export structure
+    um_data_t um_data;
+
     // private methods
     void removeAudioPalettes(void);
     void createAudioPalettes(void);
@@ -1100,26 +1103,26 @@ class AudioReactive : public Usermod {
       if (!initDone) {
         // usermod exchangeable data
         // we will assign all usermod exportable data here as pointers to original variables or arrays and allocate memory for pointers
-        um_data = new um_data_t;
-        um_data->u_size = 8;
-        um_data->u_type = new um_types_t[um_data->u_size];
-        um_data->u_data = new void*[um_data->u_size];
-        um_data->u_data[0] = &volumeSmth;      //*used (New)
-        um_data->u_type[0] = UMT_FLOAT;
-        um_data->u_data[1] = &volumeRaw;      // used (New)
-        um_data->u_type[1] = UMT_UINT16;
-        um_data->u_data[2] = fftResult;        //*used (Blurz, DJ Light, Noisemove, GEQ_base, 2D Funky Plank, Akemi)
-        um_data->u_type[2] = UMT_BYTE_ARR;
-        um_data->u_data[3] = &samplePeak;      //*used (Puddlepeak, Ripplepeak, Waterfall)
-        um_data->u_type[3] = UMT_BYTE;
-        um_data->u_data[4] = &FFT_MajorPeak;   //*used (Ripplepeak, Freqmap, Freqmatrix, Freqpixels, Freqwave, Gravfreq, Rocktaves, Waterfall)
-        um_data->u_type[4] = UMT_FLOAT;
-        um_data->u_data[5] = &my_magnitude;   // used (New)
-        um_data->u_type[5] = UMT_FLOAT;
-        um_data->u_data[6] = &maxVol;          // assigned in effect function from UI element!!! (Puddlepeak, Ripplepeak, Waterfall)
-        um_data->u_type[6] = UMT_BYTE;
-        um_data->u_data[7] = &binNum;          // assigned in effect function from UI element!!! (Puddlepeak, Ripplepeak, Waterfall)
-        um_data->u_type[7] = UMT_BYTE;
+        if (um_data.u_type == nullptr) {
+          um_data.u_type = new um_types_t[um_data.u_size];
+          um_data.u_data = new void*[um_data.u_size];
+          um_data.u_data[0] = &volumeSmth;      //*used (New)
+          um_data.u_type[0] = UMT_FLOAT;
+          um_data.u_data[1] = &volumeRaw;      // used (New)
+          um_data.u_type[1] = UMT_UINT16;
+          um_data.u_data[2] = fftResult;        //*used (Blurz, DJ Light, Noisemove, GEQ_base, 2D Funky Plank, Akemi)
+          um_data.u_type[2] = UMT_BYTE_ARR;
+          um_data.u_data[3] = &samplePeak;      //*used (Puddlepeak, Ripplepeak, Waterfall)
+          um_data.u_type[3] = UMT_BYTE;
+          um_data.u_data[4] = &FFT_MajorPeak;   //*used (Ripplepeak, Freqmap, Freqmatrix, Freqpixels, Freqwave, Gravfreq, Rocktaves, Waterfall)
+          um_data.u_type[4] = UMT_FLOAT;
+          um_data.u_data[5] = &my_magnitude;   // used (New)
+          um_data.u_type[5] = UMT_FLOAT;
+          um_data.u_data[6] = &maxVol;          // assigned in effect function from UI element!!! (Puddlepeak, Ripplepeak, Waterfall)
+          um_data.u_type[6] = UMT_BYTE;
+          um_data.u_data[7] = &binNum;          // assigned in effect function from UI element!!! (Puddlepeak, Ripplepeak, Waterfall)
+          um_data.u_type[7] = UMT_BYTE;
+        }
       }
 
       // Reset I2S peripheral for good measure
@@ -1377,8 +1380,8 @@ class AudioReactive : public Usermod {
 
     bool getUMData(um_data_t **data)
     {
-      if (!data || !enabled) return false; // no pointer provided by caller or not enabled -> exit
-      *data = um_data;
+      if (!enabled) return false; // no pointer provided by caller or not enabled -> exit
+      *data = &um_data;
       return true;
     }
 

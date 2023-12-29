@@ -278,11 +278,9 @@ struct um_data_t {
 const unsigned int um_data_size = sizeof(um_data_t);  // 12 bytes
 
 class Usermod {
-  protected:
-    um_data_t *um_data; // um_data should be allocated using new in (derived) Usermod's setup() or constructor
   public:
-    Usermod() { um_data = nullptr; }
-    virtual ~Usermod() { if (um_data) delete um_data; }
+    Usermod() {}
+    virtual ~Usermod() {}
     virtual void setup() = 0; // pure virtual, has to be overriden
     virtual void loop() = 0;  // pure virtual, has to be overriden
     virtual void handleOverlayDraw() {}                                      // called after all effects have been processed, just before strip.show()
