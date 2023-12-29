@@ -263,19 +263,9 @@ typedef enum UM_Data_Types {
 struct um_data_t {
   // should just use: size_t arr_size, void **arr_ptr, byte *ptr_type
   size_t       u_size;                 // size of u_data array
-  um_types_t  *u_type;                 // array of data types
-  void       **u_data;                 // array of pointers to data
-  um_data_t() {
-    u_size = 0;
-    u_type = nullptr;
-    u_data = nullptr;
-  }
-  ~um_data_t() {
-    if (u_type) delete[] u_type;
-    if (u_data) delete[] u_data;
-  }
+  const um_types_t  *u_type;                 // array of data types
+  const void       **u_data;                 // array of pointers to data
 };
-const unsigned int um_data_size = sizeof(um_data_t);  // 12 bytes
 
 class Usermod {
   public:

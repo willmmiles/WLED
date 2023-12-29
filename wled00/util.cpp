@@ -1,7 +1,7 @@
 #include "wled.h"
 #include "fcn_declare.h"
 #include "const.h"
-
+#include "../usermods/audioreactive/audio_reactive_userdata.h"  // for simulateSound
 
 //helper to get int value at a position in string
 int getNumVal(const String* req, uint16_t pos)
@@ -442,33 +442,9 @@ const um_data_t* simulateSound(uint8_t simulationId)
   static float    my_magnitude;
 
   //arrays
-  uint8_t *fftResult;
-
-  static um_data_t* um_data = nullptr;
-
-  if (!um_data) {
-    //claim storage for arrays
-    fftResult = (uint8_t *)malloc(sizeof(uint8_t) * 16);
-
-    // initialize um_data pointer structure
-    // NOTE!!!
-    // This may change as AudioReactive usermod may change
-    um_data = new um_data_t;
-    um_data->u_size = 8;
-    um_data->u_type = new um_types_t[um_data->u_size];
-    um_data->u_data = new void*[um_data->u_size];
-    um_data->u_data[0] = &volumeSmth;
-    um_data->u_data[1] = &volumeRaw;
-    um_data->u_data[2] = fftResult;
-    um_data->u_data[3] = &samplePeak;
-    um_data->u_data[4] = &FFT_MajorPeak;
-    um_data->u_data[5] = &my_magnitude;
-    um_data->u_data[6] = &maxVol;
-    um_data->u_data[7] = &binNum;
-  } else {
-    // get arrays from um_data
-    fftResult =  (uint8_t*)um_data->u_data[2];
-  }
+  static uint8_t fftResult[16];
+  static const void* u_data[] = { &volumeSmth, &volumeRaw, fftResult, &samplePeak, &FFT_MajorPeak, &my_magnitude, &maxVol,  &binNum };
+  static um_data_t um_data = { 8, audioreactive_um_types, u_data };
 
   uint32_t ms = millis();
 
@@ -532,7 +508,7 @@ const um_data_t* simulateSound(uint8_t simulationId)
   my_magnitude = 10000.0f / 8.0f; //no idea if 10000 is a good value for FFT_Magnitude ???
   if (volumeSmth < 1 ) my_magnitude = 0.001f;             // noise gate closed - mute
 
-  return um_data;
+  return &um_data;
 }
 
 
@@ -596,3 +572,5 @@ uint8_t get_random_wheel_index(uint8_t pos) {
   }
   return r;
 }
+
+const um_types_t audioreactive_um_types[8] PROGMEM = { UMT_FLOAT, UMT_UINT16, UMT_BYTE_ARR, UMT_BYTE, UMT_FLOAT, UMT_FLOAT, UMT_BYTE, UMT_BYTE};
