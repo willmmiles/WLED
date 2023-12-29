@@ -27,6 +27,7 @@
 #include "wled.h"
 #include "FX.h"
 #include "fcn_declare.h"
+#include "../usermods/audioreactive/audio_reactive_userdata.h"   // getAudioData
 
 #define IBN 5100
 
@@ -6143,21 +6144,17 @@ static const char _data_FX_MODE_2DDRIFTROSE[] PROGMEM = "Drift Rose@Fade,Blur;;;
   float     FFT_MajorPeak = 1.0;
   uint8_t  *fftResult = nullptr;
   float    *fftBin = nullptr;
-  const const um_data_t *um_data;
-  if (usermods.getUMData(&um_data, USERMOD_ID_AUDIOREACTIVE)) {
-    volumeSmth    = *(float*)   um_data->u_data[0];
-    volumeRaw     = *(float*)   um_data->u_data[1];
-    fftResult     =  (uint8_t*) um_data->u_data[2];
-    samplePeak    = *(uint8_t*) um_data->u_data[3];
-    FFT_MajorPeak = *(float*)   um_data->u_data[4];
-    my_magnitude  = *(float*)   um_data->u_data[5];
-    maxVol        =  (uint8_t*) um_data->u_data[6];  // requires UI element (SEGMENT.customX?), changes source element
-    binNum        =  (uint8_t*) um_data->u_data[7];  // requires UI element (SEGMENT.customX?), changes source element
-    fftBin        =  (float*)   um_data->u_data[8];
-  } else {
-    // add support for no audio data
-    um_data = simulateSound(SEGMENT.soundSim);
-  }
+  const const um_data_t *um_data = getAudioData();
+
+  volumeSmth    = *(float*)   um_data->u_data[0];
+  volumeRaw     = *(float*)   um_data->u_data[1];
+  fftResult     =  (uint8_t*) um_data->u_data[2];
+  samplePeak    = *(uint8_t*) um_data->u_data[3];
+  FFT_MajorPeak = *(float*)   um_data->u_data[4];
+  my_magnitude  = *(float*)   um_data->u_data[5];
+  maxVol        =  (uint8_t*) um_data->u_data[6];  // requires UI element (SEGMENT.customX?), changes source element
+  binNum        =  (uint8_t*) um_data->u_data[7];  // requires UI element (SEGMENT.customX?), changes source element
+  fftBin        =  (float*)   um_data->u_data[8];
 */
 
 
@@ -6188,11 +6185,8 @@ uint16_t mode_ripplepeak(void) {                // * Ripple peak. By Andrew Tuli
   if (!SEGENV.allocateData(dataSize)) return mode_static(); //allocation failed
   Ripple* ripples = reinterpret_cast<Ripple*>(SEGENV.data);
 
-  const um_data_t *um_data;
-  if (!usermods.getUMData(&um_data, USERMOD_ID_AUDIOREACTIVE)) {
-    // add support for no audio
-    um_data = simulateSound(SEGMENT.soundSim);
-  }
+  const um_data_t *um_data = getAudioData();
+
   uint8_t samplePeak    = *(uint8_t*)um_data->u_data[3];
   #ifdef ESP32
   float   FFT_MajorPeak = *(float*)  um_data->u_data[4];
@@ -6280,11 +6274,8 @@ uint16_t mode_2DSwirl(void) {
   uint8_t nj = (cols - 1) - j;
   uint16_t ms = millis();
 
-  const um_data_t *um_data;
-  if (!usermods.getUMData(&um_data, USERMOD_ID_AUDIOREACTIVE)) {
-    // add support for no audio
-    um_data = simulateSound(SEGMENT.soundSim);
-  }
+  const um_data_t *um_data = getAudioData();
+  
   float   volumeSmth  = *(float*)   um_data->u_data[0]; //ewowi: use instead of sampleAvg???
   int16_t volumeRaw   = *(int16_t*) um_data->u_data[1];
 
@@ -6310,11 +6301,8 @@ uint16_t mode_2DWaverly(void) {
   const uint16_t cols = SEGMENT.virtualWidth();
   const uint16_t rows = SEGMENT.virtualHeight();
 
-  const um_data_t *um_data;
-  if (!usermods.getUMData(&um_data, USERMOD_ID_AUDIOREACTIVE)) {
-    // add support for no audio
-    um_data = simulateSound(SEGMENT.soundSim);
-  }
+  const um_data_t *um_data = getAudioData();
+  
   float   volumeSmth  = *(float*)   um_data->u_data[0];
 
   SEGMENT.fadeToBlackBy(SEGMENT.speed);
@@ -6363,11 +6351,8 @@ uint16_t mode_gravcenter(void) {                // Gravcenter. By Andrew Tuline.
   if (!SEGENV.allocateData(dataSize)) return mode_static(); //allocation failed
   Gravity* gravcen = reinterpret_cast<Gravity*>(SEGENV.data);
 
-  const um_data_t *um_data;
-  if (!usermods.getUMData(&um_data, USERMOD_ID_AUDIOREACTIVE)) {
-    // add support for no audio
-    um_data = simulateSound(SEGMENT.soundSim);
-  }
+  const um_data_t *um_data = getAudioData();
+  
   float   volumeSmth  = *(float*)  um_data->u_data[0];
 
   //SEGMENT.fade_out(240);
@@ -6412,11 +6397,8 @@ uint16_t mode_gravcentric(void) {                     // Gravcentric. By Andrew 
   if (!SEGENV.allocateData(dataSize)) return mode_static();     //allocation failed
   Gravity* gravcen = reinterpret_cast<Gravity*>(SEGENV.data);
 
-  const um_data_t *um_data;
-  if (!usermods.getUMData(&um_data, USERMOD_ID_AUDIOREACTIVE)) {
-    // add support for no audio
-    um_data = simulateSound(SEGMENT.soundSim);
-  }
+  const um_data_t *um_data = getAudioData();
+
   float   volumeSmth  = *(float*)  um_data->u_data[0];
 
   // printUmData();
@@ -6464,11 +6446,8 @@ uint16_t mode_gravimeter(void) {                // Gravmeter. By Andrew Tuline.
   if (!SEGENV.allocateData(dataSize)) return mode_static(); //allocation failed
   Gravity* gravcen = reinterpret_cast<Gravity*>(SEGENV.data);
 
-  const um_data_t *um_data;
-  if (!usermods.getUMData(&um_data, USERMOD_ID_AUDIOREACTIVE)) {
-    // add support for no audio
-    um_data = simulateSound(SEGMENT.soundSim);
-  }
+  const um_data_t *um_data = getAudioData();
+
   float   volumeSmth  = *(float*)  um_data->u_data[0];
 
   //SEGMENT.fade_out(240);
@@ -6506,11 +6485,7 @@ static const char _data_FX_MODE_GRAVIMETER[] PROGMEM = "Gravimeter@Rate of fall,
 //////////////////////
 uint16_t mode_juggles(void) {                   // Juggles. By Andrew Tuline.
   if (SEGLEN == 1) return mode_static();
-  const um_data_t *um_data;
-  if (!usermods.getUMData(&um_data, USERMOD_ID_AUDIOREACTIVE)) {
-    // add support for no audio
-    um_data = simulateSound(SEGMENT.soundSim);
-  }
+  const um_data_t *um_data = getAudioData();
   float   volumeSmth   = *(float*)  um_data->u_data[0];
 
   SEGMENT.fade_out(224); // 6.25%
@@ -6532,11 +6507,7 @@ uint16_t mode_matripix(void) {                  // Matripix. By Andrew Tuline.
   if (SEGLEN == 1) return mode_static();
   // even with 1D effect we have to take logic for 2D segments for allocation as fill_solid() fills whole segment
 
-  const um_data_t *um_data;
-  if (!usermods.getUMData(&um_data, USERMOD_ID_AUDIOREACTIVE)) {
-    // add support for no audio
-    um_data = simulateSound(SEGMENT.soundSim);
-  }
+  const um_data_t *um_data = getAudioData();
   int16_t volumeRaw    = *(int16_t*)um_data->u_data[1];
 
   if (SEGENV.call == 0) {
@@ -6564,11 +6535,7 @@ uint16_t mode_midnoise(void) {                  // Midnoise. By Andrew Tuline.
   if (SEGLEN == 1) return mode_static();
 // Changing xdist to SEGENV.aux0 and ydist to SEGENV.aux1.
 
-  const um_data_t *um_data;
-  if (!usermods.getUMData(&um_data, USERMOD_ID_AUDIOREACTIVE)) {
-    // add support for no audio
-    um_data = simulateSound(SEGMENT.soundSim);
-  }
+  const um_data_t *um_data = getAudioData();
   float   volumeSmth   = *(float*)  um_data->u_data[0];
 
   SEGMENT.fade_out(SEGMENT.speed);
@@ -6603,11 +6570,7 @@ uint16_t mode_noisefire(void) {                 // Noisefire. By Andrew Tuline.
                                       CRGB::DarkOrange, CRGB::DarkOrange, CRGB::Orange,  CRGB::Orange,
                                       CRGB::Yellow,     CRGB::Orange,     CRGB::Yellow,  CRGB::Yellow);
 
-  const um_data_t *um_data;
-  if (!usermods.getUMData(&um_data, USERMOD_ID_AUDIOREACTIVE)) {
-    // add support for no audio
-    um_data = simulateSound(SEGMENT.soundSim);
-  }
+  const um_data_t *um_data = getAudioData();
   float   volumeSmth   = *(float*)  um_data->u_data[0];
 
   if (SEGENV.call == 0) SEGMENT.fill(BLACK);
@@ -6631,11 +6594,7 @@ static const char _data_FX_MODE_NOISEFIRE[] PROGMEM = "Noisefire@!,!;;;1v;m12=2,
 ///////////////////////
 uint16_t mode_noisemeter(void) {                // Noisemeter. By Andrew Tuline.
 
-  const um_data_t *um_data;
-  if (!usermods.getUMData(&um_data, USERMOD_ID_AUDIOREACTIVE)) {
-    // add support for no audio
-    um_data = simulateSound(SEGMENT.soundSim);
-  }
+  const um_data_t *um_data = getAudioData();
   float   volumeSmth   = *(float*)  um_data->u_data[0];
   int16_t volumeRaw    = *(int16_t*)um_data->u_data[1];
 
@@ -6672,11 +6631,7 @@ uint16_t mode_pixelwave(void) {                 // Pixelwave. By Andrew Tuline.
     SEGMENT.fill(BLACK);
   }
 
-  const um_data_t *um_data;
-  if (!usermods.getUMData(&um_data, USERMOD_ID_AUDIOREACTIVE)) {
-    // add support for no audio
-    um_data = simulateSound(SEGMENT.soundSim);
-  }
+const um_data_t *um_data = getAudioData();
   int16_t volumeRaw    = *(int16_t*)um_data->u_data[1];
 
   uint8_t secondHand = micros()/(256-SEGMENT.speed)/500+1 % 16;
@@ -6708,11 +6663,7 @@ uint16_t mode_plasmoid(void) {                  // Plasmoid. By Andrew Tuline.
   if (!SEGENV.allocateData(sizeof(plasphase))) return mode_static(); //allocation failed
   Plasphase* plasmoip = reinterpret_cast<Plasphase*>(SEGENV.data);
 
-  const um_data_t *um_data;
-  if (!usermods.getUMData(&um_data, USERMOD_ID_AUDIOREACTIVE)) {
-    // add support for no audio
-    um_data = simulateSound(SEGMENT.soundSim);
-  }
+  const um_data_t *um_data = getAudioData();
   float   volumeSmth   = *(float*)  um_data->u_data[0];
 
   SEGMENT.fadeToBlackBy(32);
@@ -6747,11 +6698,7 @@ uint16_t mode_puddlepeak(void) {                // Puddlepeak. By Andrew Tuline.
   uint8_t fadeVal = map(SEGMENT.speed,0,255, 224, 254);
   uint16_t pos = random16(SEGLEN);                        // Set a random starting position.
 
-  const um_data_t *um_data;
-  if (!usermods.getUMData(&um_data, USERMOD_ID_AUDIOREACTIVE)) {
-    // add support for no audio
-    um_data = simulateSound(SEGMENT.soundSim);
-  }
+  const um_data_t *um_data = getAudioData();
   uint8_t samplePeak = *(uint8_t*)um_data->u_data[3];
   uint8_t *maxVol    =  (uint8_t*)um_data->u_data[6];
   uint8_t *binNum    =  (uint8_t*)um_data->u_data[7];
@@ -6792,11 +6739,7 @@ uint16_t mode_puddles(void) {                   // Puddles. By Andrew Tuline.
 
   SEGMENT.fade_out(fadeVal);
 
-  const um_data_t *um_data;
-  if (!usermods.getUMData(&um_data, USERMOD_ID_AUDIOREACTIVE)) {
-    // add support for no audio
-    um_data = simulateSound(SEGMENT.soundSim);
-  }
+const um_data_t *um_data = getAudioData();
   int16_t volumeRaw    = *(int16_t*)um_data->u_data[1];
 
   if (volumeRaw > 1) {
@@ -6822,10 +6765,7 @@ uint16_t mode_pixels(void) {                    // Pixels. By Andrew Tuline.
   if (!SEGENV.allocateData(32*sizeof(uint8_t))) return mode_static(); //allocation failed
   uint8_t *myVals = reinterpret_cast<uint8_t*>(SEGENV.data); // Used to store a pile of samples because WLED frame rate and WLED sample rate are not synchronized. Frame rate is too low.
 
-  const um_data_t *um_data;
-  if (!usermods.getUMData(&um_data, USERMOD_ID_AUDIOREACTIVE)) {
-    um_data = simulateSound(SEGMENT.soundSim);
-  }
+  const um_data_t *um_data = getAudioData();
   float   volumeSmth   = *(float*)  um_data->u_data[0];
 
   myVals[millis()%32] = volumeSmth;    // filling values semi randomly
@@ -6854,11 +6794,7 @@ uint16_t mode_blurz(void) {                    // Blurz. By Andrew Tuline.
   if (SEGLEN == 1) return mode_static();
   // even with 1D effect we have to take logic for 2D segments for allocation as fill_solid() fills whole segment
 
-  const um_data_t *um_data;
-  if (!usermods.getUMData(&um_data, USERMOD_ID_AUDIOREACTIVE)) {
-    // add support for no audio
-    um_data = simulateSound(SEGMENT.soundSim);
-  }
+const um_data_t *um_data = getAudioData();
   uint8_t *fftResult = (uint8_t*)um_data->u_data[2];
 
   if (SEGENV.call == 0) {
@@ -6891,11 +6827,7 @@ uint16_t mode_DJLight(void) {                   // Written by ??? Adapted by Wil
   if (SEGLEN == 1) return mode_static();
   const int mid = SEGLEN / 2;
 
-  const um_data_t *um_data;
-  if (!usermods.getUMData(&um_data, USERMOD_ID_AUDIOREACTIVE)) {
-    // add support for no audio
-    um_data = simulateSound(SEGMENT.soundSim);
-  }
+const um_data_t *um_data = getAudioData();
   uint8_t *fftResult = (uint8_t*)um_data->u_data[2];
 
   if (SEGENV.call == 0) {
@@ -6926,11 +6858,7 @@ uint16_t mode_freqmap(void) {                   // Map FFT_MajorPeak to SEGLEN. 
   // Start frequency = 60 Hz and log10(60) = 1.78
   // End frequency = MAX_FREQUENCY in Hz and lo10(MAX_FREQUENCY) = MAX_FREQ_LOG10
 
-  const um_data_t *um_data;
-  if (!usermods.getUMData(&um_data, USERMOD_ID_AUDIOREACTIVE)) {
-    // add support for no audio
-    um_data = simulateSound(SEGMENT.soundSim);
-  }
+const um_data_t *um_data = getAudioData();
   float FFT_MajorPeak = *(float*)um_data->u_data[4];
   float my_magnitude  = *(float*)um_data->u_data[5] / 4.0f;
   if (FFT_MajorPeak < 1) FFT_MajorPeak = 1;                                         // log10(0) is "forbidden" (throws exception)
@@ -6960,11 +6888,7 @@ static const char _data_FX_MODE_FREQMAP[] PROGMEM = "Freqmap@Fade rate,Starting 
 ///////////////////////
 uint16_t mode_freqmatrix(void) {                // Freqmatrix. By Andreas Pleschung.
   if (SEGLEN == 1) return mode_static();
-  const um_data_t *um_data;
-  if (!usermods.getUMData(&um_data, USERMOD_ID_AUDIOREACTIVE)) {
-    // add support for no audio
-    um_data = simulateSound(SEGMENT.soundSim);
-  }
+const um_data_t *um_data = getAudioData();
   float FFT_MajorPeak = *(float*)um_data->u_data[4];
   float volumeSmth    = *(float*)um_data->u_data[0];
 
@@ -7018,11 +6942,7 @@ static const char _data_FX_MODE_FREQMATRIX[] PROGMEM = "Freqmatrix@Speed,Sound e
 //  SEGMENT.speed select faderate
 //  SEGMENT.intensity select colour index
 uint16_t mode_freqpixels(void) {                // Freqpixel. By Andrew Tuline.
-  const um_data_t *um_data;
-  if (!usermods.getUMData(&um_data, USERMOD_ID_AUDIOREACTIVE)) {
-    // add support for no audio
-    um_data = simulateSound(SEGMENT.soundSim);
-  }
+const um_data_t *um_data = getAudioData();
   float FFT_MajorPeak = *(float*)um_data->u_data[4];
   float my_magnitude  = *(float*)um_data->u_data[5] / 16.0f;
   if (FFT_MajorPeak < 1) FFT_MajorPeak = 1.0f; // log10(0) is "forbidden" (throws exception)
@@ -7065,11 +6985,7 @@ static const char _data_FX_MODE_FREQPIXELS[] PROGMEM = "Freqpixels@Fade rate,Sta
 // Depending on the music stream you have you might find it useful to change the frequency mapping.
 uint16_t mode_freqwave(void) {                  // Freqwave. By Andreas Pleschung.
   if (SEGLEN == 1) return mode_static();
-  const um_data_t *um_data;
-  if (!usermods.getUMData(&um_data, USERMOD_ID_AUDIOREACTIVE)) {
-    // add support for no audio
-    um_data = simulateSound(SEGMENT.soundSim);
-  }
+const um_data_t *um_data = getAudioData();
   float FFT_MajorPeak = *(float*)um_data->u_data[4];
   float volumeSmth    = *(float*)um_data->u_data[0];
 
@@ -7126,11 +7042,7 @@ uint16_t mode_gravfreq(void) {                  // Gravfreq. By Andrew Tuline.
   if (!SEGENV.allocateData(dataSize)) return mode_static(); //allocation failed
   Gravity* gravcen = reinterpret_cast<Gravity*>(SEGENV.data);
 
-  const um_data_t *um_data;
-  if (!usermods.getUMData(&um_data, USERMOD_ID_AUDIOREACTIVE)) {
-    // add support for no audio
-    um_data = simulateSound(SEGMENT.soundSim);
-  }
+const um_data_t *um_data = getAudioData();
   float   FFT_MajorPeak = *(float*)um_data->u_data[4];
   float   volumeSmth    = *(float*)um_data->u_data[0];
   if (FFT_MajorPeak < 1) FFT_MajorPeak = 1;                                         // log10(0) is "forbidden" (throws exception)
@@ -7174,11 +7086,7 @@ static const char _data_FX_MODE_GRAVFREQ[] PROGMEM = "Gravfreq@Rate of fall,Sens
 //////////////////////
 uint16_t mode_noisemove(void) {                 // Noisemove.    By: Andrew Tuline
   if (SEGLEN == 1) return mode_static();
-  const um_data_t *um_data;
-  if (!usermods.getUMData(&um_data, USERMOD_ID_AUDIOREACTIVE)) {
-    // add support for no audio
-    um_data = simulateSound(SEGMENT.soundSim);
-  }
+const um_data_t *um_data = getAudioData();
   uint8_t *fftResult = (uint8_t*)um_data->u_data[2];
 
   int fadeoutDelay = (256 - SEGMENT.speed) / 96;
@@ -7201,11 +7109,7 @@ static const char _data_FX_MODE_NOISEMOVE[] PROGMEM = "Noisemove@Speed of perlin
 //////////////////////
 uint16_t mode_rocktaves(void) {                 // Rocktaves. Same note from each octave is same colour.    By: Andrew Tuline
   if (SEGLEN == 1) return mode_static();
-  const um_data_t *um_data;
-  if (!usermods.getUMData(&um_data, USERMOD_ID_AUDIOREACTIVE)) {
-    // add support for no audio
-    um_data = simulateSound(SEGMENT.soundSim);
-  }
+const um_data_t *um_data = getAudioData();
   float   FFT_MajorPeak = *(float*)  um_data->u_data[4];
   float   my_magnitude  = *(float*)   um_data->u_data[5] / 16.0f;
 
@@ -7243,11 +7147,7 @@ static const char _data_FX_MODE_ROCKTAVES[] PROGMEM = "Rocktaves@;!,!;!;1f;m12=1
 uint16_t mode_waterfall(void) {                   // Waterfall. By: Andrew Tuline
   if (SEGLEN == 1) return mode_static();
 
-  const um_data_t *um_data;
-  if (!usermods.getUMData(&um_data, USERMOD_ID_AUDIOREACTIVE)) {
-    // add support for no audio
-    um_data = simulateSound(SEGMENT.soundSim);
-  }
+const um_data_t *um_data = getAudioData();
   uint8_t samplePeak    = *(uint8_t*)um_data->u_data[3];
   float   FFT_MajorPeak = *(float*)  um_data->u_data[4];
   uint8_t *maxVol       =  (uint8_t*)um_data->u_data[6];
@@ -7301,11 +7201,7 @@ uint16_t mode_2DGEQ(void) { // By Will Tatam. Code reduction by Ewoud Wijma.
   if (!SEGENV.allocateData(cols*sizeof(uint16_t))) return mode_static(); //allocation failed
   uint16_t *previousBarHeight = reinterpret_cast<uint16_t*>(SEGENV.data); //array of previous bar heights per frequency band
 
-  const um_data_t *um_data;
-  if (!usermods.getUMData(&um_data, USERMOD_ID_AUDIOREACTIVE)) {
-    // add support for no audio
-    um_data = simulateSound(SEGMENT.soundSim);
-  }
+const um_data_t *um_data = getAudioData();
   uint8_t *fftResult = (uint8_t*)um_data->u_data[2];
 
   if (SEGENV.call == 0) for (int i=0; i<cols; i++) previousBarHeight[i] = 0;
@@ -7364,11 +7260,7 @@ uint16_t mode_2DFunkyPlank(void) {              // Written by ??? Adapted by Wil
     bandInc = (NUMB_BANDS / cols);
   }
 
-  const um_data_t *um_data;
-  if (!usermods.getUMData(&um_data, USERMOD_ID_AUDIOREACTIVE)) {
-    // add support for no audio
-    um_data = simulateSound(SEGMENT.soundSim);
-  }
+const um_data_t *um_data = getAudioData();
   uint8_t *fftResult = (uint8_t*)um_data->u_data[2];
 
   if (SEGENV.call == 0) {
@@ -7453,10 +7345,7 @@ uint16_t mode_2DAkemi(void) {
   const float lightFactor  = 0.15f;
   const float normalFactor = 0.4f;
 
-  const um_data_t *um_data;
-  if (!usermods.getUMData(&um_data, USERMOD_ID_AUDIOREACTIVE)) {
-    um_data = simulateSound(SEGMENT.soundSim);
-  }
+  const um_data_t *um_data = getAudioData();
   uint8_t *fftResult = (uint8_t*)um_data->u_data[2];
   float base = fftResult[0]/255.0f;
 
