@@ -1677,7 +1677,17 @@ bool WS2812FX::deserializeMap(uint8_t n) {
   JsonObject root = pDoc->as<JsonObject>();
   JsonArray map = root[F("map")];
   if (!map.isNull() && map.size()) {  // not an empty map
-    customMappingSize = min((unsigned)map.size(), (unsigned)getLengthTotal());
+    // Ensure no map entry calls for an invalid index
+    auto length = min((unsigned)map.size(), (unsigned)getLengthTotal());
+    for (int entry: map) {
+      if (entry > length) {
+        DEBUG_PRINT(F("ERROR Invalid ledmap index (past possible segment length) in ")); DEBUG_PRINTLN(fileName);
+        releaseJSONBufferLock();
+        return false;
+      }
+    }
+
+    customMappingSize = length;
     for (unsigned i=0; i<customMappingSize; i++) customMappingTable[i] = (uint16_t) (map[i]<0 ? 0xFFFFU : map[i]);
   }
 
