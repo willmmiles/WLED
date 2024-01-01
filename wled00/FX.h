@@ -27,9 +27,13 @@
 #ifndef WS2812FX_h
 #define WS2812FX_h
 
+#include <string>
 #include <vector>
 
 #include "const.h"
+#include "counted_allocator.h"
+#include "dynamic_buffer.h"
+#include "non_copy_ptr.h"
 
 #define FASTLED_INTERNAL //remove annoying pragma messages
 #define USE_GET_MILLISECOND_TIMER
@@ -328,80 +332,96 @@ typedef enum mapping1D2D {
   M12_pCorner = 3
 } mapping1D2D_t;
 
+
+struct segment_buffer_tag {
+  static constexpr size_t pool_size = MAX_SEGMENT_DATA;
+#ifdef WLED_DEBUG   
+  static void debug(size_t alloc, bool is_allocate, size_t available);
+#endif
+};
+
+// Effect state information
+struct effect_state_t {
+  // Config
+  union {
+    uint16_t options; //bit pattern: msb first: [transposed mirrorY reverseY] paused needspixelstate mirrored on reverse selected
+    struct {
+      bool    selected    : 1;  //     0 : selected
+      bool    reverse     : 1;  //     1 : reversed
+      bool    on          : 1;  //     2 : is On
+      bool    mirror      : 1;  //     3 : mirrored
+      bool    freeze      : 1;  //     4 : paused/frozen
+      bool    reset       : 1;  //     5 : indicates that Segment runtime requires reset
+      bool    reverse_y   : 1;  //     6 : reversed Y (2D)
+      bool    mirror_y    : 1;  //     7 : mirrored Y (2D)
+      bool    transpose   : 1;  //     8 : transposed (2D, swapped X & Y)
+      uint8_t map1D2D     : 3;  //  9-11 : mapping for 1D effect on 2D (0-use as strip, 1-expand vertically, 2-circular/arc, 3-rectangular/corner, ...)
+      uint8_t soundSim    : 2;  // 12-13 : 0-3 sound simulation types ("soft" & "hard" or "on"/"off")
+      uint8_t set         : 2;  // 14-15 : 0-3 UI segment sets/groups
+    };
+  };
+  uint8_t  mode;  
+  uint8_t  opacity;
+  uint32_t colors[NUM_COLORS];  
+  uint8_t  palette;
+  uint8_t  cct;  
+  uint8_t  speed;
+  uint8_t  intensity;
+  uint8_t  custom1, custom2;   // custom FX parameters/sliders
+  struct {
+    uint8_t custom3 : 5;        // reduced range slider (0-31)
+    bool    check1  : 1;        // checkmark 1
+    bool    check2  : 1;        // checkmark 2
+    bool    check3  : 1;        // checkmark 3
+  };
+
+  // State
+  uint16_t aux0;
+  uint16_t aux1;
+  uint32_t step;
+  uint32_t call;
+  dynamic_buffer<uint8_t, counted_allocator<uint8_t, segment_buffer_tag>> data;
+
+  effect_state_t() :
+      options(SELECTED | SEGMENT_ON),
+      mode(DEFAULT_MODE),
+      opacity(255),
+      colors{DEFAULT_COLOR,BLACK,BLACK},
+      palette(0),
+      cct(127),
+      speed(DEFAULT_SPEED),
+      intensity(DEFAULT_INTENSITY),
+      custom1(DEFAULT_C1),
+      custom2(DEFAULT_C2),
+      custom3(DEFAULT_C3),
+      check1(false),
+      check2(false),
+      check3(false),
+      aux0(0),
+      aux1(0),
+      step(0),
+      call(0)
+    {};
+};
+
+
 // segment, 80 bytes
-typedef struct Segment {
+typedef struct Segment : effect_state_t {
   public:
     uint16_t start; // start index / start X coordinate 2D (left)
     uint16_t stop;  // stop index / stop X coordinate 2D (right); segment is invalid if stop == 0
     uint16_t offset;
-    uint8_t  speed;
-    uint8_t  intensity;
-    uint8_t  palette;
-    uint8_t  mode;
-    union {
-      uint16_t options; //bit pattern: msb first: [transposed mirrorY reverseY] transitional (tbd) paused needspixelstate mirrored on reverse selected
-      struct {
-        bool    selected    : 1;  //     0 : selected
-        bool    reverse     : 1;  //     1 : reversed
-        bool    on          : 1;  //     2 : is On
-        bool    mirror      : 1;  //     3 : mirrored
-        bool    freeze      : 1;  //     4 : paused/frozen
-        bool    reset       : 1;  //     5 : indicates that Segment runtime requires reset
-        bool    reverse_y   : 1;  //     6 : reversed Y (2D)
-        bool    mirror_y    : 1;  //     7 : mirrored Y (2D)
-        bool    transpose   : 1;  //     8 : transposed (2D, swapped X & Y)
-        uint8_t map1D2D     : 3;  //  9-11 : mapping for 1D effect on 2D (0-use as strip, 1-expand vertically, 2-circular/arc, 3-rectangular/corner, ...)
-        uint8_t soundSim    : 2;  // 12-13 : 0-3 sound simulation types ("soft" & "hard" or "on"/"off")
-        uint8_t set         : 2;  // 14-15 : 0-3 UI segment sets/groups
-      };
-    };
+
     uint8_t  grouping, spacing;
-    uint8_t  opacity;
-    uint32_t colors[NUM_COLORS];
-    uint8_t  cct;                 //0==1900K, 255==10091K
-    uint8_t  custom1, custom2;    // custom FX parameters/sliders
-    struct {
-      uint8_t custom3 : 5;        // reduced range slider (0-31)
-      bool    check1  : 1;        // checkmark 1
-      bool    check2  : 1;        // checkmark 2
-      bool    check3  : 1;        // checkmark 3
-    };
+
     uint8_t startY;  // start Y coodrinate 2D (top); there should be no more than 255 rows
     uint8_t stopY;   // stop Y coordinate 2D (bottom); there should be no more than 255 rows
-    char    *name;
+    String name;
 
     // runtime data
     unsigned long next_time;  // millis() of next update
-    uint32_t step;  // custom "step" var
-    uint32_t call;  // call counter
-    uint16_t aux0;  // custom var
-    uint16_t aux1;  // custom var
-    byte     *data; // effect data pointer
-    static uint16_t maxWidth, maxHeight;  // these define matrix width & height (max. segment dimensions)
 
-    typedef struct TemporarySegmentData {
-      uint16_t _optionsT;
-      uint32_t _colorT[NUM_COLORS];
-      uint8_t  _speedT;
-      uint8_t  _intensityT;
-      uint8_t  _custom1T, _custom2T;   // custom FX parameters/sliders
-      struct {
-        uint8_t _custom3T : 5;        // reduced range slider (0-31)
-        bool    _check1T  : 1;        // checkmark 1
-        bool    _check2T  : 1;        // checkmark 2
-        bool    _check3T  : 1;        // checkmark 3
-      };
-      uint16_t _aux0T;
-      uint16_t _aux1T;
-      uint32_t _stepT;
-      uint32_t _callT;
-      uint8_t *_dataT;
-      uint16_t _dataLenT;
-      TemporarySegmentData()
-        : _dataT(nullptr) // just in case...
-        , _dataLenT(0)
-      {}
-    } tmpsegd_t;
+    static uint16_t maxWidth, maxHeight;  // these define matrix width & height (max. segment dimensions)
 
   private:
     union {
@@ -414,8 +434,6 @@ typedef struct Segment {
         uint8_t _reserved : 4;
       };
     };
-    uint16_t        _dataLen;
-    static uint16_t _usedSegmentData;
 
     // perhaps this should be per segment, not static
     static CRGBPalette16 _randomPalette;      // actual random palette
@@ -425,11 +443,10 @@ typedef struct Segment {
     static bool          _modeBlend;          // mode/effect blending semaphore
     #endif
 
-    // transition data, valid only if transitional==true, holds values during transition (72 bytes)
+    // transition data -- holds values during transition (72 bytes)
     struct Transition {
       #ifndef WLED_DISABLE_MODE_BLEND
-      tmpsegd_t     _segT;        // previous segment environment
-      uint8_t       _modeT;       // previous mode/effect
+      effect_state_t _segT;        // previous segment environment
       #else
       uint32_t      _colorT[NUM_COLORS];
       #endif
@@ -439,13 +456,23 @@ typedef struct Segment {
       uint8_t       _prevPaletteBlends; // number of previous palette blends (there are max 255 belnds possible)
       unsigned long _start;       // must accommodate millis()
       uint16_t      _dur;
+      
       Transition(uint16_t dur=750)
         : _palT(CRGBPalette16(CRGB::Black))
         , _prevPaletteBlends(0)
         , _start(millis())
         , _dur(dur)
       {}
-    } *_t;
+
+      size_t getSize() {
+        return sizeof(Transition) 
+        #ifndef WLED_DISABLE_MODE_BLEND
+          + _segT.data.size()
+        #endif
+        ;
+       };
+    };
+    non_copy_ptr<Transition> _t;
 
   public:
 
@@ -453,34 +480,12 @@ typedef struct Segment {
       start(sStart),
       stop(sStop),
       offset(0),
-      speed(DEFAULT_SPEED),
-      intensity(DEFAULT_INTENSITY),
-      palette(0),
-      mode(DEFAULT_MODE),
-      options(SELECTED | SEGMENT_ON),
       grouping(1),
       spacing(0),
-      opacity(255),
-      colors{DEFAULT_COLOR,BLACK,BLACK},
-      cct(127),
-      custom1(DEFAULT_C1),
-      custom2(DEFAULT_C2),
-      custom3(DEFAULT_C3),
-      check1(false),
-      check2(false),
-      check3(false),
       startY(0),
       stopY(1),
-      name(nullptr),
       next_time(0),
-      step(0),
-      call(0),
-      aux0(0),
-      aux1(0),
-      data(nullptr),
-      _capabilities(0),
-      _dataLen(0),
-      _t(nullptr)
+      _capabilities(0)
     {
       #ifdef WLED_DEBUG
       //Serial.printf("-- Creating segment: %p\n", this);
@@ -492,27 +497,7 @@ typedef struct Segment {
       stopY  = sStopY;
     }
 
-    Segment(const Segment &orig); // copy constructor
-    Segment(Segment &&orig) noexcept; // move constructor
-
-    ~Segment() {
-      #ifdef WLED_DEBUG
-      //Serial.printf("-- Destroying segment: %p", this);
-      //if (name) Serial.printf(" %s (%p)", name, name);
-      //if (data) Serial.printf(" %d->(%p)", (int)_dataLen, data);
-      //Serial.println();
-      #endif
-      if (name) { delete[] name; name = nullptr; }
-      stopTransition();
-      deallocateData();
-    }
-
-    Segment& operator= (const Segment &orig); // copy assignment
-    Segment& operator= (Segment &&orig) noexcept; // move assignment
-
-#ifdef WLED_DEBUG
-    size_t getSize() const { return sizeof(Segment) + (data?_dataLen:0) + (name?strlen(name):0) + (_t?sizeof(Transition):0); }
-#endif
+    size_t getSize() const { return sizeof(Segment) + data.size() + name.length() + (_t ? _t->getSize() : 0); }
 
     inline bool     getOption(uint8_t n) const { return ((options >> n) & 0x01); }
     inline bool     isSelected(void)     const { return selected; }
@@ -528,8 +513,7 @@ typedef struct Segment {
     inline uint16_t groupLength(void)    const { return grouping + spacing; }
     inline uint8_t  getLightCapabilities(void) const { return _capabilities; }
 
-    static uint16_t getUsedSegmentData(void)    { return _usedSegmentData; }
-    static void     addUsedSegmentData(int len) { _usedSegmentData += len; }
+    static uint16_t getUsedSegmentData(void)    { return static_counter<segment_buffer_tag>().used(); }
     #ifndef WLED_DISABLE_MODE_BLEND
     static void     modeBlend(bool blend)       { _modeBlend = blend; }
     #endif
@@ -546,7 +530,7 @@ typedef struct Segment {
     void    refreshLightCapabilities(void);
 
     // runtime data functions
-    inline uint16_t dataSize(void) const { return _dataLen; }
+    inline uint16_t dataSize(void) const { return data.size(); }
     bool allocateData(size_t len);  // allocates effect data buffer in heap and clears it
     void deallocateData(void);      // deallocates (frees) effect data buffer from heap
     void resetIfRequired(void);     // sets all SEGENV variables to 0 and clears data buffer
@@ -563,8 +547,7 @@ typedef struct Segment {
     void     stopTransition(void);              // ends transition mode by destroying transition structure
     void     handleTransition(void);
     #ifndef WLED_DISABLE_MODE_BLEND
-    void     swapSegenv(tmpsegd_t &tmpSegD);    // copies segment data into specifed buffer, if buffer is not a transition buffer, segment data is overwritten from transition buffer
-    void     restoreSegenv(tmpsegd_t &tmpSegD); // restores segment data from buffer, if buffer is not transition buffer, changed values are copied to transition buffer
+    void     swapSegenv();    // switches segment effect data with transition buffer
     #endif
     uint16_t progress(void);                    // transition progression between 0-65535
     uint8_t  currentBri(bool useCct = false);   // current segment brightness/CCT (blended while in transition)

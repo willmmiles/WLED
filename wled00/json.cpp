@@ -67,28 +67,19 @@ bool deserializeSegment(JsonObject elem, byte it, byte presetId)
 
   if (elem["n"]) {
     // name field exists
-    if (seg.name) { //clear old name
-      delete[] seg.name;
-      seg.name = nullptr;
-    }
-
     const char * name = elem["n"].as<const char*>();
     size_t len = 0;
     if (name != nullptr) len = strlen(name);
     if (len > 0) {
       if (len > WLED_MAX_SEGNAME_LEN) len = WLED_MAX_SEGNAME_LEN;
-      seg.name = new char[len+1];
-      if (seg.name) strlcpy(seg.name, name, WLED_MAX_SEGNAME_LEN+1);
+      seg.name = name;
     } else {
       // but is empty (already deleted above)
       elem.remove("n");
     }
   } else if (start != seg.start || stop != seg.stop) {
     // clearing or setting segment without name field
-    if (seg.name) {
-      delete[] seg.name;
-      seg.name = nullptr;
-    }
+    seg.name.clear();
   }
 
   uint16_t grp = elem["grp"] | seg.grouping;
@@ -513,7 +504,7 @@ void serializeSegment(JsonObject& root, Segment& seg, byte id, bool forPreset, b
   root["cct"]    = seg.cct;
   root[F("set")] = seg.set;
 
-  if (seg.name != nullptr) root["n"] = reinterpret_cast<const char *>(seg.name); //not good practice, but decreases required JSON buffer
+  if (seg.name.length() > 0) root["n"] = seg.name.c_str(); //not good practice, but decreases required JSON buffer
   else if (forPreset) root["n"] = "";
 
   // to conserve RAM we will serialize the col array manually

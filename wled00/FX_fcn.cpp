@@ -73,7 +73,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 // Segment class implementation
 ///////////////////////////////////////////////////////////////////////////////
-uint16_t Segment::_usedSegmentData = 0U; // amount of RAM all segments use for their data[]
 uint16_t Segment::maxWidth = DEFAULT_LED_COUNT;
 uint16_t Segment::maxHeight = 1;
 
@@ -85,104 +84,30 @@ unsigned long Segment::_lastPaletteChange = 0; // perhaps it should be per segme
 bool Segment::_modeBlend = false;
 #endif
 
-// copy constructor
-Segment::Segment(const Segment &orig) {
-  //DEBUG_PRINTF("-- Copy segment constructor: %p -> %p\n", &orig, this);
-  memcpy((void*)this, (void*)&orig, sizeof(Segment));
-  _t = nullptr; // copied segment cannot be in transition
-  name = nullptr;
-  data = nullptr;
-  _dataLen = 0;
-  if (orig.name) { name = new char[strlen(orig.name)+1]; if (name) strcpy(name, orig.name); }
-  if (orig.data) { if (allocateData(orig._dataLen)) memcpy(data, orig.data, orig._dataLen); }
-}
-
-// move constructor
-Segment::Segment(Segment &&orig) noexcept {
-  //DEBUG_PRINTF("-- Move segment constructor: %p -> %p\n", &orig, this);
-  memcpy((void*)this, (void*)&orig, sizeof(Segment));
-  orig._t   = nullptr; // old segment cannot be in transition any more
-  orig.name = nullptr;
-  orig.data = nullptr;
-  orig._dataLen = 0;
-}
-
-// copy assignment
-Segment& Segment::operator= (const Segment &orig) {
-  //DEBUG_PRINTF("-- Copying segment: %p -> %p\n", &orig, this);
-  if (this != &orig) {
-    // clean destination
-    if (name) { delete[] name; name = nullptr; }
-    stopTransition();
-    deallocateData();
-    // copy source
-    memcpy((void*)this, (void*)&orig, sizeof(Segment));
-    // erase pointers to allocated data
-    data = nullptr;
-    _dataLen = 0;
-    // copy source data
-    if (orig.name) { name = new char[strlen(orig.name)+1]; if (name) strcpy(name, orig.name); }
-    if (orig.data) { if (allocateData(orig._dataLen)) memcpy(data, orig.data, orig._dataLen); }
-  }
-  return *this;
-}
-
-// move assignment
-Segment& Segment::operator= (Segment &&orig) noexcept {
-  //DEBUG_PRINTF("-- Moving segment: %p -> %p\n", &orig, this);
-  if (this != &orig) {
-    if (name) { delete[] name; name = nullptr; } // free old name
-    stopTransition();
-    deallocateData(); // free old runtime data
-    memcpy((void*)this, (void*)&orig, sizeof(Segment));
-    orig.name = nullptr;
-    orig.data = nullptr;
-    orig._dataLen = 0;
-    orig._t   = nullptr; // old segment cannot be in transition
-  }
-  return *this;
-}
-
 // allocates effect data buffer on heap and initialises (erases) it
 bool IRAM_ATTR Segment::allocateData(size_t len) {
   if (len == 0) return false; // nothing to do
-  if (data && _dataLen >= len) {          // already allocated enough (reduce fragmentation)
-    if (call == 0) memset(data, 0, len);  // erase buffer if called during effect initialisation
+  if (data.size() >= len) {          // already allocated enough (reduce fragmentation)
+    if (call == 0) memset(data.data(), 0, len);  // erase buffer if called during effect initialisation
     return true;
   }
   //DEBUG_PRINTF("--   Allocating data (%d): %p\n", len, this);
-  deallocateData(); // if the old buffer was smaller release it first
-  if (Segment::getUsedSegmentData() + len > MAX_SEGMENT_DATA) {
+  data.resize(len);
+  if (data.data() == nullptr) {
     // not enough memory
     DEBUG_PRINT(F("!!! Effect RAM depleted: "));
-    DEBUG_PRINTF("%d/%d !!!\n", len, Segment::getUsedSegmentData());
+    DEBUG_PRINTF("%d/%d !!!\n", len, Segment::getUsedSegmentData() );
     errorFlag = ERR_NORAM;
     return false;
   }
-  // do not use SPI RAM on ESP32 since it is slow
-  data = (byte*)calloc(len, sizeof(byte));
-  if (!data) { DEBUG_PRINTLN(F("!!! Allocation failed. !!!")); return false; } // allocation failed
-  Segment::addUsedSegmentData(len);
   //DEBUG_PRINTF("---  Allocated data (%p): %d/%d -> %p\n", this, len, Segment::getUsedSegmentData(), data);
-  _dataLen = len;
   return true;
 }
 
 void IRAM_ATTR Segment::deallocateData() {
-  if (!data) { _dataLen = 0; return; }
+  if (data.size() == 0) return;
   //DEBUG_PRINTF("---  Released data (%p): %d/%d -> %p\n", this, _dataLen, Segment::getUsedSegmentData(), data);
-  if ((Segment::getUsedSegmentData() > 0) && (_dataLen > 0)) { // check that we don't have a dangling / inconsistent data pointer
-    free(data);
-  } else {
-    DEBUG_PRINT(F("---- Released data "));
-    DEBUG_PRINTF("(%p): ", this);
-    DEBUG_PRINT(F("inconsistent UsedSegmentData "));
-    DEBUG_PRINTF("(%d/%d)", _dataLen, Segment::getUsedSegmentData());
-    DEBUG_PRINTLN(F(", cowardly refusing to free nothing."));
-  }
-  data = nullptr;
-  Segment::addUsedSegmentData(_dataLen <= Segment::getUsedSegmentData() ? -_dataLen : -Segment::getUsedSegmentData());
-  _dataLen = 0;
+  data.resize(0);
 }
 
 /**
@@ -195,7 +120,7 @@ void IRAM_ATTR Segment::deallocateData() {
 void Segment::resetIfRequired() {
   if (!reset) return;
   //DEBUG_PRINTF("-- Segment reset: %p\n", this);
-  if (data && _dataLen > 0) memset(data, 0, _dataLen);  // prevent heap fragmentation (just erase buffer instead of deallocateData())
+  if (data.size() > 0) memset(data.data(), 0, data.size());  // prevent heap fragmentation (just erase buffer instead of deallocateData())
   next_time = 0; step = 0; call = 0; aux0 = 0; aux1 = 0;
   reset = false;
 }
@@ -291,7 +216,7 @@ void Segment::startTransition(uint16_t dur) {
   if (isInTransition()) return; // already in transition no need to store anything
 
   // starting a transition has to occur before change so we get current values 1st
-  _t = new Transition(dur); // no previous transition running
+  _t = make_non_copy<Transition>(dur); // no previous transition running
   if (!_t) return; // failed to allocate data
 
   //DEBUG_PRINTF("-- Started transition: %p (%p)\n", this, _t);
@@ -300,20 +225,9 @@ void Segment::startTransition(uint16_t dur) {
   _t->_cctT           = cct;
 #ifndef WLED_DISABLE_MODE_BLEND
   if (modeBlending) {
-    swapSegenv(_t->_segT);
-    _t->_modeT          = mode;
-    _t->_segT._dataLenT = 0;
-    _t->_segT._dataT    = nullptr;
-    if (_dataLen > 0 && data) {
-      _t->_segT._dataT = (byte *)malloc(_dataLen);
-      if (_t->_segT._dataT) {
-        //DEBUG_PRINTF("--  Allocated duplicate data (%d) for %p: %p\n", _dataLen, this, _t->_segT._dataT);
-        memcpy(_t->_segT._dataT, data, _dataLen);
-        _t->_segT._dataLenT = _dataLen;
-      }
-    }
+    _t->_segT = *static_cast<effect_state_t*>(this);
   } else {
-    for (size_t i=0; i<NUM_COLORS; i++) _t->_segT._colorT[i] = colors[i];
+    for (size_t i=0; i<NUM_COLORS; i++) _t->_segT.colors[i] = colors[i];
   }
 #else
   for (size_t i=0; i<NUM_COLORS; i++) _t->_colorT[i] = colors[i];
@@ -321,19 +235,7 @@ void Segment::startTransition(uint16_t dur) {
 }
 
 void Segment::stopTransition() {
-  if (isInTransition()) {
-    //DEBUG_PRINTF("-- Stopping transition: %p\n", this);
-    #ifndef WLED_DISABLE_MODE_BLEND
-    if (_t->_segT._dataT && _t->_segT._dataLenT > 0) {
-      //DEBUG_PRINTF("--  Released duplicate data (%d) for %p: %p\n", _t->_segT._dataLenT, this, _t->_segT._dataT);
-      free(_t->_segT._dataT);
-      _t->_segT._dataT = nullptr;
-      _t->_segT._dataLenT = 0;
-    }
-    #endif
-    delete _t;
-    _t = nullptr;
-  }
+  _t.reset();
 }
 
 void Segment::handleTransition() {
@@ -351,74 +253,15 @@ uint16_t IRAM_ATTR Segment::progress() {
 }
 
 #ifndef WLED_DISABLE_MODE_BLEND
-void Segment::swapSegenv(tmpsegd_t &tmpSeg) {
-  //DEBUG_PRINTF("--  Saving temp seg: %p->(%p) [%d->%p]\n", this, &tmpSeg, _dataLen, data);
-  tmpSeg._optionsT   = options;
-  for (size_t i=0; i<NUM_COLORS; i++) tmpSeg._colorT[i] = colors[i];
-  tmpSeg._speedT     = speed;
-  tmpSeg._intensityT = intensity;
-  tmpSeg._custom1T   = custom1;
-  tmpSeg._custom2T   = custom2;
-  tmpSeg._custom3T   = custom3;
-  tmpSeg._check1T    = check1;
-  tmpSeg._check2T    = check2;
-  tmpSeg._check3T    = check3;
-  tmpSeg._aux0T      = aux0;
-  tmpSeg._aux1T      = aux1;
-  tmpSeg._stepT      = step;
-  tmpSeg._callT      = call;
-  tmpSeg._dataT      = data;
-  tmpSeg._dataLenT   = _dataLen;
-  if (_t && &tmpSeg != &(_t->_segT)) {
-    // swap SEGENV with transitional data
-    options   = _t->_segT._optionsT;
-    for (size_t i=0; i<NUM_COLORS; i++) colors[i] = _t->_segT._colorT[i];
-    speed     = _t->_segT._speedT;
-    intensity = _t->_segT._intensityT;
-    custom1   = _t->_segT._custom1T;
-    custom2   = _t->_segT._custom2T;
-    custom3   = _t->_segT._custom3T;
-    check1    = _t->_segT._check1T;
-    check2    = _t->_segT._check2T;
-    check3    = _t->_segT._check3T;
-    aux0      = _t->_segT._aux0T;
-    aux1      = _t->_segT._aux1T;
-    step      = _t->_segT._stepT;
-    call      = _t->_segT._callT;
-    data      = _t->_segT._dataT;
-    _dataLen  = _t->_segT._dataLenT;
-  }
+void Segment::swapSegenv() {
+  assert(_t);
+
+  auto& this_state = *static_cast<effect_state_t*>(this);
+  auto tmpSeg = effect_state_t { std::move(this_state )};
+  this_state = std::move(_t->_segT);
+  _t->_segT = std::move(tmpSeg);
 }
 
-void Segment::restoreSegenv(tmpsegd_t &tmpSeg) {
-  //DEBUG_PRINTF("--  Restoring temp seg: %p->(%p) [%d->%p]\n", &tmpSeg, this, _dataLen, data);
-  if (_t && &(_t->_segT) != &tmpSeg) {
-    // update possibly changed variables to keep old effect running correctly
-    _t->_segT._aux0T = aux0;
-    _t->_segT._aux1T = aux1;
-    _t->_segT._stepT = step;
-    _t->_segT._callT = call;
-    //if (_t->_segT._dataT != data) DEBUG_PRINTF("---  data re-allocated: (%p) %p -> %p\n", this, _t->_segT._dataT, data);
-    _t->_segT._dataT = data;
-    _t->_segT._dataLenT = _dataLen;
-  }
-  options   = tmpSeg._optionsT;
-  for (size_t i=0; i<NUM_COLORS; i++) colors[i] = tmpSeg._colorT[i];
-  speed     = tmpSeg._speedT;
-  intensity = tmpSeg._intensityT;
-  custom1   = tmpSeg._custom1T;
-  custom2   = tmpSeg._custom2T;
-  custom3   = tmpSeg._custom3T;
-  check1    = tmpSeg._check1T;
-  check2    = tmpSeg._check2T;
-  check3    = tmpSeg._check3T;
-  aux0      = tmpSeg._aux0T;
-  aux1      = tmpSeg._aux1T;
-  step      = tmpSeg._stepT;
-  call      = tmpSeg._callT;
-  data      = tmpSeg._dataT;
-  _dataLen  = tmpSeg._dataLenT;
-}
 #endif
 
 uint8_t IRAM_ATTR Segment::currentBri(bool useCct) {
@@ -434,7 +277,7 @@ uint8_t IRAM_ATTR Segment::currentBri(bool useCct) {
 uint8_t IRAM_ATTR Segment::currentMode() {
 #ifndef WLED_DISABLE_MODE_BLEND
   uint16_t prog = progress();
-  if (modeBlending && prog < 0xFFFFU) return _t->_modeT;
+  if (modeBlending && prog < 0xFFFFU) return _t->_segT.mode;
 #endif
   return mode;
 }
@@ -442,7 +285,7 @@ uint8_t IRAM_ATTR Segment::currentMode() {
 uint32_t IRAM_ATTR Segment::currentColor(uint8_t slot) {
   if (slot >= NUM_COLORS) slot = 0;
 #ifndef WLED_DISABLE_MODE_BLEND
-  return isInTransition() ? color_blend(_t->_segT._colorT[slot], colors[slot], progress(), true) : colors[slot];
+  return isInTransition() ? color_blend(_t->_segT.colors[slot], colors[slot], progress(), true) : colors[slot];
 #else
   return isInTransition() ? color_blend(_t->_colorT[slot], colors[slot], progress(), true) : colors[slot];
 #endif
@@ -1176,12 +1019,11 @@ void WS2812FX::service() {
         delay = (*_mode[seg.mode])();         // run new/current mode
 #ifndef WLED_DISABLE_MODE_BLEND
         if (modeBlending && seg.mode != tmpMode) {
-          Segment::tmpsegd_t _tmpSegData;
           Segment::modeBlend(true);           // set semaphore
-          seg.swapSegenv(_tmpSegData);        // temporarily store new mode state (and swap it with transitional state)
+          seg.swapSegenv();        // temporarily store new mode state (and swap it with transitional state)
           _virtualSegmentLength = seg.virtualLength(); // update SEGLEN (mapping may have changed)
           uint16_t d2 = (*_mode[tmpMode])();  // run old mode
-          seg.restoreSegenv(_tmpSegData);     // restore mode state (will also update transitional state)
+          seg.swapSegenv();     // restore mode state (will also update transitional state)
           delay = MIN(delay,d2);              // use shortest delay
           Segment::modeBlend(false);          // unset semaphore
         }
@@ -1691,6 +1533,14 @@ uint16_t IRAM_ATTR WS2812FX::getMappedPixelIndex(uint16_t index) {
   return index;
 }
 
+#ifdef WLED_DEBUG
+
+void segment_buffer_tag::debug(size_t alloc, bool is_allocate, size_t available)
+{
+  DEBUG_PRINTF("FX data %s: %d / %d\n", is_allocate ? "alloc": "free", alloc, available);
+}
+
+#endif
 
 WS2812FX* WS2812FX::instance = nullptr;
 
