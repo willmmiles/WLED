@@ -608,7 +608,7 @@ uint16_t dissolve(uint32_t color) {
   if (!SEGENV.allocateData(dataSize)) return mode_static(); //allocation failed
 
   if (SEGENV.call == 0) {
-    memset(SEGMENT.data, 0xFF, dataSize); // start by fading pixels up
+    memset(SEGMENT.data.data(), 0xFF, dataSize); // start by fading pixels up
     SEGENV.aux0 = 1;
   }
 
@@ -642,7 +642,7 @@ uint16_t dissolve(uint32_t color) {
   if (SEGENV.step > (255 - SEGMENT.speed) + 15U) {
     SEGENV.aux0 = !SEGENV.aux0;
     SEGENV.step = 0;
-    memset(SEGMENT.data, (SEGENV.aux0 ? 0xFF : 0), dataSize); // switch fading
+    memset(SEGMENT.data.data(), (SEGENV.aux0 ? 0xFF : 0), dataSize); // switch fading
   } else {
     SEGENV.step++;
   }
@@ -1423,7 +1423,7 @@ uint16_t mode_fairy() {
 
   uint16_t dataSize = sizeof(flasher) * numFlashers;
   if (!SEGENV.allocateData(dataSize)) return FRAMETIME; //allocation failed
-  Flasher* flashers = reinterpret_cast<Flasher*>(SEGENV.data);
+  Flasher* flashers = SEGENV.data.as<Flasher>();
   uint16_t now16 = strip.now & 0xFFFF;
 
   //Up to 11 flashers in one brightness zone, afterwards a new zone for every 6 flashers
@@ -1489,7 +1489,7 @@ static const char _data_FX_MODE_FAIRY[] PROGMEM = "Fairy@!,# of flashers;!,!;!";
 uint16_t mode_fairytwinkle() {
   uint16_t dataSize = sizeof(flasher) * SEGLEN;
   if (!SEGENV.allocateData(dataSize)) return mode_static(); //allocation failed
-  Flasher* flashers = reinterpret_cast<Flasher*>(SEGENV.data);
+  Flasher* flashers = SEGENV.data.as<Flasher>();
   uint16_t now16 = strip.now & 0xFFFF;
   uint16_t PRNG16 = 5100 + strip.getCurrSegmentId();
 
@@ -1700,7 +1700,7 @@ uint16_t mode_multi_comet(void) {
 
   SEGMENT.fade_out(SEGMENT.intensity);
 
-  uint16_t* comets = reinterpret_cast<uint16_t*>(SEGENV.data);
+  uint16_t* comets = SEGENV.data.as<uint16_t>();
 
   for (int i=0; i < 8; i++) {
     if(comets[i] < SEGLEN) {
@@ -1778,7 +1778,7 @@ uint16_t mode_oscillate(void) {
 
   if (!SEGENV.allocateData(dataSize)) return mode_static(); //allocation failed
 
-  Oscillator* oscillators = reinterpret_cast<Oscillator*>(SEGENV.data);
+  Oscillator* oscillators = SEGENV.data.as<Oscillator>();
 
   if (SEGENV.call == 0)
   {
@@ -1979,7 +1979,7 @@ uint16_t mode_fire_2012() {
   if (SEGLEN == 1) return mode_static();
   const uint16_t strips = SEGMENT.nrOfVStrips();
   if (!SEGENV.allocateData(strips * SEGLEN)) return mode_static(); //allocation failed
-  byte* heat = SEGENV.data;
+  byte* heat = SEGENV.data.as<byte>();
 
   const uint32_t it = strip.now >> 5; //div 32
 
@@ -2273,7 +2273,7 @@ uint16_t mode_meteor() {
   if (SEGLEN == 1) return mode_static();
   if (!SEGENV.allocateData(SEGLEN)) return mode_static(); //allocation failed
 
-  byte* trail = SEGENV.data;
+  byte* trail = SEGENV.data.as<byte>();
 
   const unsigned meteorSize= 1 + SEGLEN / 20; // 5%
   uint16_t counter = strip.now * ((SEGMENT.speed >> 2) +8);
@@ -2313,7 +2313,7 @@ uint16_t mode_meteor_smooth() {
   if (SEGLEN == 1) return mode_static();
   if (!SEGENV.allocateData(SEGLEN)) return mode_static(); //allocation failed
 
-  byte* trail = SEGENV.data;
+  byte* trail = SEGENV.data.as<byte>();
 
   const unsigned meteorSize= 1+ SEGLEN / 20; // 5%
   uint16_t in = map((SEGENV.step >> 6 & 0xFF), 0, 255, 0, SEGLEN -1);
@@ -2401,7 +2401,7 @@ uint16_t ripple_base()
 
   if (!SEGENV.allocateData(dataSize)) return mode_static(); //allocation failed
 
-  Ripple* ripples = reinterpret_cast<Ripple*>(SEGENV.data);
+  Ripple* ripples = SEGENV.data.as<Ripple>();
 
   //draw wave
   for (int i = 0; i < maxRipples; i++) {
@@ -2645,7 +2645,7 @@ uint16_t mode_halloween_eyes()
   if (eyeLength >= maxWidth) return mode_static(); //bail if segment too short
 
   if (!SEGENV.allocateData(sizeof(EyeData))) return mode_static(); //allocation failed
-  EyeData& data = *reinterpret_cast<EyeData*>(SEGENV.data);
+  EyeData& data = *SEGENV.data.as<EyeData>();
 
   if (!SEGMENT.check2) SEGMENT.fill(SEGCOLOR(1)); //fill background
 
@@ -2885,7 +2885,7 @@ uint16_t mode_bouncing_balls(void) {
   uint16_t dataSize = sizeof(ball) * maxNumBalls;
   if (!SEGENV.allocateData(dataSize * strips)) return mode_static(); //allocation failed
 
-  Ball* balls = reinterpret_cast<Ball*>(SEGENV.data);
+  Ball* balls = SEGENV.data.as<Ball>();
 
   if (!SEGMENT.check2) SEGMENT.fill(SEGCOLOR(2) ? BLACK : SEGCOLOR(1));
 
@@ -2966,7 +2966,7 @@ static uint16_t rolling_balls(void) {
   uint16_t dataSize = sizeof(rball_t) * maxNumBalls;
   if (!SEGENV.allocateData(dataSize)) return mode_static(); //allocation failed
 
-  rball_t *balls = reinterpret_cast<rball_t *>(SEGENV.data);
+  rball_t *balls = SEGENV.data.as<rball_t>();
 
   // number of balls based on intensity setting to max of 16 (cycles colors)
   // non-chosen color is a random color
@@ -3156,7 +3156,7 @@ uint16_t mode_popcorn(void) {
   uint16_t dataSize = sizeof(spark) * maxNumPopcorn;
   if (!SEGENV.allocateData(dataSize * strips)) return mode_static(); //allocation failed
 
-  Spark* popcorn = reinterpret_cast<Spark*>(SEGENV.data);
+  Spark* popcorn = SEGENV.data.as<Spark>();
 
   bool hasCol2 = SEGCOLOR(2);
   if (!SEGMENT.check2) SEGMENT.fill(hasCol2 ? BLACK : SEGCOLOR(1));
@@ -3338,7 +3338,7 @@ uint16_t mode_starburst(void) {
 
   uint32_t it = millis();
 
-  star* stars = reinterpret_cast<star*>(SEGENV.data);
+  star* stars = SEGENV.data.as<star>();
 
   float          maxSpeed                = 375.0f;  // Max velocity
   float          particleIgnition        = 250.0f;  // How long to "flash"
@@ -3467,7 +3467,7 @@ uint16_t mode_exploding_fireworks(void)
 
   SEGMENT.fade_out(252);
 
-  Spark* sparks = reinterpret_cast<Spark*>(SEGENV.data);
+  Spark* sparks = SEGENV.data.as<Spark>();
   Spark* flare = sparks; //first spark is flare data
 
   float gravity = -0.0004f - (SEGMENT.speed/800000.0f); // m/s/s
@@ -3586,7 +3586,7 @@ uint16_t mode_drip(void)
   const int maxNumDrops = 4;
   uint16_t dataSize = sizeof(spark) * maxNumDrops;
   if (!SEGENV.allocateData(dataSize * strips)) return mode_static(); //allocation failed
-  Spark* drops = reinterpret_cast<Spark*>(SEGENV.data);
+  Spark* drops = SEGENV.data.as<Spark>();
 
   if (!SEGMENT.check2) SEGMENT.fill(SEGCOLOR(1));
 
@@ -3680,7 +3680,7 @@ uint16_t mode_tetrix(void) {
   uint16_t strips = SEGMENT.nrOfVStrips(); // allow running on virtual strips (columns in 2D segment)
   uint16_t dataSize = sizeof(tetris);
   if (!SEGENV.allocateData(dataSize * strips)) return mode_static(); //allocation failed
-  Tetris* drops = reinterpret_cast<Tetris*>(SEGENV.data);
+  Tetris* drops = SEGENV.data.as<Tetris>();
 
   //if (SEGENV.call == 0) SEGMENT.fill(SEGCOLOR(1));  // will fill entire segment (1D or 2D), then use drop->step = 0 below
 
@@ -4101,7 +4101,7 @@ uint16_t mode_noisepal(void) {                                    // Slow noise 
   uint16_t dataSize = sizeof(CRGBPalette16) * 2; //allocate space for 2 Palettes (2 * 16 * 3 = 96 bytes)
   if (!SEGENV.allocateData(dataSize)) return mode_static(); //allocation failed
 
-  CRGBPalette16* palettes = reinterpret_cast<CRGBPalette16*>(SEGENV.data);
+  CRGBPalette16* palettes = SEGENV.data.as<CRGBPalette16>();
 
   uint16_t changePaletteMs = 4000 + SEGMENT.speed *10; //between 4 - 6.5sec
   if (millis() - SEGENV.step > changePaletteMs)
@@ -4257,7 +4257,7 @@ uint16_t mode_dancing_shadows(void)
 
   uint16_t dataSize = sizeof(spotlight) * numSpotlights;
   if (!SEGENV.allocateData(dataSize)) return mode_static(); //allocation failed
-  Spotlight* spotlights = reinterpret_cast<Spotlight*>(SEGENV.data);
+  Spotlight* spotlights = SEGENV.data.as<Spotlight>();
 
   SEGMENT.fill(BLACK);
 
@@ -4393,7 +4393,7 @@ uint16_t mode_blends(void) {
   uint16_t pixelLen = SEGLEN > UINT8_MAX ? UINT8_MAX : SEGLEN;
   uint16_t dataSize = sizeof(uint32_t) * (pixelLen + 1);  // max segment length of 56 pixels on 16 segment ESP8266
   if (!SEGENV.allocateData(dataSize)) return mode_static(); //allocation failed
-  uint32_t* pixels = reinterpret_cast<uint32_t*>(SEGENV.data);
+  uint32_t* pixels = SEGENV.data.as<uint32_t>();
   uint8_t blendSpeed = map(SEGMENT.intensity, 0, UINT8_MAX, 10, 128);
   uint8_t shift = (strip.now * ((SEGMENT.speed >> 3) +1)) >> 8;
 
@@ -4443,7 +4443,7 @@ uint16_t mode_tv_simulator(void) {
   uint8_t  sat, bri, j;
 
   if (!SEGENV.allocateData(sizeof(tvSim))) return mode_static(); //allocation failed
-  TvSim* tvSimulator = reinterpret_cast<TvSim*>(SEGENV.data);
+  TvSim* tvSimulator = SEGENV.data.as<TvSim>();
 
   uint8_t colorSpeed     = map(SEGMENT.speed,     0, UINT8_MAX,  1, 20);
   uint8_t colorIntensity = map(SEGMENT.intensity, 0, UINT8_MAX, 10, 30);
@@ -4660,13 +4660,13 @@ uint16_t mode_aurora(void) {
       return mode_static(); //allocation failed
     }
 
-    waves = reinterpret_cast<AuroraWave*>(SEGENV.data);
+    waves = SEGENV.data.as<AuroraWave>();
 
     for (int i = 0; i < SEGENV.aux1; i++) {
       waves[i].init(SEGLEN, CRGB(SEGMENT.color_from_palette(random8(), false, false, random8(0, 3))));
     }
   } else {
-    waves = reinterpret_cast<AuroraWave*>(SEGENV.data);
+    waves = SEGENV.data.as<AuroraWave>();
   }
 
   for (int i = 0; i < SEGENV.aux1; i++) {
@@ -5021,7 +5021,7 @@ uint16_t mode_2Dgameoflife(void) { // Written by Ewoud Wijma, inspired by https:
   const uint16_t crcBufferLen = 2; //(SEGMENT.width() + SEGMENT.height())*71/100; // roughly sqrt(2)/2 for better repetition detection (Ewowi)
 
   if (!SEGENV.allocateData(dataSize + sizeof(uint16_t)*crcBufferLen)) return mode_static(); //allocation failed
-  CRGB *prevLeds = reinterpret_cast<CRGB*>(SEGENV.data);
+  CRGB *prevLeds = SEGENV.data.as<CRGB>();
   uint16_t *crcBuffer = reinterpret_cast<uint16_t*>(SEGENV.data + dataSize); 
 
   CRGB backgroundColor = SEGCOLOR(1);
@@ -5157,7 +5157,7 @@ uint16_t mode_2DJulia(void) {                           // An animated Julia set
   const uint16_t rows = SEGMENT.virtualHeight();
 
   if (!SEGENV.allocateData(sizeof(julia))) return mode_static();
-  Julia* julias = reinterpret_cast<Julia*>(SEGENV.data);
+  Julia* julias = SEGENV.data.as<Julia>();
 
   float reAl;
   float imAg;
@@ -5621,7 +5621,7 @@ uint16_t mode_2DSunradiation(void) {                   // By: ldirko https://edi
   const uint16_t rows = SEGMENT.virtualHeight();
 
   if (!SEGENV.allocateData(sizeof(byte)*(cols+2)*(rows+2))) return mode_static(); //allocation failed
-  byte *bump = reinterpret_cast<byte*>(SEGENV.data);
+  byte *bump = SEGENV.data.as<byte>();
 
   if (SEGENV.call == 0) {
     SEGMENT.fill(BLACK);
@@ -5771,7 +5771,7 @@ uint16_t mode_2Dcrazybees(void) {
   } bee_t;
 
   if (!SEGENV.allocateData(sizeof(bee_t)*MAX_BEES)) return mode_static(); //allocation failed
-  bee_t *bee = reinterpret_cast<bee_t*>(SEGENV.data);
+  bee_t *bee = SEGENV.data.as<bee_t>();
 
   if (SEGENV.call == 0) {
     for (size_t i = 0; i < n; i++) {
@@ -5838,7 +5838,7 @@ uint16_t mode_2Dghostrider(void) {
   } lighter_t;
 
   if (!SEGENV.allocateData(sizeof(lighter_t))) return mode_static(); //allocation failed
-  lighter_t *lighter = reinterpret_cast<lighter_t*>(SEGENV.data);
+  lighter_t *lighter = SEGENV.data.as<lighter_t>();
 
   const size_t maxLighters = min(cols + rows, LIGHTERS_AM);
 
@@ -5925,7 +5925,7 @@ uint16_t mode_2Dfloatingblobs(void) {
   uint8_t Amount = (SEGMENT.intensity>>5) + 1; // NOTE: be sure to update MAX_BLOBS if you change this
 
   if (!SEGENV.allocateData(sizeof(blob_t))) return mode_static(); //allocation failed
-  blob_t *blob = reinterpret_cast<blob_t*>(SEGENV.data);
+  blob_t *blob = SEGENV.data.as<blob_t>();
 
   if (SEGENV.aux0 != cols || SEGENV.aux1 != rows) {
     SEGENV.aux0 = cols; // re-initialise if virtual size changes
@@ -6032,7 +6032,7 @@ uint16_t mode_2Dscrollingtext(void) {
   }
 
   char text[WLED_MAX_SEGNAME_LEN+1] = {'\0'};
-  if (SEGMENT.name) for (size_t i=0,j=0; i<strlen(SEGMENT.name); i++) if (SEGMENT.name[i]>31 && SEGMENT.name[i]<128) text[j++] = SEGMENT.name[i];
+  if (SEGMENT.name.length()) for (size_t i=0,j=0; i<SEGMENT.name.length(); i++) if (SEGMENT.name[i]>31 && SEGMENT.name[i]<128) text[j++] = SEGMENT.name[i];
   const bool zero = strchr(text, '0') != nullptr;
 
   char sec[5];
@@ -6188,7 +6188,7 @@ uint16_t mode_ripplepeak(void) {                // * Ripple peak. By Andrew Tuli
   uint16_t maxRipples = 16;
   uint16_t dataSize = sizeof(Ripple) * maxRipples;
   if (!SEGENV.allocateData(dataSize)) return mode_static(); //allocation failed
-  Ripple* ripples = reinterpret_cast<Ripple*>(SEGENV.data);
+  Ripple* ripples = SEGENV.data.as<Ripple>();
 
   um_data_t *um_data;
   if (!usermods.getUMData(&um_data, USERMOD_ID_AUDIOREACTIVE)) {
@@ -6363,7 +6363,7 @@ uint16_t mode_gravcenter(void) {                // Gravcenter. By Andrew Tuline.
 
   const uint16_t dataSize = sizeof(gravity);
   if (!SEGENV.allocateData(dataSize)) return mode_static(); //allocation failed
-  Gravity* gravcen = reinterpret_cast<Gravity*>(SEGENV.data);
+  Gravity* gravcen = SEGENV.data.as<Gravity>();
 
   um_data_t *um_data;
   if (!usermods.getUMData(&um_data, USERMOD_ID_AUDIOREACTIVE)) {
@@ -6412,7 +6412,7 @@ uint16_t mode_gravcentric(void) {                     // Gravcentric. By Andrew 
 
   uint16_t dataSize = sizeof(gravity);
   if (!SEGENV.allocateData(dataSize)) return mode_static();     //allocation failed
-  Gravity* gravcen = reinterpret_cast<Gravity*>(SEGENV.data);
+  Gravity* gravcen = SEGENV.data.as<Gravity>();
 
   um_data_t *um_data;
   if (!usermods.getUMData(&um_data, USERMOD_ID_AUDIOREACTIVE)) {
@@ -6464,7 +6464,7 @@ uint16_t mode_gravimeter(void) {                // Gravmeter. By Andrew Tuline.
 
   uint16_t dataSize = sizeof(gravity);
   if (!SEGENV.allocateData(dataSize)) return mode_static(); //allocation failed
-  Gravity* gravcen = reinterpret_cast<Gravity*>(SEGENV.data);
+  Gravity* gravcen = SEGENV.data.as<Gravity>();
 
   um_data_t *um_data;
   if (!usermods.getUMData(&um_data, USERMOD_ID_AUDIOREACTIVE)) {
@@ -6708,7 +6708,7 @@ typedef struct Plasphase {
 uint16_t mode_plasmoid(void) {                  // Plasmoid. By Andrew Tuline.
   // even with 1D effect we have to take logic for 2D segments for allocation as fill_solid() fills whole segment
   if (!SEGENV.allocateData(sizeof(plasphase))) return mode_static(); //allocation failed
-  Plasphase* plasmoip = reinterpret_cast<Plasphase*>(SEGENV.data);
+  Plasphase* plasmoip = SEGENV.data.as<Plasphase>();
 
   um_data_t *um_data;
   if (!usermods.getUMData(&um_data, USERMOD_ID_AUDIOREACTIVE)) {
@@ -6822,7 +6822,7 @@ uint16_t mode_pixels(void) {                    // Pixels. By Andrew Tuline.
   if (SEGLEN == 1) return mode_static();
 
   if (!SEGENV.allocateData(32*sizeof(uint8_t))) return mode_static(); //allocation failed
-  uint8_t *myVals = reinterpret_cast<uint8_t*>(SEGENV.data); // Used to store a pile of samples because WLED frame rate and WLED sample rate are not synchronized. Frame rate is too low.
+  uint8_t *myVals = SEGENV.data.as<uint8_t>(); // Used to store a pile of samples because WLED frame rate and WLED sample rate are not synchronized. Frame rate is too low.
 
   um_data_t *um_data;
   if (!usermods.getUMData(&um_data, USERMOD_ID_AUDIOREACTIVE)) {
@@ -7126,7 +7126,7 @@ uint16_t mode_gravfreq(void) {                  // Gravfreq. By Andrew Tuline.
   if (SEGLEN == 1) return mode_static();
   uint16_t dataSize = sizeof(gravity);
   if (!SEGENV.allocateData(dataSize)) return mode_static(); //allocation failed
-  Gravity* gravcen = reinterpret_cast<Gravity*>(SEGENV.data);
+  Gravity* gravcen = SEGENV.data.as<Gravity>();
 
   um_data_t *um_data;
   if (!usermods.getUMData(&um_data, USERMOD_ID_AUDIOREACTIVE)) {
@@ -7301,7 +7301,7 @@ uint16_t mode_2DGEQ(void) { // By Will Tatam. Code reduction by Ewoud Wijma.
   const uint16_t rows = SEGMENT.virtualHeight();
 
   if (!SEGENV.allocateData(cols*sizeof(uint16_t))) return mode_static(); //allocation failed
-  uint16_t *previousBarHeight = reinterpret_cast<uint16_t*>(SEGENV.data); //array of previous bar heights per frequency band
+  uint16_t *previousBarHeight = SEGENV.data.as<uint16_t>(); //array of previous bar heights per frequency band
 
   um_data_t *um_data;
   if (!usermods.getUMData(&um_data, USERMOD_ID_AUDIOREACTIVE)) {
@@ -7575,7 +7575,7 @@ uint16_t mode_2Dsoap() {
   const size_t dataSize = SEGMENT.width() * SEGMENT.height() * sizeof(uint8_t); // prevent reallocation if mirrored or grouped
   if (!SEGENV.allocateData(dataSize + sizeof(uint32_t)*3)) return mode_static(); //allocation failed
 
-  uint8_t  *noise3d   = reinterpret_cast<uint8_t*>(SEGENV.data);
+  uint8_t  *noise3d   = SEGENV.data.as<uint8_t>();
   uint32_t *noise32_x = reinterpret_cast<uint32_t*>(SEGENV.data + dataSize);
   uint32_t *noise32_y = reinterpret_cast<uint32_t*>(SEGENV.data + dataSize + sizeof(uint32_t));
   uint32_t *noise32_z = reinterpret_cast<uint32_t*>(SEGENV.data + dataSize + sizeof(uint32_t)*2);
@@ -7693,7 +7693,7 @@ uint16_t mode_2Doctopus() {
   const size_t dataSize = SEGMENT.width() * SEGMENT.height() * sizeof(map_t); // prevent reallocation if mirrored or grouped
   if (!SEGENV.allocateData(dataSize + 2)) return mode_static(); //allocation failed
 
-  map_t *rMap = reinterpret_cast<map_t*>(SEGENV.data);
+  map_t *rMap = SEGENV.data.as<map_t>();
   uint8_t *offsX = reinterpret_cast<uint8_t*>(SEGENV.data + dataSize);
   uint8_t *offsY = reinterpret_cast<uint8_t*>(SEGENV.data + dataSize + 1);
 
