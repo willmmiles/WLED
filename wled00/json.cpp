@@ -34,7 +34,7 @@ bool deserializeSegment(JsonObject elem, byte it, byte presetId)
   //DEBUG_PRINTLN("-- JSON deserialize segment.");
   Segment& seg = strip.getSegment(id);
   //DEBUG_PRINTF("--  Original segment: %p (%p)\n", &seg, seg.data);
-  Segment prev = seg; //make a backup so we can tell if something changed (calling copy constructor)
+  effect_config_t prev = seg; //make a backup so we can tell if something changed (calling copy constructor)
   //DEBUG_PRINTF("--  Duplicate segment: %p (%p)\n", &prev, prev.data);
 
   uint16_t start = elem["start"] | seg.start;
@@ -283,8 +283,8 @@ bool deserializeSegment(JsonObject elem, byte it, byte presetId)
     seg.map1D2D = oldMap1D2D; // restore mapping
     strip.trigger(); // force segment update
   }
-  // send UDP/WS if segment options changed (except selection; will also deselect current preset)
-  if (seg.differs(prev) & 0x7F) stateChanged = true;
+  // send UDP/WS if segment effects options changed (except selection; will also deselect current preset)
+  stateChanged |= (memcmp(&prev, static_cast<effect_config_t*>(&seg), sizeof(effect_config_t)) == 0);
 
   return true;
 }
