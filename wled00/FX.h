@@ -340,11 +340,12 @@ struct segment_buffer_tag {
 #endif
 };
 
-// Effect state information
-struct effect_state_t {
+// Effect configuration information
+// This structure can be copied to capture all the information needed to replicate FX.
+struct effect_config_t {
   // Config
   union {
-    uint16_t options; //bit pattern: msb first: [transposed mirrorY reverseY] paused needspixelstate mirrored on reverse selected
+    uint16_t options = SELECTED | SEGMENT_ON; //bit pattern: msb first: [transposed mirrorY reverseY] paused needspixelstate mirrored on reverse selected
     struct {
       bool    selected    : 1;  //     0 : selected
       bool    reverse     : 1;  //     1 : reversed
@@ -360,50 +361,38 @@ struct effect_state_t {
       uint8_t set         : 2;  // 14-15 : 0-3 UI segment sets/groups
     };
   };
-  uint8_t  mode;  
-  uint8_t  opacity;
-  uint32_t colors[NUM_COLORS];  
-  uint8_t  palette;
-  uint8_t  cct;  
-  uint8_t  speed;
-  uint8_t  intensity;
-  uint8_t  custom1, custom2;   // custom FX parameters/sliders
-  struct {
-    uint8_t custom3 : 5;        // reduced range slider (0-31)
-    bool    check1  : 1;        // checkmark 1
-    bool    check2  : 1;        // checkmark 2
-    bool    check3  : 1;        // checkmark 3
+  uint8_t  mode = DEFAULT_MODE;
+  uint8_t  opacity = 255;
+  uint32_t colors[NUM_COLORS] = {DEFAULT_COLOR,BLACK,BLACK};  
+  uint8_t  palette = 0;
+  uint8_t  cct = 127;
+  uint8_t  speed = DEFAULT_SPEED;
+  uint8_t  intensity = DEFAULT_INTENSITY;
+  uint8_t  custom1 = DEFAULT_C1, custom2 = DEFAULT_C2;   // custom FX parameters/sliders
+  union 
+  { 
+    uint8_t _c3_init = DEFAULT_C3 & 0x1F;  // for default initialization of a bitfield
+    struct   {
+     uint8_t custom3 : 5;        // reduced range slider (0-31)
+     bool    check1  : 1;        // checkmark 1
+     bool    check2  : 1;        // checkmark 2
+     bool    check3  : 1;        // checkmark 3
+   };
   };
-
-  // State
-  uint16_t aux0;
-  uint16_t aux1;
-  uint32_t step;
-  uint32_t call;
-  dynamic_buffer<uint8_t, counted_allocator<uint8_t, segment_buffer_tag>> data;
-
-  effect_state_t() :
-      options(SELECTED | SEGMENT_ON),
-      mode(DEFAULT_MODE),
-      opacity(255),
-      colors{DEFAULT_COLOR,BLACK,BLACK},
-      palette(0),
-      cct(127),
-      speed(DEFAULT_SPEED),
-      intensity(DEFAULT_INTENSITY),
-      custom1(DEFAULT_C1),
-      custom2(DEFAULT_C2),
-      custom3(DEFAULT_C3),
-      check1(false),
-      check2(false),
-      check3(false),
-      aux0(0),
-      aux1(0),
-      step(0),
-      call(0)
-    {};
 };
 
+// Effect state information - includes config, above
+// These variables provide a spot for FX functions to stash state that
+// persists from one call to the next.
+// This structure can be copied to capture the complete FX state, eg. for transitions.
+struct effect_state_t : public effect_config_t {
+  // State
+  uint16_t aux0 = 0;
+  uint16_t aux1 = 0;
+  uint32_t step = 0;
+  uint32_t call = 0;
+  dynamic_buffer<uint8_t, counted_allocator<uint8_t, segment_buffer_tag>> data;
+};
 
 // segment, 80 bytes
 typedef struct Segment : effect_state_t {
