@@ -343,6 +343,7 @@ void WLED::setup()
 #else
   DEBUG_PRINT(F("esp8266 "));
   DEBUG_PRINTLN(ESP.getCoreVersion());
+  DEBUG_PRINTLN(ESP.getResetInfo().c_str());
 #endif
   DEBUG_PRINT(F("heap ")); DEBUG_PRINTLN(ESP.getFreeHeap());
 
