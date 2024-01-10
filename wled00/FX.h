@@ -391,7 +391,7 @@ struct effect_state_t : public effect_config_t {
   uint16_t aux1 = 0;
   uint32_t step = 0;
   uint32_t call = 0;
-  dynamic_buffer<uint8_t, counted_allocator<uint8_t, segment_buffer_tag>> data;
+  dynamic_buffer<uint8_t, default_init_allocator<uint8_t, counted_allocator<uint8_t, segment_buffer_tag>>> data;
 };
 
 // segment, 80 bytes
