@@ -1,6 +1,7 @@
 #pragma once
 
 #include <vector>
+#include <default_init_allocator.h>
 
 // Reusable dynamically allocated buffer class
 // Basically a wrapper for std::vector, but permits casting to a pointer type
@@ -9,13 +10,11 @@
 // We go the extra mile to support an allocator so that we can track memory pool utilization, eg. 
 // tracking effect buffer memory.
 
-template<typename T, class Allocator = std::allocator<T>>
+template<typename T, class Allocator = default_init_allocator<T>>
 class dynamic_buffer : public std::vector<T, Allocator> {
   public:
   // Forward constructors, C++11 style!
   using std::vector<T, Allocator>::vector;
-
-
 
   // Avoid ambiguity
   using std::vector<T, Allocator>::operator[];
