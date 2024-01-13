@@ -24,6 +24,11 @@ class non_copy_ptr : public std::unique_ptr<T> {
 // Analogue of make_unique
 template< class T, class... Args >
 inline non_copy_ptr<T> make_non_copy( Args&&... args ) {
+#if __cplusplus >= 201402L
   return non_copy_ptr<T> { std::make_unique<T>(std::forward<Args>(args)...) };
+#else
+  return non_copy_ptr<T>(new T(std::forward<Args>(args)...));
+#endif
 }
+
 
