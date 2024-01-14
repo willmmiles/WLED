@@ -32,9 +32,11 @@ struct static_counter {
   }  
 
   static inline void dbg_allocate(size_t count, bool is_allocate) {
+    /*
     if constexpr (static_counter_debug_check<tag_t>::value) {
       tag_t::debug(count, is_allocate, _available());
     }
+    */
   }
 
   // Allocator API
