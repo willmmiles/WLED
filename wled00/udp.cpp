@@ -160,7 +160,6 @@ void notify(byte callMode, bool followUp)
       // send segment data
       buffer.packet++;
       size_t packetSize = 0;
-      int32_t err = 0;
       for (size_t i = 0; i < s; i++) {
         memcpy(buffer.data + packetSize, &udpOut[41+i*UDP_SEG_SIZE], UDP_SEG_SIZE);
         packetSize += UDP_SEG_SIZE;
