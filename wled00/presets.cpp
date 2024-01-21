@@ -101,9 +101,9 @@ void initPresetsFile()
 {
   if (WLED_FS.exists(getFileName())) return;
 
-  StaticJsonDocument<64> doc;
+  JsonDocument doc;
   JsonObject sObj = doc.to<JsonObject>();
-  sObj.createNestedObject("0");
+  sObj["0"].to<JsonObject>();
   File f = WLED_FS.open(getFileName(), "w");
   if (!f) {
     errorFlag = ERR_FS_GENERAL;
@@ -247,7 +247,7 @@ void savePreset(byte index, const char* pname, JsonObject sObj)
 }
 
 void deletePreset(byte index) {
-  StaticJsonDocument<24> empty;
+  JsonDocument empty;
   writeObjectToFileUsingId(getFileName(), index, &empty);
   presetsModifiedTime = toki.second(); //unix time
   updateFSInfo();

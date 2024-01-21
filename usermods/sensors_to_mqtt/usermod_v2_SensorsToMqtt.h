@@ -72,7 +72,7 @@ private:
   {
     String t = String("homeassistant/sensor/") + mqttClientID + "/" + name + "/config";
 
-    StaticJsonDocument<300> doc;
+    JsonDocument doc;
 
     doc["name"] = name;
     doc["state_topic"] = topic;
@@ -83,7 +83,7 @@ private:
       doc["device_class"] = deviceClass;
     doc["expire_after"] = 1800;
 
-    JsonObject device = doc.createNestedObject("device"); // attach the sensor to the same device
+    JsonObject device = doc["device"].to<JsonObject>(); // attach the sensor to the same device
     device["identifiers"] = String("wled-sensor-") + mqttClientID;
     device["manufacturer"] = "Aircoookie";
     device["model"] = "WLED";

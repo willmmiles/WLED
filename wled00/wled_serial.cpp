@@ -124,9 +124,9 @@ void handleSerial()
           //only send response if TX pin is unused for other purposes
           if (verboseResponse && (!pinManager.isPinAllocated(hardwareTX) || pinManager.getPinOwner(hardwareTX) == PinOwner::DebugOut)) {
             pDoc->clear();
-            JsonObject state = pDoc->createNestedObject("state");
+            JsonObject state = (*pDoc)["state"].to<JsonObject>();
             serializeState(state);
-            JsonObject info  = pDoc->createNestedObject("info");
+            JsonObject info  = (*pDoc)["info"].to<JsonObject>();
             serializeInfo(info);
 
             serializeJson(*pDoc, Serial);

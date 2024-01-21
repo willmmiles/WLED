@@ -95,7 +95,7 @@ inline void UsermodMqttSwitch::onMqttConnect(bool sessionPresent)
 
     for (int pinNr = 0; pinNr < NUM_SWITCH_PINS; pinNr++) {
         char buf[128];
-        StaticJsonDocument<1024> json;
+        JsonDocument json;
         sprintf(buf, "%s Switch %d", serverDescription, pinNr + 1);
         json[F("name")] = buf;
 

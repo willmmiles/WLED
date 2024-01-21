@@ -146,7 +146,7 @@ private:
   {
     String t = String(F("homeassistant/sensor/")) + mqttClientID + F("/") + name + F("/config");
     
-    StaticJsonDocument<600> doc;
+    JsonDocument doc;
     
     doc[F("name")] = String(serverDescription) + " " + name;
     doc[F("state_topic")] = topic;
@@ -157,7 +157,7 @@ private:
       doc[F("device_class")] = deviceClass;
     doc[F("expire_after")] = 1800;
 
-    JsonObject device = doc.createNestedObject(F("device")); // attach the sensor to the same device
+    JsonObject device = doc[F("device")].to<JsonObject>(); // attach the sensor to the same device
     device[F("name")] = serverDescription;
     device[F("identifiers")] = "wled-sensor-" + String(mqttClientID);
     device[F("manufacturer")] = F("WLED");
@@ -355,19 +355,19 @@ public:
   void addToJsonInfo(JsonObject &root)
   {
     JsonObject user = root[F("u")];
-    if (user.isNull()) user = root.createNestedObject(F("u"));
+    if (user.isNull()) user = root[F("u")].to<JsonObject>();
     
     if (sensorType==0) //No Sensor
     {
       // if we sensor not detected, let the user know
-      JsonArray temperature_json = user.createNestedArray(F("BME/BMP280 Sensor"));
+      JsonArray temperature_json = user[F("BME/BMP280 Sensor")].to<JsonArray>();
       temperature_json.add(F("Not Found"));
     }
     else if (sensorType==2) //BMP280
     {
       
-      JsonArray temperature_json = user.createNestedArray(F("Temperature"));
-      JsonArray pressure_json = user.createNestedArray(F("Pressure"));
+      JsonArray temperature_json = user[F("Temperature")].to<JsonArray>();
+      JsonArray pressure_json = user[F("Pressure")].to<JsonArray>();
       temperature_json.add(roundf(sensorTemperature * powf(10, TemperatureDecimals)));
       temperature_json.add(tempScale);
       pressure_json.add(roundf(sensorPressure * powf(10, PressureDecimals)));
@@ -375,11 +375,11 @@ public:
     }
     else if (sensorType==1) //BME280
     {
-      JsonArray temperature_json = user.createNestedArray(F("Temperature"));
-      JsonArray humidity_json = user.createNestedArray(F("Humidity"));
-      JsonArray pressure_json = user.createNestedArray(F("Pressure"));
-      JsonArray heatindex_json = user.createNestedArray(F("Heat Index"));
-      JsonArray dewpoint_json = user.createNestedArray(F("Dew Point"));
+      JsonArray temperature_json = user[F("Temperature")].to<JsonArray>();
+      JsonArray humidity_json = user[F("Humidity")].to<JsonArray>();
+      JsonArray pressure_json = user[F("Pressure")].to<JsonArray>();
+      JsonArray heatindex_json = user[F("Heat Index")].to<JsonArray>();
+      JsonArray dewpoint_json = user[F("Dew Point")].to<JsonArray>();
       temperature_json.add(roundf(sensorTemperature * powf(10, TemperatureDecimals)) / powf(10, TemperatureDecimals));
       temperature_json.add(tempScale);
       humidity_json.add(roundf(sensorHumidity * powf(10, HumidityDecimals)));
@@ -397,7 +397,7 @@ public:
   // Save Usermod Config Settings
   void addToConfig(JsonObject& root)
   {
-    JsonObject top = root.createNestedObject(FPSTR(_name));
+    JsonObject top = root[FPSTR(_name)].to<JsonObject>();
     top[FPSTR(_enabled)] = enabled;
     top[F("TemperatureDecimals")] = TemperatureDecimals;
     top[F("HumidityDecimals")] = HumidityDecimals;

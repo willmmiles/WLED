@@ -154,8 +154,8 @@ void handleIR();
 
 //json.cpp
 #include "ESPAsyncWebServer.h"
-#include "src/dependencies/json/ArduinoJson-v6.h"
-#include "src/dependencies/json/AsyncJson-v6.h"
+#include "src/dependencies/json/ArduinoJson-v7.0.3.h"
+#include "src/dependencies/json/AsyncJson-v7.h"
 #include "FX.h"
 
 bool deserializeSegment(JsonObject elem, byte it, byte presetId = 0);

@@ -389,15 +389,13 @@ void WLED::setup()
   #endif
 */
   #if defined(WLED_USE_PSRAM)
-  pDoc = new PSRAMDynamicJsonDocument(2*JSON_BUFFER_SIZE);
-  if (!pDoc) pDoc = new PSRAMDynamicJsonDocument(JSON_BUFFER_SIZE); // falback if double sized buffer could not be allocated
-  // if the above still fails requestJsonBufferLock() will always return false preventing crashes
   if (psramFound()) {
+    // Switch to using PSRAM for the global JSON buffer
+    gDoc = JsonDocument(&pAlloc);
     DEBUG_PRINT(F("Total PSRAM: ")); DEBUG_PRINT(ESP.getPsramSize()/1024); DEBUG_PRINTLN("kB");
     DEBUG_PRINT(F("Free PSRAM : ")); DEBUG_PRINT(ESP.getFreePsram()/1024); DEBUG_PRINTLN("kB");
   }
   #else
-    if (!pDoc) pDoc = &gDoc; // just in case ... (it should be globally assigned)
     DEBUG_PRINTLN(F("PSRAM not used."));
   #endif
 #endif

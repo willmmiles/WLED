@@ -59,25 +59,25 @@ public:
     // if "u" object does not exist yet wee need to create it
     JsonObject user = root["u"];
     if (user.isNull())
-      user = root.createNestedObject("u");
+      user = root["u"].to<JsonObject>();
 
-    JsonArray userTempArr = user.createNestedArray(FPSTR(_name));
+    JsonArray userTempArr = user[FPSTR(_name)].to<JsonArray>();
     userTempArr.add(temperature);
     userTempArr.add(F(" °C"));
 
     // if "sensor" object does not exist yet wee need to create it
     JsonObject sensor = root[F("sensor")];
     if (sensor.isNull())
-      sensor = root.createNestedObject(F("sensor"));
+      sensor = root[F("sensor")].to<JsonObject>();
 
-    JsonArray sensorTempArr = sensor.createNestedArray(FPSTR(_name));
+    JsonArray sensorTempArr = sensor[FPSTR(_name)].to<JsonArray>();
     sensorTempArr.add(temperature);
     sensorTempArr.add(F("°C"));
   }
 
   void addToConfig(JsonObject &root)
   {
-    JsonObject top = root.createNestedObject(FPSTR(_name));
+    JsonObject top = root[FPSTR(_name)].to<JsonObject>();
     top[FPSTR(_enabled)] = isEnabled;
     top[FPSTR(_loopInterval)] = loopInterval;
   }

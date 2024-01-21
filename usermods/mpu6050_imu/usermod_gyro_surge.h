@@ -122,7 +122,7 @@ class GyroSurge : public Usermod {
      */
     void addToConfig(JsonObject& root)
     {
-      JsonObject top = root.createNestedObject(FPSTR(_name));
+      JsonObject top = root[FPSTR(_name)].to<JsonObject>();
 
       //save these vars persistently whenever settings are saved
       top["max"] = max;

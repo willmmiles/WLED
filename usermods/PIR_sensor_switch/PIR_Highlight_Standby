@@ -247,9 +247,9 @@ class PIRsensorSwitch : public Usermod {
       //this code adds "u":{"&#x23F2; PIR sensor state":uiDomString} to the info object
       // the value contains a button to toggle the sensor enabled/disabled
       JsonObject user = root["u"];
-      if (user.isNull()) user = root.createNestedObject("u");
+      if (user.isNull()) user = root["u"].to<JsonObject>();
 
-      JsonArray infoArr = user.createNestedArray("&#x23F2; PIR sensor state"); //name
+      JsonArray infoArr = user["&#x23F2; PIR sensor state"].to<JsonArray>(); //name
       String uiDomString = "<button class=\"btn infobtn\" onclick=\"requestJson({PIRenabled:";
       String sensorStateInfo;
 
@@ -267,7 +267,7 @@ class PIRsensorSwitch : public Usermod {
       infoArr.add(uiDomString); //value
 
       //this code adds "u":{"&#x23F2; switch off timer":uiDomString} to the info object
-      infoArr = user.createNestedArray("&#x23F2; switch off timer"); //name
+      infoArr = user["&#x23F2; switch off timer"].to<JsonArray>(); //name
 
       // off timer
       if (m_offTimerStart > 0) {

@@ -208,7 +208,7 @@ void initServer()
       }
     }
     request->send(200, "application/json", F("{\"success\":true}"));
-  }, JSON_BUFFER_SIZE);
+  });
   server.addHandler(handler);
 
   server.on("/version", HTTP_GET, [](AsyncWebServerRequest *request){
@@ -280,6 +280,8 @@ void initServer()
       #endif
       Update.begin((ESP.getFreeSketchSpace() - 0x1000) & 0xFFFFF000);
     }
+    DEBUG_PRINT(PSTR("update - heap ")); DEBUG_PRINTLN(ESP.getFreeHeap());
+    DEBUG_PRINT(PSTR("update - progress ")); DEBUG_PRINTLN(Update.progress());
     if(!Update.hasError()) Update.write(data, len);
     if(final){
       if(Update.end(true)){
