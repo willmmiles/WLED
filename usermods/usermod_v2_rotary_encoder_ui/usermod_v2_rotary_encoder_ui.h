@@ -392,8 +392,8 @@ public:
       int reading = 20;
       //this code adds "u":{"Light":[20," lux"]} to the info object
       JsonObject user = root["u"];
-      if (user.isNull()) user = root.createNestedObject("u");
-      JsonArray lightArr = user.createNestedArray("Light"); //name
+      if (user.isNull()) user = root["u"].to<JsonObject>();
+      JsonArray lightArr = user["Light"].to<JsonArray>(); //name
       lightArr.add(reading); //value
       lightArr.add(" lux"); //unit
     }
@@ -423,7 +423,7 @@ public:
    */
   void addToConfig(JsonObject &root) {
     // we add JSON object: {"Rotary-Encoder":{"DT-pin":12,"CLK-pin":14,"SW-pin":13}}
-    JsonObject top = root.createNestedObject(FPSTR(_name)); // usermodname
+    JsonObject top = root[FPSTR(_name)].to<JsonObject>(); // usermodname
     top[FPSTR(_enabled)] = enabled;
     top[FPSTR(_DT_pin)]  = pinA;
     top[FPSTR(_CLK_pin)] = pinB;

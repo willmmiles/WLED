@@ -250,21 +250,21 @@ class UsermodBattery : public Usermod
     void addToJsonInfo(JsonObject& root)
     {
       JsonObject user = root["u"];
-      if (user.isNull()) user = root.createNestedObject("u");
+      if (user.isNull()) user = root["u"].to<JsonObject>();
 
       if (batteryPin < 0) {
-        JsonArray infoVoltage = user.createNestedArray(F("Battery voltage"));
+        JsonArray infoVoltage = user[F("Battery voltage")].to<JsonArray>();
         infoVoltage.add(F("n/a"));
         infoVoltage.add(F(" invalid GPIO"));
         return;  // no GPIO - nothing to report
       }
 
       // info modal display names
-      JsonArray infoPercentage = user.createNestedArray(F("Battery level"));
-      JsonArray infoVoltage = user.createNestedArray(F("Battery voltage"));
+      JsonArray infoPercentage = user[F("Battery level")].to<JsonArray>();
+      JsonArray infoVoltage = user[F("Battery voltage")].to<JsonArray>();
       // if (calculateTimeLeftEnabled)
       // {
-      //   JsonArray infoEstimatedTimeLeft = user.createNestedArray(F("Estimated time left"));
+      //   JsonArray infoEstimatedTimeLeft = user[F("Estimated time left")].to<JsonArray>();
       //   if (initializing) {
       //     infoEstimatedTimeLeft.add(FPSTR(_init));
       //   } else {
@@ -272,7 +272,7 @@ class UsermodBattery : public Usermod
       //     infoEstimatedTimeLeft.add(F(" min"));
       //   }
       // }
-      JsonArray infoNextUpdate = user.createNestedArray(F("Next update"));
+      JsonArray infoNextUpdate = user[F("Next update")].to<JsonArray>();
 
       infoNextUpdate.add((nextReadTime - millis()) / 1000);
       infoNextUpdate.add(F(" sec"));
@@ -359,7 +359,7 @@ class UsermodBattery : public Usermod
      */
     void addToConfig(JsonObject& root)
     {
-      JsonObject battery = root.createNestedObject(FPSTR(_name));           // usermodname
+      JsonObject battery = root[FPSTR(_name)].to<JsonObject>();           // usermodname
       #ifdef ARDUINO_ARCH_ESP32
         battery[F("pin")] = batteryPin;
       #endif
@@ -372,11 +372,11 @@ class UsermodBattery : public Usermod
       battery[F("voltage-multiplier")] = voltageMultiplier;
       battery[FPSTR(_readInterval)] = readingInterval;
       
-      JsonObject ao = battery.createNestedObject(F("auto-off"));               // auto off section
+      JsonObject ao = battery[F("auto-off")].to<JsonObject>();               // auto off section
       ao[FPSTR(_enabled)] = autoOffEnabled;
       ao[FPSTR(_threshold)] = autoOffThreshold;
 
-      JsonObject lp = battery.createNestedObject(F("indicator"));    // low power section
+      JsonObject lp = battery[F("indicator")].to<JsonObject>();    // low power section
       lp[FPSTR(_enabled)] = lowPowerIndicatorEnabled;
       lp[FPSTR(_preset)] = lowPowerIndicatorPreset; // dropdown trickery (String)lowPowerIndicatorPreset; 
       lp[FPSTR(_threshold)] = lowPowerIndicatorThreshold;
@@ -496,11 +496,11 @@ class UsermodBattery : public Usermod
      */
     void generateExamplePreset()
     {
-      // StaticJsonDocument<300> j;
-      // JsonObject preset = j.createNestedObject();
+      // JsonDocument j;
+      // JsonObject preset = j.add<JsonObject>();
       // preset["mainseg"] = 0;
-      // JsonArray seg = preset.createNestedArray("seg");
-      // JsonObject seg0 = seg.createNestedObject();
+      // JsonArray seg = preset["seg"].to<JsonArray>();
+      // JsonObject seg0 = seg.add<JsonObject>();
       // seg0["id"] = 0;
       // seg0["start"] = 0;
       // seg0["stop"] = 60;
@@ -509,8 +509,8 @@ class UsermodBattery : public Usermod
       // seg0["on"] = true;
       // seg0["bri"] = 255;
 
-      // JsonArray col0 = seg0.createNestedArray("col");
-      // JsonArray col00 = col0.createNestedArray();
+      // JsonArray col0 = seg0["col"].to<JsonArray>();
+      // JsonArray col00 = col0.add<JsonArray>();
       // col00.add(255);
       // col00.add(0);
       // col00.add(0);

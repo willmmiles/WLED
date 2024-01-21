@@ -292,7 +292,7 @@ void PIRsensorSwitch::publishHomeAssistantAutodiscovery()
 {
 #ifndef WLED_DISABLE_MQTT
   if (WLED_MQTT_CONNECTED) {
-    StaticJsonDocument<600> doc;
+    JsonDocument doc;
     char uid[24], json_str[1024], buf[128];
 
     sprintf_P(buf, PSTR("%s Motion"), serverDescription); //max length: 33 + 7 = 40
@@ -306,7 +306,7 @@ void PIRsensorSwitch::publishHomeAssistantAutodiscovery()
     doc[F("dev_cla")] = F("motion");
     doc[F("exp_aft")] = 1800;
 
-    JsonObject device = doc.createNestedObject(F("device")); // attach the sensor to the same device
+    JsonObject device = doc[F("device")].to<JsonObject>(); // attach the sensor to the same device
     device[F("name")] = serverDescription;
     device[F("ids")]  = String(F("wled-sensor-")) + mqttClientID;
     device[F("mf")]   = "WLED";
@@ -394,9 +394,9 @@ void PIRsensorSwitch::loop()
 void PIRsensorSwitch::addToJsonInfo(JsonObject &root)
 {
   JsonObject user = root["u"];
-  if (user.isNull()) user = root.createNestedObject("u");
+  if (user.isNull()) user = root["u"].to<JsonObject>();
 
-  JsonArray infoArr = user.createNestedArray(FPSTR(_name));
+  JsonArray infoArr = user[FPSTR(_name)].to<JsonArray>();
 
   String uiDomString;
   if (enabled) {
@@ -447,7 +447,7 @@ void PIRsensorSwitch::addToJsonInfo(JsonObject &root)
   infoArr.add(uiDomString);
 
   JsonObject sensor = root[F("sensor")];
-  if (sensor.isNull()) sensor = root.createNestedObject(F("sensor"));
+  if (sensor.isNull()) sensor = root[F("sensor")].to<JsonObject>();
   sensor[F("motion")] = sensorPinState || offTimerStart>0 ? true : false;
 }
 
@@ -475,7 +475,7 @@ void PIRsensorSwitch::readFromJsonState(JsonObject &root)
 
 void PIRsensorSwitch::addToConfig(JsonObject &root)
 {
-  JsonObject top = root.createNestedObject(FPSTR(_name));
+  JsonObject top = root[FPSTR(_name)].to<JsonObject>();
   top[FPSTR(_enabled)]        = enabled;
   top[FPSTR(_switchOffDelay)] = m_switchOffDelay / 1000;
   top["pin"]                  = PIRsensorPin;

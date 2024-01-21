@@ -596,8 +596,8 @@ class FourLineDisplayUsermod : public Usermod {
      */
     //void addToJsonInfo(JsonObject& root) {
       //JsonObject user = root["u"];
-      //if (user.isNull()) user = root.createNestedObject("u");
-      //JsonArray data = user.createNestedArray(F("4LineDisplay"));
+      //if (user.isNull()) user = root["u"].to<JsonObject>();
+      //JsonArray data = user[F("4LineDisplay")].to<JsonArray>();
       //data.add(F("Loaded."));
     //}
 
@@ -631,9 +631,9 @@ class FourLineDisplayUsermod : public Usermod {
      * I highly recommend checking out the basics of ArduinoJson serialization and deserialization in order to use custom settings!
      */
     void addToConfig(JsonObject& root) {
-      JsonObject top   = root.createNestedObject(FPSTR(_name));
+      JsonObject top   = root[FPSTR(_name)].to<JsonObject>();
       top[FPSTR(_enabled)]       = enabled;
-      JsonArray io_pin = top.createNestedArray("pin");
+      JsonArray io_pin = top["pin"].to<JsonArray>();
       for (byte i=0; i<5; i++) io_pin.add(ioPin[i]);
       top["help4Pins"]           = F("Clk,Data,CS,DC,RST"); // help for Settings page
       top["type"]                = type;

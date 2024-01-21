@@ -1442,7 +1442,7 @@ void WS2812FX::loadCustomPalettes() {
     char fileName[32];
     sprintf_P(fileName, PSTR("/palette%d.json"), index);
 
-    StaticJsonDocument<1536> pDoc; // barely enough to fit 72 numbers
+    JsonDocument pDoc; // barely enough to fit 72 numbers
     if (WLED_FS.exists(fileName)) {
       DEBUG_PRINT(F("Reading palette from "));
       DEBUG_PRINTLN(fileName);

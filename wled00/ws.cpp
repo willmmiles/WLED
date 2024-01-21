@@ -103,13 +103,13 @@ void sendDataWs(AsyncWebSocketClient * client)
 
   if (!requestJSONBufferLock(12)) return;
 
-  JsonObject state = pDoc->createNestedObject("state");
+  JsonObject state = (*pDoc)["state"].to<JsonObject>();
   serializeState(state);
-  JsonObject info  = pDoc->createNestedObject("info");
+  JsonObject info  = (*pDoc)["info"].to<JsonObject>();
   serializeInfo(info);
 
   size_t len = measureJson(*pDoc);
-  DEBUG_PRINTF("JSON buffer size: %u for WS request (%u).\n", pDoc->memoryUsage(), len);
+  DEBUG_PRINTF("JSON buffer size for WS request: %u.\n", len);
 
   size_t heap1 = ESP.getFreeHeap();
   DEBUG_PRINT(F("heap ")); DEBUG_PRINTLN(ESP.getFreeHeap());

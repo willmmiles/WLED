@@ -84,7 +84,7 @@ private:
   {
     String t = String(F("homeassistant/sensor/")) + mqttClientID + F("/") + name + F("/config");
     
-    StaticJsonDocument<600> doc;
+    JsonDocument doc;
     
     doc[F("name")] = String(serverDescription) + F(" ") + name;
     doc[F("state_topic")] = topic;
@@ -95,7 +95,7 @@ private:
       doc[F("device_class")] = deviceClass;
     doc[F("expire_after")] = 1800;
 
-    JsonObject device = doc.createNestedObject(F("device")); // attach the sensor to the same device
+    JsonObject device = doc[F("device")].to<JsonObject>(); // attach the sensor to the same device
     device[F("name")] = serverDescription;
     device[F("identifiers")] = "wled-sensor-" + String(mqttClientID);
     device[F("manufacturer")] = F("WLED");
@@ -170,9 +170,9 @@ public:
   {
     JsonObject user = root[F("u")];
     if (user.isNull())
-      user = root.createNestedObject(F("u"));
+      user = root[F("u")].to<JsonObject>();
 
-    JsonArray lux_json = user.createNestedArray(F("Luminance"));
+    JsonArray lux_json = user[F("Luminance")].to<JsonArray>();
     if (!enabled) {
       lux_json.add(F("disabled"));
     } else if (!sensorFound) {
@@ -195,7 +195,7 @@ public:
   void addToConfig(JsonObject &root)
   {
     // we add JSON object.
-    JsonObject top = root.createNestedObject(FPSTR(_name)); // usermodname
+    JsonObject top = root[FPSTR(_name)].to<JsonObject>(); // usermodname
     top[FPSTR(_enabled)] = enabled;
     top[FPSTR(_maxReadInterval)] = maxReadingInterval;
     top[FPSTR(_minReadInterval)] = minReadingInterval;

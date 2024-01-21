@@ -462,7 +462,7 @@
 #endif
 
 //#define MIN_HEAP_SIZE (8k for AsyncWebServer)
-#define MIN_HEAP_SIZE 8192
+#define MIN_HEAP_SIZE 5000
 
 // Maximum size of node map (list of other WLED instances)
 #ifdef ESP8266

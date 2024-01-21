@@ -73,7 +73,6 @@ void WLED::loop()
   if (usermodMillis > maxUsermodMillis) maxUsermodMillis = usermodMillis;
   #endif
 
-  cont_repaint_stack(g_pcont);
   yield();
   handleIO();
   #ifndef WLED_DISABLE_INFRARED
@@ -85,7 +84,6 @@ void WLED::loop()
 
   if (doCloseFile) {
     closeFile();
-    cont_repaint_stack(g_pcont);
     yield();
   }
 
@@ -100,17 +98,14 @@ void WLED::loop()
     #endif
     handleNightlight();
     handlePlaylist();
-    cont_repaint_stack(g_pcont);
     yield();
 
     #ifndef WLED_DISABLE_HUESYNC
     handleHue();
-    cont_repaint_stack(g_pcont);
     yield();
     #endif
 
     handlePresets();
-    cont_repaint_stack(g_pcont);
     yield();
 
     if (!offMode || strip.isOffRefreshRequired() || strip.needsUpdate())
@@ -126,7 +121,6 @@ void WLED::loop()
   if (stripMillis > maxStripMillis) maxStripMillis = stripMillis;
   #endif
 
-  cont_repaint_stack(g_pcont);
   yield();
 #ifdef ESP8266
   MDNS.update();
@@ -144,12 +138,10 @@ void WLED::loop()
     #ifndef WLED_DISABLE_MQTT
     initMqtt();
     #endif
-    cont_repaint_stack(g_pcont);
     yield();
     // refresh WLED nodes list
     refreshNodeList();
     if (nodeBroadcastEnabled) sendSysInfoUDP();
-    cont_repaint_stack(g_pcont);
     yield();
   }
 
@@ -189,7 +181,6 @@ void WLED::loop()
     strip.deserializeMap(loadLedmap);
     loadLedmap = -1;
   }
-  cont_repaint_stack(g_pcont);
   yield();
 
   if (doSerializeConfig) {
@@ -202,7 +193,6 @@ void WLED::loop()
     DEBUG_PRINT(F("ArduinoJson Stack used: ")); DEBUG_PRINTLN(stack_before - stack_after);
   }
 
-  cont_repaint_stack(g_pcont);
   yield();
   handleWs();
 #if defined(STATUSLED)
@@ -276,7 +266,6 @@ void WLED::loop()
   loops++;
   lastRun = millis();
 #endif        // WLED_DEBUG
-  cont_repaint_stack(g_pcont);
 }
 
 #if WLED_WATCHDOG_TIMEOUT > 0
@@ -392,15 +381,13 @@ void WLED::setup()
   #endif
 */
   #if defined(WLED_USE_PSRAM)
-  pDoc = new PSRAMDynamicJsonDocument(2*JSON_BUFFER_SIZE);
-  if (!pDoc) pDoc = new PSRAMDynamicJsonDocument(JSON_BUFFER_SIZE); // falback if double sized buffer could not be allocated
-  // if the above still fails requestJsonBufferLock() will always return false preventing crashes
   if (psramFound()) {
+    // Switch to using PSRAM for the global JSON buffer
+    gDoc = JsonDocument(&pAlloc);
     DEBUG_PRINT(F("Total PSRAM: ")); DEBUG_PRINT(ESP.getPsramSize()/1024); DEBUG_PRINTLN("kB");
     DEBUG_PRINT(F("Free PSRAM : ")); DEBUG_PRINT(ESP.getFreePsram()/1024); DEBUG_PRINTLN("kB");
   }
   #else
-    if (!pDoc) pDoc = &gDoc; // just in case ... (it should be globally assigned)
     DEBUG_PRINTLN(F("PSRAM not used."));
   #endif
 #endif

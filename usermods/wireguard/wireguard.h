@@ -35,9 +35,9 @@ class WireguardUsermod : public Usermod {
 
     void addToJsonInfo(JsonObject& root) {
         JsonObject user = root["u"];
-        if (user.isNull()) user = root.createNestedObject("u");
+        if (user.isNull()) user = root["u"].to<JsonObject>();
 
-        JsonArray infoArr = user.createNestedArray(F("WireGuard"));
+        JsonArray infoArr = user[F("WireGuard")].to<JsonArray>();
         String uiDomString;
 
         struct tm timeinfo;
@@ -64,7 +64,7 @@ class WireguardUsermod : public Usermod {
     }
 
     void addToConfig(JsonObject& root) {
-        JsonObject top = root.createNestedObject(F("WireGuard"));
+        JsonObject top = root[F("WireGuard")].to<JsonObject>();
         top[F("host")] = endpoint_address;
         top[F("port")] = endpoint_port;
         top["ip"] = local_ip.toString();
