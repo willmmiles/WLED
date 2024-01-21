@@ -229,9 +229,9 @@ void WLED::loop()
 #ifdef WLED_DEBUG
   loopMillis = millis() - loopMillis;
   if (loopMillis > 30) {
-    DEBUG_PRINTF("Loop took %lums.\n", loopMillis);
-    DEBUG_PRINTF("Usermods took %lums.\n", usermodMillis);
-    DEBUG_PRINTF("Strip took %lums.\n", stripMillis);
+    DEBUG_PRINTF(PSTR("Loop took %lums.\n"), loopMillis);
+    DEBUG_PRINTF(PSTR("Usermods took %lums.\n"), usermodMillis);
+    DEBUG_PRINTF(PSTR("Strip took %lums.\n"), stripMillis);
   }
   avgLoopMillis += loopMillis;
   if (loopMillis > maxLoopMillis) maxLoopMillis = loopMillis;
