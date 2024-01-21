@@ -396,7 +396,7 @@ class Animated_Staircase : public Usermod {
     void addToJsonState(JsonObject& root) {
       JsonObject staircase = root[FPSTR(_name)];
       if (staircase.isNull()) {
-        staircase = root.createNestedObject(FPSTR(_name));
+        staircase = root[FPSTR(_name)].to<JsonObject>();
       }
       writeSensorsToJson(staircase);
       DEBUG_PRINTLN(F("Staircase sensor state exposed in API."));
@@ -437,7 +437,7 @@ class Animated_Staircase : public Usermod {
     void addToConfig(JsonObject& root) {
       JsonObject staircase = root[FPSTR(_name)];
       if (staircase.isNull()) {
-        staircase = root.createNestedObject(FPSTR(_name));
+        staircase = root[FPSTR(_name)].to<JsonObject>();
       }
       staircase[FPSTR(_enabled)]                   = enabled;
       staircase[FPSTR(_segmentDelay)]              = segment_delay_ms;
@@ -530,10 +530,10 @@ class Animated_Staircase : public Usermod {
     void addToJsonInfo(JsonObject& root) {
       JsonObject user = root["u"];
       if (user.isNull()) {
-        user = root.createNestedObject("u");
+        user = root["u"].to<JsonObject>();
       }
 
-      JsonArray infoArr = user.createNestedArray(FPSTR(_name));  // name
+      JsonArray infoArr = user[FPSTR(_name)].to<JsonArray>();  // name
 
       String uiDomString = F("<button class=\"btn btn-xs\" onclick=\"requestJson({");
       uiDomString += FPSTR(_name);

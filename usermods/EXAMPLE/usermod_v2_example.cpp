@@ -133,18 +133,18 @@ class MyExampleUsermod : public Usermod {
     {
       // if "u" object does not exist yet wee need to create it
       JsonObject user = root["u"];
-      if (user.isNull()) user = root.createNestedObject("u");
+      if (user.isNull()) user = root["u"].to<JsonObject>();
 
       //this code adds "u":{"ExampleUsermod":[20," lux"]} to the info object
       //int reading = 20;
-      //JsonArray lightArr = user.createNestedArray(FPSTR(_name))); //name
+      //JsonArray lightArr = user[FPSTR(_name))].to<JsonArray>(); //name
       //lightArr.add(reading); //value
       //lightArr.add(F(" lux")); //unit
 
       // if you are implementing a sensor usermod, you may publish sensor data
       //JsonObject sensor = root[F("sensor")];
-      //if (sensor.isNull()) sensor = root.createNestedObject(F("sensor"));
-      //temp = sensor.createNestedArray(F("light"));
+      //if (sensor.isNull()) sensor = root[F("sensor")].to<JsonObject>();
+      //temp = sensor[F("light")].to<JsonArray>();
       //temp.add(reading);
       //temp.add(F("lux"));
     }
@@ -159,7 +159,7 @@ class MyExampleUsermod : public Usermod {
       if (!initDone || !enabled) return;  // prevent crash on boot applyPreset()
 
       JsonObject usermod = root[FPSTR(_name)];
-      if (usermod.isNull()) usermod = root.createNestedObject(FPSTR(_name));
+      if (usermod.isNull()) usermod = root[FPSTR(_name)].to<JsonObject>();
 
       //usermod["user0"] = userVar0;
     }
@@ -220,7 +220,7 @@ class MyExampleUsermod : public Usermod {
      */
     void addToConfig(JsonObject& root) override
     {
-      JsonObject top = root.createNestedObject(FPSTR(_name));
+      JsonObject top = root[FPSTR(_name)].to<JsonObject>();
       top[FPSTR(_enabled)] = enabled;
       //save these vars persistently whenever settings are saved
       top["great"] = userVar0;
@@ -230,7 +230,7 @@ class MyExampleUsermod : public Usermod {
       top["testULong"] = testULong;
       top["testFloat"] = testFloat;
       top["testString"] = testString;
-      JsonArray pinArray = top.createNestedArray("pin");
+      JsonArray pinArray = top["pin"].to<JsonArray>();
       pinArray.add(testPins[0]);
       pinArray.add(testPins[1]); 
     }

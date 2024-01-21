@@ -146,9 +146,9 @@ public:
 
   void addToConfig(JsonObject& root)
   {
-    JsonObject top = root.createNestedObject("rotEncBrightness");
+    JsonObject top = root["rotEncBrightness"].to<JsonObject>();
     top["fadeAmount"] = fadeAmount;
-    JsonArray pinArray = top.createNestedArray("pin");
+    JsonArray pinArray = top["pin"].to<JsonArray>();
     pinArray.add(pins[0]);
     pinArray.add(pins[1]); 
     pinArray.add(pins[2]); 

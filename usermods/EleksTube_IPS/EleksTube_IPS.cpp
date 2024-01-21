@@ -87,7 +87,7 @@ class ElekstubeIPSUsermod : public Usermod {
      */
     void addToConfig(JsonObject &root) {
       // we add JSON object: {"EleksTubeIPS": {"tubeSegment": 1, "digitOffset": 0}}
-      JsonObject top = root.createNestedObject(FPSTR(_name)); // usermodname
+      JsonObject top = root[FPSTR(_name)].to<JsonObject>(); // usermodname
       top[FPSTR(_tubeSeg)] = tfts.tubeSegment;
       top[FPSTR(_digitOffset)] = tfts.digitOffset;
       DEBUG_PRINTLN(F("EleksTube config saved."));

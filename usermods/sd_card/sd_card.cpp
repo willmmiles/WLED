@@ -135,7 +135,7 @@ class UsermodSdCard : public Usermod {
     void addToConfig(JsonObject& root)
     {
       #ifdef WLED_USE_SD_SPI
-      JsonObject top = root.createNestedObject(FPSTR(_name));
+      JsonObject top = root[FPSTR(_name)].to<JsonObject>();
       top["pinSourceSelect"] = configPinSourceSelect;
       top["pinSourceClock"] = configPinSourceClock;
       top["pinPoci"] = configPinPoci;

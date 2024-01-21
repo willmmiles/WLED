@@ -465,7 +465,7 @@ void MultiRelay::publishHomeAssistantAutodiscovery() {
     sprintf_P(uid, PSTR("%s_sw%d"), escapedMac.c_str(), i);
 
     if (_relay[i].pin >= 0 && _relay[i].external) {
-      StaticJsonDocument<1024> json;
+      JsonDocument json;
       sprintf_P(buf, PSTR("%s Switch %d"), serverDescription, i); //max length: 33 + 8 + 3 = 44
       json[F("name")] = buf;
 
@@ -655,9 +655,9 @@ void MultiRelay::addToJsonInfo(JsonObject &root) {
   if (enabled) {
     JsonObject user = root["u"];
     if (user.isNull())
-      user = root.createNestedObject("u");
+      user = root["u"].to<JsonObject>();
 
-    JsonArray infoArr = user.createNestedArray(FPSTR(_name)); //name
+    JsonArray infoArr = user[FPSTR(_name)].to<JsonArray>(); //name
     infoArr.add(String(getActiveRelayCount()));
     infoArr.add(F(" relays"));
 
@@ -665,7 +665,7 @@ void MultiRelay::addToJsonInfo(JsonObject &root) {
     for (int i=0; i<MULTI_RELAY_MAX_RELAYS; i++) {
       if (_relay[i].pin<0 || !_relay[i].external) continue;
       uiDomString = F("Relay "); uiDomString += i;
-      infoArr = user.createNestedArray(uiDomString); // timer value
+      infoArr = user[uiDomString].to<JsonArray>(); // timer value
 
       uiDomString = F("<button class=\"btn btn-xs\" onclick=\"requestJson({");
       uiDomString += FPSTR(_name);
@@ -692,13 +692,13 @@ void MultiRelay::addToJsonState(JsonObject &root) {
   if (!initDone || !enabled) return;  // prevent crash on boot applyPreset()
   JsonObject multiRelay = root[FPSTR(_name)];
   if (multiRelay.isNull()) {
-    multiRelay = root.createNestedObject(FPSTR(_name));
+    multiRelay = root[FPSTR(_name)].to<JsonObject>();
   }
   #if MULTI_RELAY_MAX_RELAYS > 1
-  JsonArray rel_arr = multiRelay.createNestedArray(F("relays"));
+  JsonArray rel_arr = multiRelay[F("relays")].to<JsonArray>();
   for (int i=0; i<MULTI_RELAY_MAX_RELAYS; i++) {
     if (_relay[i].pin < 0) continue;
-    JsonObject relay = rel_arr.createNestedObject();
+    JsonObject relay = rel_arr.add<JsonObject>();
     relay[FPSTR(_relay_str)] = i;
     relay["state"] = _relay[i].state;
   }
@@ -743,7 +743,7 @@ void MultiRelay::readFromJsonState(JsonObject &root) {
  * provide the changeable values
  */
 void MultiRelay::addToConfig(JsonObject &root) {
-  JsonObject top = root.createNestedObject(FPSTR(_name));
+  JsonObject top = root[FPSTR(_name)].to<JsonObject>();
 
   top[FPSTR(_enabled)] = enabled;
   top[FPSTR(_pcf8574)] = usePcf8574;
@@ -752,7 +752,7 @@ void MultiRelay::addToConfig(JsonObject &root) {
   top[FPSTR(_HAautodiscovery)] = HAautodiscovery;
   for (int i=0; i<MULTI_RELAY_MAX_RELAYS; i++) {
     String parName = FPSTR(_relay_str); parName += '-'; parName += i;
-    JsonObject relay = top.createNestedObject(parName);
+    JsonObject relay = top[parName].to<JsonObject>();
     relay["pin"]              = _relay[i].pin;
     relay[FPSTR(_activeHigh)] = _relay[i].invert;
     relay[FPSTR(_delay_str)]  = _relay[i].delay;

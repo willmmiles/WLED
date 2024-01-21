@@ -421,7 +421,7 @@ class WordClockUsermod : public Usermod
      */
     void addToConfig(JsonObject& root)
     {
-      JsonObject top = root.createNestedObject(F("WordClockUsermod"));
+      JsonObject top = root[F("WordClockUsermod")].to<JsonObject>();
       top[F("active")] = usermodActive;
       top[F("displayItIs")] = displayItIs;
       top[F("ledOffset")] = ledOffset;

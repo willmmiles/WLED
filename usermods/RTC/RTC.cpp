@@ -36,8 +36,8 @@ class RTCUsermod : public Usermod {
      */
 //    void addToConfig(JsonObject& root)
 //    {
-//      JsonObject top = root.createNestedObject("RTC");
-//      JsonArray pins = top.createNestedArray("pin");
+//      JsonObject top = root["RTC"].to<JsonObject>();
+//      JsonArray pins = top["pin"].to<JsonArray>();
 //      pins.add(i2c_scl);
 //      pins.add(i2c_sda);
 //    }

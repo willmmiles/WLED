@@ -106,7 +106,7 @@ class WizLightsUsermod : public Usermod {
 
     void addToConfig(JsonObject& root)
     {
-      JsonObject top = root.createNestedObject("wizLightsUsermod");
+      JsonObject top = root["wizLightsUsermod"].to<JsonObject>();
       top["Interval (ms)"]                = updateInterval;
       top["Send Delay (ms)"]              = sendDelay;
       top["Use Enhanced White *"]         = useEnhancedWhite;

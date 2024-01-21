@@ -441,7 +441,7 @@ public:
     JsonObject top = root[FPSTR(_str_sevenSeg)];
     if (top.isNull())
     {
-      top = root.createNestedObject(FPSTR(_str_sevenSeg));
+      top = root[FPSTR(_str_sevenSeg)].to<JsonObject>();
     }
     top[FPSTR(_str_perSegment)] = ssLEDPerSegment;
     top[FPSTR(_str_perPeriod)] = ssLEDPerPeriod;

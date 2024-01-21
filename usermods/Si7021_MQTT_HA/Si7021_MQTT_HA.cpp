@@ -78,7 +78,7 @@ class Si7021_MQTT_HA : public Usermod
       if (WLED_MQTT_CONNECTED) {
         String topic = String("homeassistant/sensor/") + mqttClientID + "/" + name + "/config";
 
-        StaticJsonDocument<300> doc;
+        JsonDocument doc;
 
         doc["name"] = String(serverDescription) + " " + friendly_name;
         doc["state_topic"] = state_topic;
@@ -89,7 +89,7 @@ class Si7021_MQTT_HA : public Usermod
           doc["device_class"] = deviceClass;
         doc["expire_after"] = 1800;
 
-        JsonObject device = doc.createNestedObject("device"); // attach the sensor to the same device
+        JsonObject device = doc["device"].to<JsonObject>(); // attach the sensor to the same device
         device["name"] = String(serverDescription);
         device["model"] = F(WLED_PRODUCT_NAME);
         device["manufacturer"] = F(WLED_BRAND);
@@ -146,7 +146,7 @@ class Si7021_MQTT_HA : public Usermod
   public:
     void addToConfig(JsonObject& root)
     {
-      JsonObject top = root.createNestedObject(FPSTR(_name));
+      JsonObject top = root[FPSTR(_name)].to<JsonObject>();
       
       top[FPSTR(_enabled)] = enabled;
       top[FPSTR(_sendAdditionalSensors)] = sendAdditionalSensors;

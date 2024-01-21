@@ -160,10 +160,10 @@ class AutoSaveUsermod : public Usermod {
     void addToJsonInfo(JsonObject& root) {
       JsonObject user = root["u"];
       if (user.isNull()) {
-        user = root.createNestedObject("u");
+        user = root["u"].to<JsonObject>();
       }
 
-      JsonArray infoArr = user.createNestedArray(FPSTR(_name));  // name
+      JsonArray infoArr = user[FPSTR(_name)].to<JsonArray>();  // name
 
       String uiDomString = F("<button class=\"btn btn-xs\" onclick=\"requestJson({");
       uiDomString += FPSTR(_name);
@@ -218,7 +218,7 @@ class AutoSaveUsermod : public Usermod {
      */
     void addToConfig(JsonObject& root) {
       // we add JSON object: {"Autosave": {"autoSaveAfterSec": 10, "autoSavePreset": 99}}
-      JsonObject top = root.createNestedObject(FPSTR(_name)); // usermodname
+      JsonObject top = root[FPSTR(_name)].to<JsonObject>(); // usermodname
       top[FPSTR(_autoSaveEnabled)]     = enabled;
       top[FPSTR(_autoSaveAfterSec)]    = autoSaveAfterSec;  // usermodparam
       top[FPSTR(_autoSavePreset)]      = autoSavePreset;    // usermodparam

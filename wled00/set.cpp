@@ -709,7 +709,7 @@ void handleSettingsSet(AsyncWebServerRequest *request, byte subPage)
       }
     }
 
-    JsonObject um = pDoc->createNestedObject("um");
+    JsonObject um = (*pDoc)["um"].to<JsonObject>();
 
     size_t args = request->args();
     unsigned j=0;
@@ -723,7 +723,7 @@ void handleSettingsSet(AsyncWebServerRequest *request, byte subPage)
 
       JsonObject mod = um[name.substring(0,umNameEnd)]; // get a usermod JSON object
       if (mod.isNull()) {
-        mod = um.createNestedObject(name.substring(0,umNameEnd)); // if it does not exist create it
+        mod = um[name.substring(0,umNameEnd)].to<JsonObject>(); // if it does not exist create it
       }
       DEBUG_PRINT(name.substring(0,umNameEnd));
       DEBUG_PRINT(":");
@@ -736,7 +736,7 @@ void handleSettingsSet(AsyncWebServerRequest *request, byte subPage)
       if (umSubObj>0) {
         subObj = mod[name.substring(0,umSubObj)];
         if (subObj.isNull())
-          subObj = mod.createNestedObject(name.substring(0,umSubObj));
+          subObj = mod[name.substring(0,umSubObj)].to<JsonObject>();
         name = name.substring(umSubObj+1); // remove nested object name from string
       } else {
         subObj = mod;
@@ -748,7 +748,7 @@ void handleSettingsSet(AsyncWebServerRequest *request, byte subPage)
         name.replace("[]","");
         value.replace(",",".");      // just in case conversion
         if (!subObj[name].is<JsonArray>()) {
-          JsonArray ar = subObj.createNestedArray(name);
+          JsonArray ar = subObj[name].to<JsonArray>();
           if (value.indexOf(".") >= 0) ar.add(value.toFloat());  // we do have a float
           else                         ar.add(value.toInt());    // we may have an int
           j=0;

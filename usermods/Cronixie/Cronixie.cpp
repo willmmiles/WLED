@@ -275,7 +275,7 @@ class UsermodCronixie : public Usermod {
 
     void addToConfig(JsonObject& root)
     {
-      JsonObject top = root.createNestedObject(F("Cronixie"));
+      JsonObject top = root[F("Cronixie")].to<JsonObject>();
       top["backlight"] = backlight;
     }
 

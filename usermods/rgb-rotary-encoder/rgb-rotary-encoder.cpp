@@ -226,7 +226,7 @@ class RgbRotaryEncoderUsermod : public Usermod
 
     void addToConfig(JsonObject &root)
     {
-      JsonObject top = root.createNestedObject(FPSTR(_name)); // usermodname
+      JsonObject top = root[FPSTR(_name)].to<JsonObject>(); // usermodname
 
       top[FPSTR(_enabled)] = enabled;
       top[FPSTR(_ledIo)] = ledIo;

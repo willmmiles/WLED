@@ -90,7 +90,7 @@ void UsermodTemperature::publishHomeAssistantAutodiscovery() {
 
   char json_str[1024], buf[128];
   size_t payload_size;
-  StaticJsonDocument<1024> json;
+  JsonDocument json;
 
   sprintf_P(buf, PSTR("%s Temperature"), serverDescription);
   json[F("name")] = buf;
@@ -227,9 +227,9 @@ void UsermodTemperature::addToJsonInfo(JsonObject& root) {
   if (!enabled) return;
 
   JsonObject user = root["u"];
-  if (user.isNull()) user = root.createNestedObject("u");
+  if (user.isNull()) user = root["u"].to<JsonObject>();
 
-  JsonArray temp = user.createNestedArray(FPSTR(_name));
+  JsonArray temp = user[FPSTR(_name)].to<JsonArray>();
 
   if (temperature <= -100.0f) {
     temp.add(0);
@@ -241,8 +241,8 @@ void UsermodTemperature::addToJsonInfo(JsonObject& root) {
   temp.add(getTemperatureUnit());
 
   JsonObject sensor = root[FPSTR(_sensor)];
-  if (sensor.isNull()) sensor = root.createNestedObject(FPSTR(_sensor));
-  temp = sensor.createNestedArray(FPSTR(_temperature));
+  if (sensor.isNull()) sensor = root[FPSTR(_sensor)].to<JsonObject>();
+  temp = sensor[FPSTR(_temperature)].to<JsonArray>();
   temp.add(getTemperature());
   temp.add(getTemperatureUnit());
 }
@@ -269,7 +269,7 @@ void UsermodTemperature::addToJsonInfo(JsonObject& root) {
  */
 void UsermodTemperature::addToConfig(JsonObject &root) {
   // we add JSON object: {"Temperature": {"pin": 0, "degC": true}}
-  JsonObject top = root.createNestedObject(FPSTR(_name)); // usermodname
+  JsonObject top = root[FPSTR(_name)].to<JsonObject>(); // usermodname
   top[FPSTR(_enabled)] = enabled;
   top["pin"]  = temperaturePin;     // usermodparam
   top[F("degC")] = degC;  // usermodparam

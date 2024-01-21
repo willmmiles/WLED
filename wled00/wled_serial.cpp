@@ -113,9 +113,9 @@ void handleSerial()
             //only send response if TX pin is unused for other purposes
             if (verboseResponse && serialCanTX) {
               pDoc->clear();
-              JsonObject stateDoc = pDoc->createNestedObject("state");
+              JsonObject stateDoc = (*pDoc)["state"].to<JsonObject>();
               serializeState(stateDoc);
-              JsonObject info  = pDoc->createNestedObject("info");
+              JsonObject info  = (*pDoc)["info"].to<JsonObject>();
               serializeInfo(info);
 
               serializeJson(*pDoc, Serial);

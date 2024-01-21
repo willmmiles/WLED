@@ -374,9 +374,6 @@ void WLED::setup()
   if (psramFound() && ESP.getChipRevision() < 3) psramSafe = false;
   if (!psramSafe) DEBUG_PRINTLN(F("Not using PSRAM."));
   #endif
-  pDoc = new PSRAMDynamicJsonDocument((psramSafe && psramFound() ? 2 : 1)*JSON_BUFFER_SIZE);
-  DEBUG_PRINTF_P(PSTR("JSON buffer allocated: %u\n"), (psramSafe && psramFound() ? 2 : 1)*JSON_BUFFER_SIZE);
-  // if the above fails requestJsonBufferLock() will always return false preventing crashes
   if (psramFound()) {
     DEBUG_PRINTF_P(PSTR("PSRAM: %dkB/%dkB\n"), ESP.getFreePsram()/1024, ESP.getPsramSize()/1024);
   }

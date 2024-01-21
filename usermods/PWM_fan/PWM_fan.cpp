@@ -229,9 +229,9 @@ class PWMFanUsermod : public Usermod {
      */
     void addToJsonInfo(JsonObject& root) override {
       JsonObject user = root["u"];
-      if (user.isNull()) user = root.createNestedObject("u");
+      if (user.isNull()) user = root["u"].to<JsonObject>();
 
-      JsonArray infoArr = user.createNestedArray(FPSTR(_name));
+      JsonArray infoArr = user[FPSTR(_name)].to<JsonArray>();
       String uiDomString = F("<button class=\"btn btn-xs\" onclick=\"requestJson({'");
       uiDomString += FPSTR(_name);
       uiDomString += F("':{'");
@@ -244,7 +244,7 @@ class PWMFanUsermod : public Usermod {
       infoArr.add(uiDomString);
 
       if (enabled) {
-        JsonArray infoArr = user.createNestedArray(F("Manual"));
+        JsonArray infoArr = user[F("Manual")].to<JsonArray>();
         String uiDomString = F("<div class=\"slider\"><div class=\"sliderwrap il\"><input class=\"noslide\" onchange=\"requestJson({'");
         uiDomString += FPSTR(_name);
         uiDomString += F("':{'");
@@ -254,7 +254,7 @@ class PWMFanUsermod : public Usermod {
         uiDomString += F(" /><div class=\"sliderdisplay\"></div></div></div>"); //<output class=\"sliderbubble\"></output>
         infoArr.add(uiDomString);
 
-        JsonArray data = user.createNestedArray(F("Speed"));
+        JsonArray data = user[F("Speed")].to<JsonArray>();
         if (tachoPin >= 0) {
           data.add(last_rpm);
           data.add(F("rpm"));
@@ -310,7 +310,7 @@ class PWMFanUsermod : public Usermod {
      * I highly recommend checking out the basics of ArduinoJson serialization and deserialization in order to use custom settings!
      */
     void addToConfig(JsonObject& root) override {
-      JsonObject top = root.createNestedObject(FPSTR(_name)); // usermodname
+      JsonObject top = root[FPSTR(_name)].to<JsonObject>(); // usermodname
       top[FPSTR(_enabled)]        = enabled;
       top[FPSTR(_pwmPin)]         = pwmPin;
       top[FPSTR(_tachoPin)]       = tachoPin;

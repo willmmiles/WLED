@@ -575,7 +575,7 @@ class QuinLEDAnPentaUsermod : public Usermod
 
     void addToConfig(JsonObject &root)
     {
-      JsonObject top = root.createNestedObject(FPSTR(_name)); // usermodname
+      JsonObject top = root[FPSTR(_name)].to<JsonObject>(); // usermodname
 
       top[FPSTR(_enabled)] = enabled;
       top[FPSTR(_oledEnabled)] = oledEnabled;
@@ -652,10 +652,10 @@ class QuinLEDAnPentaUsermod : public Usermod
       }
 
       JsonObject user = root["u"];
-      if (user.isNull()) user = root.createNestedObject("u");
+      if (user.isNull()) user = root["u"].to<JsonObject>();
 
-      JsonArray jsonTemp = user.createNestedArray("Temperature");
-      JsonArray jsonHumidity = user.createNestedArray("Humidity");
+      JsonArray jsonTemp = user["Temperature"].to<JsonArray>();
+      JsonArray jsonHumidity = user["Humidity"].to<JsonArray>();
 
       if (shtLastTimeUpdated == 0 || !shtReadDataSuccess) {
         jsonTemp.add(0);

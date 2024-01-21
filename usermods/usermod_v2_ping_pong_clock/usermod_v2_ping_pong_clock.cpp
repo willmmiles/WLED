@@ -55,16 +55,16 @@ public:
   void addToJsonInfo(JsonObject& root)
   {
     JsonObject user = root["u"];
-    if (user.isNull()) user = root.createNestedObject("u");
+    if (user.isNull()) user = root["u"].to<JsonObject>();
 
-    JsonArray lightArr = user.createNestedArray("Uhrzeit-Anzeige"); //name
+    JsonArray lightArr = user["Uhrzeit-Anzeige"].to<JsonArray>(); //name
     lightArr.add(pingPongClockEnabled ? "aktiv" : "inaktiv"); //value
     lightArr.add(""); //unit
   }
 
   void addToConfig(JsonObject &root)
   {
-    JsonObject top = root.createNestedObject("Ping Pong Clock");
+    JsonObject top = root["Ping Pong Clock"].to<JsonObject>();
     top["enabled"] = pingPongClockEnabled;
     top["colorR"]   = colorR;
     top["colorG"]   = colorG;

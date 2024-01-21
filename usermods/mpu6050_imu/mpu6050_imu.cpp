@@ -295,45 +295,45 @@ class MPU6050Driver : public Usermod {
     void addToJsonInfo(JsonObject& root)
     {
       JsonObject user = root["u"];
-      if (user.isNull()) user = root.createNestedObject("u");
+      if (user.isNull()) user = root["u"].to<JsonObject>();
 
       // Unfortunately the web UI doesn't know how to print sub-objects: you just see '[object Object]'
       // For now, we just put everything in the root userdata object.
-      //auto imu_meas = user.createNestedObject("IMU");
+      //auto imu_meas = user["IMU"].to<JsonObject>();
       auto& imu_meas = user;
 
       // If an element is an array, the UI expects two elements in the form [value, unit]
       // Since our /value/ is an array, wrap it, eg. [[a, b, c]]
-      JsonArray quat_json = imu_meas.createNestedArray("Quat").createNestedArray();
+      JsonArray quat_json = imu_meas["Quat")[].to<JsonArray>(].to<JsonArray>();
       quat_json.add(qat.w);
       quat_json.add(qat.x);
       quat_json.add(qat.y);
       quat_json.add(qat.z);
-      JsonArray euler_json = imu_meas.createNestedArray("Euler").createNestedArray();
+      JsonArray euler_json = imu_meas["Euler")[].to<JsonArray>(].to<JsonArray>();
       euler_json.add(euler[0]);
       euler_json.add(euler[1]);
       euler_json.add(euler[2]);
-      JsonArray accel_json = imu_meas.createNestedArray("Accel").createNestedArray();
+      JsonArray accel_json = imu_meas["Accel")[].to<JsonArray>(].to<JsonArray>();
       accel_json.add(aa.x);
       accel_json.add(aa.y);
       accel_json.add(aa.z);
-      JsonArray gyro_json = imu_meas.createNestedArray("Gyro").createNestedArray();
+      JsonArray gyro_json = imu_meas["Gyro")[].to<JsonArray>(].to<JsonArray>();
       gyro_json.add(gy.x);
       gyro_json.add(gy.y);
       gyro_json.add(gy.z);
-      JsonArray world_json = imu_meas.createNestedArray("WorldAccel").createNestedArray();
+      JsonArray world_json = imu_meas["WorldAccel")[].to<JsonArray>(].to<JsonArray>();
       world_json.add(aaWorld.x);
       world_json.add(aaWorld.y);
       world_json.add(aaWorld.z);
-      JsonArray real_json = imu_meas.createNestedArray("RealAccel").createNestedArray();
+      JsonArray real_json = imu_meas["RealAccel")[].to<JsonArray>(].to<JsonArray>();
       real_json.add(aaReal.x);
       real_json.add(aaReal.y);
       real_json.add(aaReal.z);
-      JsonArray grav_json = imu_meas.createNestedArray("Gravity").createNestedArray();
+      JsonArray grav_json = imu_meas["Gravity")[].to<JsonArray>(].to<JsonArray>();
       grav_json.add(gravity.x);
       grav_json.add(gravity.y);
       grav_json.add(gravity.z);
-      JsonArray orient_json = imu_meas.createNestedArray("Orientation").createNestedArray();
+      JsonArray orient_json = imu_meas["Orientation")[].to<JsonArray>(].to<JsonArray>();
       orient_json.add(ypr[0]);
       orient_json.add(ypr[1]);
       orient_json.add(ypr[2]);
@@ -347,7 +347,7 @@ class MPU6050Driver : public Usermod {
      */
     void addToConfig(JsonObject& root)
     {
-      JsonObject top = root.createNestedObject(FPSTR(_name));
+      JsonObject top = root[FPSTR(_name)].to<JsonObject>();
 
       //save these vars persistently whenever settings are saved
       top[FPSTR(_enabled)] = config.enabled;

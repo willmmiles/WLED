@@ -649,14 +649,14 @@ void serializeState(JsonObject root, bool forPreset, bool includeBri, bool segme
 
     UsermodManager::addToJsonState(root);
 
-    JsonObject nl = root.createNestedObject("nl");
+    JsonObject nl = root["nl"].to<JsonObject>();
     nl["on"] = nightlightActive;
     nl["dur"] = nightlightDelayMins;
     nl["mode"] = nightlightMode;
     nl[F("tbri")] = nightlightTargetBri;
     nl[F("rem")] = nightlightActive ? (int)(nightlightDelayMs - (millis() - nightlightStartTime)) / 1000 : -1; // seconds remaining
 
-    JsonObject udpn = root.createNestedObject("udpn");
+    JsonObject udpn = root["udpn"].to<JsonObject>();
     udpn[F("send")] = sendNotificationsRT;
     udpn[F("recv")] = receiveGroups != 0;
     udpn[F("sgrp")] = syncGroups;
@@ -667,11 +667,11 @@ void serializeState(JsonObject root, bool forPreset, bool includeBri, bool segme
 
   root[F("mainseg")] = strip.getMainSegmentId();
 
-  JsonArray seg = root.createNestedArray("seg");
+  JsonArray seg = root["seg"].to<JsonArray>();
   for (size_t s = 0; s < WS2812FX::getMaxSegments(); s++) {
     if (s >= strip.getSegmentsNum()) {
       if (forPreset && segmentBounds && !selectedSegmentsOnly) { //disable segments not part of preset
-        JsonObject seg0 = seg.createNestedObject();
+        JsonObject seg0 = seg.add<JsonObject>();
         seg0["stop"] = 0;
         continue;
       } else
@@ -680,10 +680,10 @@ void serializeState(JsonObject root, bool forPreset, bool includeBri, bool segme
     const Segment &sg = strip.getSegment(s);
     if (forPreset && selectedSegmentsOnly && !sg.isSelected()) continue;
     if (sg.isActive()) {
-      JsonObject seg0 = seg.createNestedObject();
+      JsonObject seg0 = seg.add<JsonObject>();
       serializeSegment(seg0, sg, s, forPreset, segmentBounds);
     } else if (forPreset && segmentBounds) { //disable segments not part of preset
-      JsonObject seg0 = seg.createNestedObject();
+      JsonObject seg0 = seg.add<JsonObject>();
       seg0["stop"] = 0;
     }
   }
@@ -696,7 +696,7 @@ void serializeInfo(JsonObject root)
   root[F("cn")] = F(WLED_CODENAME);
   root[F("release")] = releaseString;
 
-  JsonObject leds = root.createNestedObject(F("leds"));
+  JsonObject leds = root[F("leds")].to<JsonObject>();
   leds[F("count")] = strip.getLengthTotal();
   leds[F("pwr")] = BusManager::currentMilliamps();
   leds["fps"] = strip.getFps();
@@ -708,14 +708,14 @@ void serializeInfo(JsonObject root)
 
   #ifndef WLED_DISABLE_2D
   if (strip.isMatrix) {
-    JsonObject matrix = leds.createNestedObject(F("matrix"));
+    JsonObject matrix = leds[F("matrix")].to<JsonObject>();
     matrix["w"] = Segment::maxWidth;
     matrix["h"] = Segment::maxHeight;
   }
   #endif
 
   unsigned totalLC = 0;
-  JsonArray lcarr = leds.createNestedArray(F("seglc")); // deprecated, use state.seg[].lc
+  JsonArray lcarr = leds[F("seglc")].to<JsonArray>(); // deprecated, use state.seg[].lc
   size_t nSegs = strip.getSegmentsNum();
   for (size_t s = 0; s < nSegs; s++) {
     if (!strip.getSegment(s).isActive()) continue;
@@ -731,10 +731,10 @@ void serializeInfo(JsonObject root)
   leds["cct"]     = totalLC & 0x04;     // deprecated, use info.leds.lc
 
   #ifdef WLED_DEBUG
-  JsonArray i2c = root.createNestedArray(F("i2c"));
+  JsonArray i2c = root[F("i2c")].to<JsonArray>();
   i2c.add(i2c_sda);
   i2c.add(i2c_scl);
-  JsonArray spi = root.createNestedArray(F("spi"));
+  JsonArray spi = root[F("spi")].to<JsonArray>();
   spi.add(spi_mosi);
   spi.add(spi_sclk);
   spi.add(spi_miso);
@@ -772,10 +772,10 @@ void serializeInfo(JsonObject root)
   root[F("palcount")] = getPaletteCount();
   root[F("cpalcount")] = customPalettes.size(); //number of custom palettes
 
-  JsonArray ledmaps = root.createNestedArray(F("maps"));
+  JsonArray ledmaps = root[F("maps")].to<JsonArray>();
   for (size_t i=0; i<WLED_MAX_LEDMAPS; i++) {
     if ((ledMaps>>i) & 0x00000001U) {
-      JsonObject ledmaps0 = ledmaps.createNestedObject();
+      JsonObject ledmaps0 = ledmaps.add<JsonObject>();
       ledmaps0["id"] = i;
       #ifndef ESP8266
       if (i && ledmapNames[i-1]) ledmaps0["n"] = ledmapNames[i-1];
@@ -783,7 +783,7 @@ void serializeInfo(JsonObject root)
     }
   }
 
-  JsonObject wifi_info = root.createNestedObject(F("wifi"));
+  JsonObject wifi_info = root[F("wifi")].to<JsonObject>();
   wifi_info[F("bssid")] = WiFi.BSSIDstr();
   int qrssi = WiFi.RSSI();
   wifi_info[F("rssi")] = qrssi;
@@ -791,7 +791,7 @@ void serializeInfo(JsonObject root)
   wifi_info[F("channel")] = WiFi.channel();
   wifi_info[F("ap")] = apActive;
 
-  JsonObject fs_info = root.createNestedObject("fs");
+  JsonObject fs_info = root["fs"].to<JsonObject>();
   fs_info["u"] = fsBytesUsed / 1000;
   fs_info["t"] = fsBytesTotal / 1000;
   fs_info[F("pmt")] = presetsModifiedTime;
@@ -887,7 +887,7 @@ void serializeInfo(JsonObject root)
 void setPaletteColors(JsonArray json, CRGBPalette16 palette)
 {
     for (int i = 0; i < 16; i++) {
-      JsonArray colors =  json.createNestedArray();
+      JsonArray colors =  json.add<JsonArray>();
       CRGB color = palette[i];
       colors.add(i<<4);
       colors.add(color.red);
@@ -913,7 +913,7 @@ void setPaletteColors(JsonArray json, byte* tcp)
     while( indexstart < 255) {
       indexstart = u.index;
 
-      JsonArray colors =  json.createNestedArray();
+      JsonArray colors =  json.add<JsonArray>();
       colors.add(u.index);
       colors.add(u.r);
       colors.add(u.g);
@@ -944,10 +944,10 @@ void serializePalettes(JsonObject root, int page)
   if (end > palettesCount + customPalettesCount) end = palettesCount + customPalettesCount;
 
   root[F("m")] = maxPage; // inform caller how many pages there are
-  JsonObject palettes  = root.createNestedObject("p");
+  JsonObject palettes  = root["p"].to<JsonObject>();
 
   for (int i = start; i < end; i++) {
-    JsonArray curPalette = palettes.createNestedArray(String(i>=palettesCount ? 255 - i + palettesCount : i));
+    JsonArray curPalette = palettes[String(i>=palettesCount ? 255 - i + palettesCount : i)].to<JsonArray>();
     switch (i) {
       case 0: //default palette
         setPaletteColors(curPalette, PartyColors_p);
@@ -991,7 +991,7 @@ void serializePalettes(JsonObject root, int page)
 
 void serializeNetworks(JsonObject root)
 {
-  JsonArray networks = root.createNestedArray(F("networks"));
+  JsonArray networks = root[F("networks")].to<JsonArray>();
   int16_t status = WiFi.scanComplete();
 
   switch (status) {
@@ -1003,7 +1003,7 @@ void serializeNetworks(JsonObject root)
   }
 
   for (int i = 0; i < status; i++) {
-    JsonObject node = networks.createNestedObject();
+    JsonObject node = networks.add<JsonObject>();
     node[F("ssid")]    = WiFi.SSID(i);
     node[F("rssi")]    = WiFi.RSSI(i);
     node[F("bssid")]   = WiFi.BSSIDstr(i);
@@ -1020,13 +1020,13 @@ void serializeNetworks(JsonObject root)
 
 void serializeNodes(JsonObject root)
 {
-  JsonArray nodes = root.createNestedArray("nodes");
+  JsonArray nodes = root["nodes"].to<JsonArray>();
 
   for (NodesMap::iterator it = Nodes.begin(); it != Nodes.end(); ++it)
   {
     if (it->second.ip[0] != 0)
     {
-      JsonObject node = nodes.createNestedObject();
+      JsonObject node = nodes.add<JsonObject>();
       node[F("name")] = it->second.nodeName;
       node["type"]    = it->second.nodeType;
       node["ip"]      = it->second.ip.toString();
@@ -1153,20 +1153,20 @@ void serveJson(AsyncWebServerRequest* request)
       serializeConfig(lDoc); break;
     case json_target::state_info:
     case json_target::all:
-      JsonObject state = lDoc.createNestedObject("state");
+      JsonObject state = lDoc["state"].to<JsonObject>();
       serializeState(state);
-      JsonObject info = lDoc.createNestedObject("info");
+      JsonObject info = lDoc["info"].to<JsonObject>();
       serializeInfo(info);
       if (subJson == json_target::all)
       {
-        JsonArray effects = lDoc.createNestedArray(F("effects"));
+        JsonArray effects = lDoc[F("effects")].to<JsonArray>();
         serializeModeNames(effects); // remove WLED-SR extensions from effect names
         lDoc[F("palettes")] = serialized((const __FlashStringHelper*)JSON_palette_names);
       }
       //lDoc["m"] = lDoc.memoryUsage(); // JSON buffer usage, for remote debugging
   }
 
-  DEBUG_PRINTF_P(PSTR("JSON buffer size: %u for request: %d\n"), lDoc.memoryUsage(), subJson);
+  DEBUG_PRINTF_P(PSTR("JSON buffer size: %u for request: %d\n"), measureJson(lDoc), subJson);
 
   [[maybe_unused]] size_t len = response->setLength();
   DEBUG_PRINTF_P(PSTR("JSON content length: %u\n"), len);

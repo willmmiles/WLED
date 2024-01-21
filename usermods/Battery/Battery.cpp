@@ -297,19 +297,19 @@ class UsermodBattery : public Usermod
     void addToJsonInfo(JsonObject& root)
     {
       JsonObject user = root["u"];
-      if (user.isNull()) user = root.createNestedObject("u");
+      if (user.isNull()) user = root["u"].to<JsonObject>();
 
       if (batteryPin < 0) {
-        JsonArray infoVoltage = user.createNestedArray(F("Battery voltage"));
+        JsonArray infoVoltage = user[F("Battery voltage")].to<JsonArray>();
         infoVoltage.add(F("n/a"));
         infoVoltage.add(F(" invalid GPIO"));
         return;  // no GPIO - nothing to report
       }
 
       // info modal display names
-      JsonArray infoPercentage = user.createNestedArray(F("Battery level"));
-      JsonArray infoVoltage = user.createNestedArray(F("Battery voltage"));
-      JsonArray infoNextUpdate = user.createNestedArray(F("Next update"));
+      JsonArray infoPercentage = user[F("Battery level")].to<JsonArray>();
+      JsonArray infoVoltage = user[F("Battery voltage")].to<JsonArray>();
+      JsonArray infoNextUpdate = user[F("Next update")].to<JsonArray>();
 
       infoNextUpdate.add((nextReadTime - millis()) / 1000);
       infoNextUpdate.add(F(" sec"));
@@ -455,12 +455,7 @@ class UsermodBattery : public Usermod
      */
     void addToConfig(JsonObject& root)
     {
-      JsonObject battery = root.createNestedObject(FPSTR(_name));
-      
-      if (battery.isNull()) {
-        battery = root.createNestedObject(FPSTR(_name));
-      }
-
+      JsonObject battery = root[FPSTR(_name)].to<JsonObject>();           // usermodname
       #ifdef ARDUINO_ARCH_ESP32
         battery[F("pin")] = batteryPin;
       #endif

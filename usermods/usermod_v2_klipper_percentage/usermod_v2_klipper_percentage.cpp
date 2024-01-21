@@ -104,7 +104,7 @@ public:
 
   void addToConfig(JsonObject &root)
   {
-    JsonObject top = root.createNestedObject(F("Klipper Printing Percentage"));
+    JsonObject top = root[F("Klipper Printing Percentage")].to<JsonObject>();
     top[F("Enabled")] = enabled;
     top[F("Klipper IP")] = ip;
     top[F("Direction")] = direction;
@@ -133,9 +133,9 @@ public:
   {
     JsonObject user = root["u"];
     if (user.isNull())
-      user = root.createNestedObject("u");
+      user = root["u"].to<JsonObject>();
 
-    JsonArray infoArr = user.createNestedArray(FPSTR(_name));
+    JsonArray infoArr = user[FPSTR(_name)].to<JsonArray>();
     String uiDomString = F("<button class=\"btn btn-xs\" onclick=\"requestJson({");
     uiDomString += FPSTR(_name);
     uiDomString += F(":{");
@@ -153,7 +153,7 @@ public:
     JsonObject usermod = root[FPSTR(_name)];
     if (usermod.isNull())
     {
-      usermod = root.createNestedObject(FPSTR(_name));
+      usermod = root[FPSTR(_name)].to<JsonObject>();
     }
     usermod["on"] = enabled;
   }

@@ -202,7 +202,7 @@ public:
     void addToConfig(JsonObject& root) override {
         validateAndUpdate();
 
-        JsonObject top = root.createNestedObject(F("Analog Clock"));
+        JsonObject top = root[F("Analog Clock")].to<JsonObject>();
         top[F("Overlay Enabled")]               = enabled;
         top[F("First LED (Main Ring)")]         = mainSegment.firstLed;
         top[F("Last LED (Main Ring)")]          = mainSegment.lastLed;

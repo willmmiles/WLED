@@ -12,14 +12,9 @@
 */
 #ifndef ASYNC_JSON_H_
 #define ASYNC_JSON_H_
-#include "ArduinoJson-v6.h"
+#include "ArduinoJson-v7.0.2.h"
 #include <Print.h>
-
-#ifdef ESP8266
-  #define DYNAMIC_JSON_DOCUMENT_SIZE 8192
-#else
-  #define DYNAMIC_JSON_DOCUMENT_SIZE 16384
-#endif
+#include <ESPAsyncWebServer.h>
 
 /*
  * Json Response
@@ -55,14 +50,14 @@ class ChunkPrint : public Print {
 class AsyncJsonResponse: public AsyncAbstractResponse {
   private:
 
-    DynamicJsonDocument _jsonBuffer;
+    JsonDocument _jsonBuffer;
 
     JsonVariant _root;
     bool _isValid;
 
   public:    
 
-    AsyncJsonResponse(JsonDocument *ref, bool isArray=false) : _jsonBuffer(1), _isValid{false} {
+    AsyncJsonResponse(JsonDocument *ref, bool isArray=false) :  _isValid{false} {
       _code = 200;
       _contentType = FPSTR(CONTENT_TYPE_JSON);
       if(isArray)
@@ -71,13 +66,13 @@ class AsyncJsonResponse: public AsyncAbstractResponse {
         _root = ref->to<JsonObject>();
     }
 
-    AsyncJsonResponse(size_t maxJsonBufferSize = DYNAMIC_JSON_DOCUMENT_SIZE, bool isArray=false) : _jsonBuffer(maxJsonBufferSize), _isValid{false} {
+    AsyncJsonResponse(bool isArray=false) : _isValid{false} {
       _code = 200;
       _contentType = FPSTR(CONTENT_TYPE_JSON);
       if(isArray)
-        _root = _jsonBuffer.createNestedArray();
+        _root = _jsonBuffer.add<JsonArray>();
       else
-        _root = _jsonBuffer.createNestedObject();
+        _root = _jsonBuffer.add<JsonObject>();
     }
 
     ~AsyncJsonResponse() {}
@@ -110,12 +105,11 @@ protected:
   WebRequestMethodComposite _method;
   ArJsonRequestHandlerFunction _onRequest;
   int _contentLength;
-  const size_t maxJsonBufferSize;
   int _maxContentLength;
 public:
 
-  AsyncCallbackJsonWebHandler(const String& uri, ArJsonRequestHandlerFunction onRequest, size_t maxJsonBufferSize=DYNAMIC_JSON_DOCUMENT_SIZE) 
-  : _uri(uri), _method(HTTP_POST|HTTP_PUT|HTTP_PATCH), _onRequest(onRequest), maxJsonBufferSize(maxJsonBufferSize), _maxContentLength(16384) {}
+  AsyncCallbackJsonWebHandler(const String& uri, ArJsonRequestHandlerFunction onRequest) 
+  : _uri(uri), _method(HTTP_POST|HTTP_PUT|HTTP_PATCH), _onRequest(onRequest), _maxContentLength(16384) {}
   
   void setMethod(WebRequestMethodComposite method){ _method = method; }
   void setMaxContentLength(int maxContentLength){ _maxContentLength = maxContentLength; }

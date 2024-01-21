@@ -176,13 +176,13 @@ class UsermodDHT : public Usermod {
         return;
       }
       JsonObject user = root["u"];
-      if (user.isNull()) user = root.createNestedObject("u");
+      if (user.isNull()) user = root["u"].to<JsonObject>();
 
-      JsonArray temp = user.createNestedArray("Temperature");
-      JsonArray hum = user.createNestedArray("Humidity");
+      JsonArray temp = user["Temperature"].to<JsonArray>();
+      JsonArray hum = user["Humidity"].to<JsonArray>();
 
       #ifdef USERMOD_DHT_STATS
-      JsonArray next = user.createNestedArray("next");
+      JsonArray next = user["next"].to<JsonArray>();
       if (nextReadTime >= millis()) {
         next.add((nextReadTime - millis()) / 1000);
         next.add(" sec until read");
@@ -191,27 +191,27 @@ class UsermodDHT : public Usermod {
         next.add(" sec active reading");
       }
 
-      JsonArray last = user.createNestedArray("last");
+      JsonArray last = user["last"].to<JsonArray>();
       last.add((millis() - lastReadTime) / 60000);
       last.add(" min since read");
 
-      JsonArray err = user.createNestedArray("errors");
+      JsonArray err = user["errors"].to<JsonArray>();
       err.add(errors);
       err.add(" Errors");
 
-      JsonArray upd = user.createNestedArray("updates");
+      JsonArray upd = user["updates"].to<JsonArray>();
       upd.add(updates);
       upd.add(" Updates");
 
-      JsonArray cupd = user.createNestedArray("cleanUpdates");
+      JsonArray cupd = user["cleanUpdates"].to<JsonArray>();
       cupd.add(clean_updates);
       cupd.add(" Updates");
 
-      JsonArray iter = user.createNestedArray("maxIter");
+      JsonArray iter = user["maxIter"].to<JsonArray>();
       iter.add(maxIteration);
       iter.add(" ms");
 
-      JsonArray delay = user.createNestedArray("maxDelay");
+      JsonArray delay = user["maxDelay"].to<JsonArray>();
       delay.add(maxDelay);
       delay.add(" ms");
       #endif

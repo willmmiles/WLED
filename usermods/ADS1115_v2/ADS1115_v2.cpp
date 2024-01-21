@@ -49,7 +49,7 @@ class ADS1115Usermod : public Usermod {
       }
 
       JsonObject user = root[F("u")];
-      if (user.isNull()) user = root.createNestedObject(F("u"));
+      if (user.isNull()) user = root[F("u")].to<JsonObject>();
 
       for (uint8_t i = 0; i < channelsCount; i++) {
         ChannelSettings* settingsPtr = &(channelSettings[i]);
@@ -58,7 +58,7 @@ class ADS1115Usermod : public Usermod {
           continue;
         }
 
-        JsonArray lightArr = user.createNestedArray(settingsPtr->name); //name
+        JsonArray lightArr = user[settingsPtr->name].to<JsonArray>(); //name
         float value = round((readings[i] + settingsPtr->offset) * settingsPtr->multiplier, settingsPtr->decimals);
         lightArr.add(value); //value
         lightArr.add(" " + settingsPtr->units); //unit
@@ -67,11 +67,11 @@ class ADS1115Usermod : public Usermod {
 
     void addToConfig(JsonObject& root)
     {
-      JsonObject top = root.createNestedObject(F("ADC ADS1115"));
+      JsonObject top = root[F("ADC ADS1115")].to<JsonObject>();
       
       for (uint8_t i = 0; i < channelsCount; i++) {
         ChannelSettings* settingsPtr = &(channelSettings[i]);
-        JsonObject channel = top.createNestedObject(settingsPtr->settingName);
+        JsonObject channel = top[settingsPtr->settingName].to<JsonObject>();
         channel[F("Enabled")] = settingsPtr->isEnabled;
         channel[F("Name")] = settingsPtr->name;
         channel[F("Units")] = settingsPtr->units;

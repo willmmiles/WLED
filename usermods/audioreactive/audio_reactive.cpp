@@ -1553,9 +1553,9 @@ class AudioReactive : public Usermod {
       char myStringBuffer[16]; // buffer for snprintf() - not used yet on 8266
 #endif
       JsonObject user = root["u"];
-      if (user.isNull()) user = root.createNestedObject("u");
+      if (user.isNull()) user = root["u"].to<JsonObject>();
 
-      JsonArray infoArr = user.createNestedArray(FPSTR(_name));
+      JsonArray infoArr = user[FPSTR(_name)].to<JsonArray>();
 
       String uiDomString = F("<button class=\"btn btn-xs\" onclick=\"requestJson({");
       uiDomString += FPSTR(_name);
@@ -1573,9 +1573,9 @@ class AudioReactive : public Usermod {
         // Input Level Slider
         if (disableSoundProcessing == false) {                                 // only show slider when audio processing is running
           if (soundAgc > 0) {
-            infoArr = user.createNestedArray(F("GEQ Input Level"));           // if AGC is on, this slider only affects fftResult[] frequencies
+            infoArr = user[F("GEQ Input Level")].to<JsonArray>();           // if AGC is on, this slider only affects fftResult[] frequencies
           } else {
-            infoArr = user.createNestedArray(F("Audio Input Level"));
+            infoArr = user[F("Audio Input Level")].to<JsonArray>();
           }
           uiDomString = F("<div class=\"slider\"><div class=\"sliderwrap il\"><input class=\"noslide\" onchange=\"requestJson({");
           uiDomString += FPSTR(_name);
@@ -1590,7 +1590,7 @@ class AudioReactive : public Usermod {
         // The following can be used for troubleshooting user errors and is so not enclosed in #ifdef WLED_DEBUG
 
         // current Audio input
-        infoArr = user.createNestedArray(F("Audio Source"));
+        infoArr = user[F("Audio Source")].to<JsonArray>();
         if (audioSyncEnabled & 0x02) {
           // UDP sound sync - receive mode
           infoArr.add(F("UDP sound sync"));
@@ -1632,7 +1632,7 @@ class AudioReactive : public Usermod {
         }
 
         // Sound processing (FFT and input filters)
-        infoArr = user.createNestedArray(F("Sound Processing"));
+        infoArr = user[F("Sound Processing")].to<JsonArray>();
         if (audioSource && (disableSoundProcessing == false)) {
           infoArr.add(F("running"));
         } else {
@@ -1641,19 +1641,19 @@ class AudioReactive : public Usermod {
 
         // AGC or manual Gain
         if ((soundAgc==0) && (disableSoundProcessing == false) && !(audioSyncEnabled & 0x02)) {
-          infoArr = user.createNestedArray(F("Manual Gain"));
+          infoArr = user[F("Manual Gain")].to<JsonArray>();
           float myGain = ((float)sampleGain/40.0f * (float)inputLevel/128.0f) + 1.0f/16.0f;     // non-AGC gain from presets
           infoArr.add(roundf(myGain*100.0f) / 100.0f);
           infoArr.add("x");
         }
         if (soundAgc && (disableSoundProcessing == false) && !(audioSyncEnabled & 0x02)) {
-          infoArr = user.createNestedArray(F("AGC Gain"));
+          infoArr = user[F("AGC Gain")].to<JsonArray>();
           infoArr.add(roundf(multAgc*100.0f) / 100.0f);
           infoArr.add("x");
         }
 #endif
         // UDP Sound Sync status
-        infoArr = user.createNestedArray(F("UDP Sound Sync"));
+        infoArr = user[F("UDP Sound Sync")].to<JsonArray>();
         if (audioSyncEnabled) {
           if (audioSyncEnabled & 0x01) {
             infoArr.add(F("send mode"));
@@ -1671,11 +1671,11 @@ class AudioReactive : public Usermod {
 
         #if defined(WLED_DEBUG) || defined(SR_DEBUG)
         #ifdef ARDUINO_ARCH_ESP32
-        infoArr = user.createNestedArray(F("Sampling time"));
+        infoArr = user[F("Sampling time")].to<JsonArray>();
         infoArr.add(float(sampleTime)/100.0f);
         infoArr.add(" ms");
 
-        infoArr = user.createNestedArray(F("FFT time"));
+        infoArr = user[F("FFT time")].to<JsonArray>();
         infoArr.add(float(fftTime)/100.0f);
         if ((fftTime/100) >= FFT_MIN_CYCLE) // FFT time over budget -> I2S buffer will overflow 
           infoArr.add("<b style=\"color:red;\">! ms</b>");
@@ -1701,7 +1701,7 @@ class AudioReactive : public Usermod {
       if (!initDone) return;  // prevent crash on boot applyPreset()
       JsonObject usermod = root[FPSTR(_name)];
       if (usermod.isNull()) {
-        usermod = root.createNestedObject(FPSTR(_name));
+        usermod = root[FPSTR(_name)].to<JsonObject>();
       }
       usermod["on"] = enabled;
     }
@@ -1782,25 +1782,25 @@ class AudioReactive : public Usermod {
      */
     void addToConfig(JsonObject& root) override
     {
-      JsonObject top = root.createNestedObject(FPSTR(_name));
+      JsonObject top = root[FPSTR(_name)].to<JsonObject>();
       top[FPSTR(_enabled)] = enabled;
       top[FPSTR(_addPalettes)] = addPalettes;
 
 #ifdef ARDUINO_ARCH_ESP32
     #if !defined(CONFIG_IDF_TARGET_ESP32S2) && !defined(CONFIG_IDF_TARGET_ESP32C3) && !defined(CONFIG_IDF_TARGET_ESP32S3)
-      JsonObject amic = top.createNestedObject(FPSTR(_analogmic));
+      JsonObject amic = top[FPSTR(_analogmic)].to<JsonObject>();
       amic["pin"] = audioPin;
     #endif
 
-      JsonObject dmic = top.createNestedObject(FPSTR(_digitalmic));
+      JsonObject dmic = top[FPSTR(_digitalmic)].to<JsonObject>();
       dmic["type"] = dmType;
-      JsonArray pinArray = dmic.createNestedArray("pin");
+      JsonArray pinArray = dmic["pin"].to<JsonArray>();
       pinArray.add(i2ssdPin);
       pinArray.add(i2swsPin);
       pinArray.add(i2sckPin);
       pinArray.add(mclkPin);
 
-      JsonObject cfg = top.createNestedObject(FPSTR(_config));
+      JsonObject cfg = top[FPSTR(_config)].to<JsonObject>();
       cfg[F("squelch")] = soundSquelch;
       cfg[F("gain")] = sampleGain;
       cfg[F("AGC")] = soundAgc;
@@ -1809,12 +1809,12 @@ class AudioReactive : public Usermod {
       freqScale[F("scale")] = FFTScalingMode;
 #endif
 
-      JsonObject dynLim = top.createNestedObject(FPSTR(_dynamics));
+      JsonObject dynLim = top[FPSTR(_dynamics)].to<JsonObject>();
       dynLim[F("limiter")] = limiterOn;
       dynLim[F("rise")] = attackTime;
       dynLim[F("fall")] = decayTime;
 
-      JsonObject sync = top.createNestedObject("sync");
+      JsonObject sync = top["sync"].to<JsonObject>();
       sync["port"] = audioSyncPort;
       sync["mode"] = audioSyncEnabled;
     }

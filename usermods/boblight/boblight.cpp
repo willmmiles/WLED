@@ -253,9 +253,9 @@ class BobLightUsermod : public Usermod {
     void addToJsonInfo(JsonObject& root) override
     {
       JsonObject user = root["u"];
-      if (user.isNull()) user = root.createNestedObject("u");
+      if (user.isNull()) user = root["u"].to<JsonObject>();
 
-      JsonArray infoArr = user.createNestedArray(FPSTR(_name));
+      JsonArray infoArr = user[FPSTR(_name)].to<JsonArray>();
       String uiDomString = F("<button class=\"btn btn-xs\" onclick=\"requestJson({");
       uiDomString += FPSTR(_name);
       uiDomString += F(":{");
@@ -314,7 +314,7 @@ class BobLightUsermod : public Usermod {
     }
 
     void addToConfig(JsonObject& root) override {
-      JsonObject umData = root.createNestedObject(FPSTR(_name));
+      JsonObject umData = root[FPSTR(_name)].to<JsonObject>();
       umData[FPSTR(_enabled)] = enabled;
       umData[  "port" ]       = bobPort;
       umData[F("top")]        = top;

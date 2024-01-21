@@ -104,9 +104,9 @@ void initPresetsFile()
   char fileName[33]; strncpy_P(fileName, getPresetsFileName(), 32); fileName[32] = 0; //use PROGMEM safe copy as FS.open() does not
   if (WLED_FS.exists(fileName)) return;
 
-  StaticJsonDocument<64> doc;
+  JsonDocument doc;
   JsonObject sObj = doc.to<JsonObject>();
-  sObj.createNestedObject("0");
+  sObj["0"].to<JsonObject>();
   File f = WLED_FS.open(fileName, "w");
   if (!f) {
     errorFlag = ERR_FS_GENERAL;
@@ -278,7 +278,7 @@ void savePreset(byte index, const char* pname, JsonObject sObj)
 }
 
 void deletePreset(byte index) {
-  StaticJsonDocument<24> empty;
+  JsonDocument empty;
   writeObjectToFileUsingId(getPresetsFileName(), index, &empty);
   presetsModifiedTime = toki.second(); //unix time
   updateFSInfo();

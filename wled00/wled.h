@@ -157,32 +157,28 @@
 #endif
 
 #define ARDUINOJSON_DECODE_UNICODE 0
-#include "src/dependencies/json/AsyncJson-v6.h"
-#include "src/dependencies/json/ArduinoJson-v6.h"
+#include "src/dependencies/json/AsyncJson-v7.h"
+#include "src/dependencies/json/ArduinoJson-v7.0.2.h"
 
 // ESP32-WROVER features SPI RAM (aka PSRAM) which can be allocated using ps_malloc()
-// we can create custom PSRAMDynamicJsonDocument to use such feature (replacing DynamicJsonDocument)
-// The following is a construct to enable code to compile without it.
+// The following is a construct to enable using it for the primary JSON buffer
 // There is a code that will still not use PSRAM though:
-//    AsyncJsonResponse is a derived class that implements DynamicJsonDocument (AsyncJson-v6.h)
+//    AsyncJsonResponse is a derived class that implements JsonDocument (AsyncJson-v7.h)
 #if defined(ARDUINO_ARCH_ESP32)
 extern bool psramSafe;
-struct PSRAM_Allocator {
-  void* allocate(size_t size) {
+struct PSRAM_Allocator : public ArduinoJson::Allocator {
+  void* allocate(size_t size) override {
     if (psramSafe && psramFound()) return ps_malloc(size); // use PSRAM if it exists
     else                           return malloc(size);    // fallback
   }
-  void* reallocate(void* ptr, size_t new_size) {
+  void* reallocate(void* ptr, size_t new_size) override {
     if (psramSafe && psramFound()) return ps_realloc(ptr, new_size); // use PSRAM if it exists
     else                           return realloc(ptr, new_size);    // fallback
   }
-  void deallocate(void* pointer) {
+  void deallocate(void* pointer) override {
     free(pointer);
   }
 };
-using PSRAMDynamicJsonDocument = BasicJsonDocument<PSRAM_Allocator>;
-#else
-#define PSRAMDynamicJsonDocument DynamicJsonDocument
 #endif
 
 #define FASTLED_INTERNAL //remove annoying pragma messages
@@ -967,12 +963,13 @@ WLED_GLOBAL int8_t spi_sclk  _INIT(SPISCLKPIN);
 
 // global ArduinoJson buffer
 #if defined(ARDUINO_ARCH_ESP32)
-WLED_GLOBAL JsonDocument *pDoc _INIT(nullptr);
 WLED_GLOBAL SemaphoreHandle_t jsonBufferLockMutex _INIT(xSemaphoreCreateRecursiveMutex());
-#else
-WLED_GLOBAL StaticJsonDocument<JSON_BUFFER_SIZE> gDoc;
-WLED_GLOBAL JsonDocument *pDoc _INIT(&gDoc);
+#if defined(ARDUINO_ARCH_ESP32) && defined(BOARD_HAS_PSRAM) && defined(WLED_USE_PSRAM)
+WLED_GLOBAL PSRAM_Allocator pAlloc _INIT ( PSRAM_Allocator {} );
 #endif
+#endif
+WLED_GLOBAL JsonDocument gDoc _INIT( JsonDocument {} );
+WLED_GLOBAL JsonDocument *pDoc _INIT(&gDoc);
 WLED_GLOBAL volatile uint8_t jsonBufferLock _INIT(0);
 
 // enable additional debug output

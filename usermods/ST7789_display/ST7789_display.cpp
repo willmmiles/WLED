@@ -320,9 +320,9 @@ class St7789DisplayUsermod : public Usermod {
     void addToJsonInfo(JsonObject& root) override
     {
       JsonObject user = root["u"];
-      if (user.isNull()) user = root.createNestedObject("u");
+      if (user.isNull()) user = root["u"].to<JsonObject>();
 
-      JsonArray lightArr = user.createNestedArray("ST7789"); //name
+      JsonArray lightArr = user["ST7789"].to<JsonArray>(); //name
       lightArr.add(enabled?F("installed"):F("disabled")); //unit
     }
 
@@ -364,8 +364,8 @@ class St7789DisplayUsermod : public Usermod {
      */
     void addToConfig(JsonObject& root) override
     {
-      JsonObject top = root.createNestedObject("ST7789");
-      JsonArray pins = top.createNestedArray("pin");
+      JsonObject top = root["ST7789"].to<JsonObject>();
+      JsonArray pins = top["pin"].to<JsonArray>();
       pins.add(TFT_CS);
       pins.add(TFT_DC);
       pins.add(TFT_RST);

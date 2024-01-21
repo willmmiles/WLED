@@ -92,18 +92,18 @@ public:
     //this code adds "u":{"&#x26A1; Ping fix pings": m_pingCount} to the info object
     JsonObject user = root["u"];
     if (user.isNull())
-      user = root.createNestedObject("u");
+      user = root["u"].to<JsonObject>();
 
     String uiDomString = "&#x26A1; Ping fix pings<span style=\"display:block;padding-left:25px;\">\
 Delay <input type=\"number\" min=\"5\" max=\"300\" value=\"";
     uiDomString += (unsigned long)(m_pingDelayMs / 1000);
     uiDomString += "\" onchange=\"requestJson({PingDelay:parseInt(this.value)});\">sec</span>";
 
-    JsonArray infoArr = user.createNestedArray(uiDomString); //name
+    JsonArray infoArr = user[uiDomString].to<JsonArray>(); //name
     infoArr.add(m_pingCount);                                              //value
 
     //this code adds "u":{"&#x26A1; Reconnects": m_connectedWiFi - 1} to the info object
-    infoArr = user.createNestedArray("&#x26A1; Reconnects"); //name
+    infoArr = user["&#x26A1; Reconnects"].to<JsonArray>(); //name
     infoArr.add(m_connectedWiFi - 1);                        //value
   }
 
@@ -134,7 +134,7 @@ Delay <input type=\"number\" min=\"5\" max=\"300\" value=\"";
    */
   void addToConfig(JsonObject &root)
   {
-    JsonObject top = root.createNestedObject("FixUnreachableNetServices");
+    JsonObject top = root["FixUnreachableNetServices"].to<JsonObject>();
     top["PingDelayMs"] = m_pingDelayMs;
   }
 

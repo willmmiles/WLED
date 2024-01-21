@@ -92,7 +92,7 @@ void onHueData(void* arg, AsyncClient* client, void *data, size_t len)
   if (str == nullptr) return;
   str += 4;
 
-  StaticJsonDocument<1024> root;
+  JsonDocument root;
   if (str[0] == '[') //is JSON array
   {
     auto error = deserializeJson(root, str);

@@ -376,7 +376,7 @@ void deEEP() {
   if (!requestJSONBufferLock(8)) return;
 
   JsonObject sObj = pDoc->to<JsonObject>();
-  sObj.createNestedObject("0");
+  sObj["0"].to<JsonObject>();
 
   EEPROM.begin(EEPSIZE);
   if (EEPROM.read(233) == 233) { //valid EEPROM save
@@ -389,7 +389,7 @@ void deEEP() {
       char nbuf[16];
       sprintf(nbuf, "%d", index);
 
-      JsonObject pObj = sObj.createNestedObject(nbuf);
+      JsonObject pObj = sObj[nbuf].to<JsonObject>();
 
       sprintf_P(nbuf, (char*)F("Preset %d"), index);
       pObj["n"] = nbuf;
@@ -397,15 +397,15 @@ void deEEP() {
       pObj["bri"] = EEPROM.read(i+1);
 
       if (index < 16) {
-        JsonObject segObj = pObj.createNestedObject("seg");
+        JsonObject segObj = pObj["seg"].to<JsonObject>();
 
-        JsonArray colarr = segObj.createNestedArray("col");
+        JsonArray colarr = segObj["col"].to<JsonArray>();
 
         byte numChannels = (strip.hasWhiteChannel())? 4:3;
 
         for (uint8_t k = 0; k < 3; k++) //k=0 primary (i+2) k=1 secondary (i+6) k=2 tertiary color (i+12)
         {
-          JsonArray colX = colarr.createNestedArray();
+          JsonArray colX = colarr.add<JsonArray>();
           uint16_t memloc = i + 6*k;
           if (k == 0) memloc += 2;
 
@@ -436,7 +436,7 @@ void deEEP() {
       if (m[0]) { //macro exists
         char nbuf[16];
         sprintf(nbuf, "%d", index + 16);
-        JsonObject pObj = sObj.createNestedObject(nbuf);
+        JsonObject pObj = sObj[nbuf].to<JsonObject>();
         sprintf_P(nbuf, "Z Macro %d", index);
         pObj["n"] = nbuf;
         pObj["win"] = m;

@@ -98,7 +98,7 @@ void ShtUsermod::publishHomeAssistantAutodiscovery() {
 
   char json_str[1024], buf[128];
   size_t payload_size;
-  StaticJsonDocument<1024> json;
+  JsonDocument json;
 
   snprintf_P(buf, 127, PSTR("%s Temperature"), serverDescription);
   json[F("name")] = buf;
@@ -139,7 +139,7 @@ void ShtUsermod::publishHomeAssistantAutodiscovery() {
  * @return void
  */
 void ShtUsermod::appendDeviceToMqttDiscoveryMessage(JsonDocument& root) {
-  JsonObject device = root.createNestedObject(F("dev"));
+  JsonObject device = root[F("dev")].to<JsonObject>();
   device[F("ids")] = escapedMac.c_str();
   device[F("name")] = serverDescription;
   device[F("sw")] = versionString;
@@ -270,7 +270,7 @@ void ShtUsermod::appendConfigData() {
  */
 void ShtUsermod::addToConfig(JsonObject &root)
 {
-  JsonObject top = root.createNestedObject(FPSTR(_name)); // usermodname
+  JsonObject top = root[FPSTR(_name)].to<JsonObject>(); // usermodname
 
   top[FPSTR(_enabled)] = enabled;
   top[FPSTR(_shtType)] = shtType;
@@ -356,10 +356,10 @@ void ShtUsermod::addToJsonInfo(JsonObject& root)
   }
 
   JsonObject user = root["u"];
-  if (user.isNull()) user = root.createNestedObject("u");
+  if (user.isNull()) user = root["u"].to<JsonObject>();
 
-  JsonArray jsonTemp = user.createNestedArray(F("Temperature"));
-  JsonArray jsonHumidity = user.createNestedArray(F("Humidity"));
+  JsonArray jsonTemp = user[F("Temperature")].to<JsonArray>();
+  JsonArray jsonHumidity = user[F("Humidity")].to<JsonArray>();
 
   if (shtLastTimeUpdated == 0 || !shtReadDataSuccess) {
     jsonTemp.add(0);
@@ -382,13 +382,13 @@ void ShtUsermod::addToJsonInfo(JsonObject& root)
 
   // sensor object
   JsonObject sensor = root[F("sensor")];
-  if (sensor.isNull()) sensor = root.createNestedObject(F("sensor"));
+  if (sensor.isNull()) sensor = root[F("sensor")].to<JsonObject>();
 
-  jsonTemp = sensor.createNestedArray(F("temp"));
+  jsonTemp = sensor[F("temp")].to<JsonArray>();
   jsonTemp.add(getTemperature());
   jsonTemp.add(getUnitString());
 
-  jsonHumidity = sensor.createNestedArray(F("humidity"));
+  jsonHumidity = sensor[F("humidity")].to<JsonArray>();
   jsonHumidity.add(getHumidity());
   jsonHumidity.add(F(" RH"));
 }

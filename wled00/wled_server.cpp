@@ -354,7 +354,7 @@ void initServer()
       }
     }
     request->send(200, CONTENT_TYPE_JSON, F("{\"success\":true}"));
-  }, JSON_BUFFER_SIZE);
+  });
   server.addHandler(handler);
 
   server.on(F("/version"), HTTP_GET, [](AsyncWebServerRequest *request){

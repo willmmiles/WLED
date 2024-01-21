@@ -115,13 +115,13 @@ void sendDataWs(AsyncWebSocketClient * client)
     return;
   }
 
-  JsonObject state = pDoc->createNestedObject("state");
+  JsonObject state = (*pDoc)["state"].to<JsonObject>();
   serializeState(state);
-  JsonObject info  = pDoc->createNestedObject("info");
+  JsonObject info  = (*pDoc)["info"].to<JsonObject>();
   serializeInfo(info);
 
   size_t len = measureJson(*pDoc);
-  DEBUG_PRINTF_P(PSTR("JSON buffer size: %u for WS request (%u).\n"), pDoc->memoryUsage(), len);
+  DEBUG_PRINTF_P(PSTR("JSON buffer size for WS request: %u.\n"), len);
 
   // the following may no longer be necessary as heap management has been fixed by @willmmiles in AWS
   size_t heap1 = ESP.getFreeHeap();

@@ -861,8 +861,8 @@ void FourLineDisplayUsermod::onUpdateBegin(bool init) {
   */
 //void FourLineDisplayUsermod::addToJsonInfo(JsonObject& root) {
   //JsonObject user = root["u"];
-  //if (user.isNull()) user = root.createNestedObject("u");
-  //JsonArray data = user.createNestedArray(F("4LineDisplay"));
+  //if (user.isNull()) user = root["u"].to<JsonObject>();
+  //JsonArray data = user[F("4LineDisplay")].to<JsonArray>();
   //data.add(F("Loaded."));
 //}
 
@@ -914,11 +914,11 @@ void FourLineDisplayUsermod::appendConfigData() {
   * I highly recommend checking out the basics of ArduinoJson serialization and deserialization in order to use custom settings!
   */
 void FourLineDisplayUsermod::addToConfig(JsonObject& root) {
-  JsonObject top   = root.createNestedObject(FPSTR(_name));
+  JsonObject top   = root[FPSTR(_name)].to<JsonObject>();
   top[FPSTR(_enabled)]       = enabled;
 
   top["type"]                = type;
-  JsonArray io_pin = top.createNestedArray("pin");
+  JsonArray io_pin = top["pin"].to<JsonArray>();
   for (int i=0; i<3; i++) io_pin.add(ioPin[i]);
   top[FPSTR(_flip)]          = (bool) flip;
   top[FPSTR(_contrast)]      = contrast;

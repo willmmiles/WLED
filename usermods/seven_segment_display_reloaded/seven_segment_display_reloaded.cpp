@@ -357,7 +357,7 @@ private:
   void _addJSONObject(JsonObject& root) {
     JsonObject ssdrObj = root[FPSTR(_str_name)];
     if (ssdrObj.isNull()) {
-      ssdrObj = root.createNestedObject(FPSTR(_str_name));
+      ssdrObj = root[FPSTR(_str_name)].to<JsonObject>();
     }
 
     ssdrObj[FPSTR(_str_timeEnabled)] = umSSDRDisplayTime;
@@ -452,17 +452,17 @@ public:
   void addToJsonInfo(JsonObject& root) {
     JsonObject user = root[F("u")];
     if (user.isNull()) {
-      user = root.createNestedObject(F("u"));
+      user = root[F("u")].to<JsonObject>();
     }
-    JsonArray enabled = user.createNestedArray("Time enabled");
+    JsonArray enabled = user["Time enabled"].to<JsonArray>();
     enabled.add(umSSDRDisplayTime);
-    JsonArray invert = user.createNestedArray("Time inverted");
+    JsonArray invert = user["Time inverted"].to<JsonArray>();
     invert.add(umSSDRInverted);
-    JsonArray blink = user.createNestedArray("Blinking colon");
+    JsonArray blink = user["Blinking colon"].to<JsonArray>();
     blink.add(umSSDRColonblink);
-    JsonArray zero = user.createNestedArray("Show the hour leading zero");
+    JsonArray zero = user["Show the hour leading zero"].to<JsonArray>();
     zero.add(umSSDRLeadingZero);
-    JsonArray ldrEnable = user.createNestedArray("Auto Brightness enabled");
+    JsonArray ldrEnable = user["Auto Brightness enabled"].to<JsonArray>();
     ldrEnable.add(umSSDREnableLDR);
 
   }
@@ -474,7 +474,7 @@ public:
   void addToJsonState(JsonObject& root) {
     JsonObject user = root[F("u")];
     if (user.isNull()) {
-      user = root.createNestedObject(F("u"));
+      user = root[F("u")].to<JsonObject>();
     }
     _addJSONObject(user);
   }

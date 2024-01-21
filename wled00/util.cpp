@@ -184,7 +184,7 @@ bool requestJSONBufferLock(uint8_t moduleID)
 
   jsonBufferLock = moduleID ? moduleID : 255;
   DEBUG_PRINTF_P(PSTR("JSON buffer locked. (%d)\n"), jsonBufferLock);
-  pDoc->clear();
+  pDoc->clear();  // Should be a no-op, but just to be safe
   return true;
 }
 
@@ -192,6 +192,7 @@ bool requestJSONBufferLock(uint8_t moduleID)
 void releaseJSONBufferLock()
 {
   DEBUG_PRINTF_P(PSTR("JSON buffer released. (%d)\n"), jsonBufferLock);
+  pDoc->clear();
   jsonBufferLock = 0;
 #ifdef ARDUINO_ARCH_ESP32
   xSemaphoreGiveRecursive(jsonBufferLockMutex);
