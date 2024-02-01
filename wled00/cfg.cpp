@@ -638,7 +638,7 @@ void deserializeConfigFromFS() {
 }
 
 void serializeConfig() {
-  serializeConfigSec();
+  //serializeConfigSec();
 
   DEBUG_PRINTLN(F("Writing settings to /cfg.json..."));
 
@@ -1026,7 +1026,7 @@ void serializeConfig() {
   JsonObject usermods_settings = root.createNestedObject("um");
   usermods.addToConfig(usermods_settings);
 
-  File f = WLED_FS.open("/cfg.json", "w");
+  File f = WLED_FS.open("/cfg-tmp.json", "w");
   if (f) serializeJson(root, f);
   f.close();
   releaseJSONBufferLock();
@@ -1113,7 +1113,7 @@ void serializeConfigSec() {
   ota[F("lock-wifi")] = wifiLock;
   ota[F("aota")] = aOtaEnabled;
 
-  File f = WLED_FS.open("/wsec.json", "w");
+  File f = WLED_FS.open("/wsec-tmp.json", "w");
   if (f) serializeJson(root, f);
   f.close();
   releaseJSONBufferLock();

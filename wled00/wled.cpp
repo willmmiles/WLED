@@ -191,7 +191,16 @@ void WLED::loop()
   }
   cont_repaint_stack(g_pcont);
   yield();
-  if (doSerializeConfig) serializeConfig();
+
+  if (doSerializeConfig) {
+    cont_check(g_pcont);
+    cont_repaint_stack(g_pcont);
+    auto stack_before = cont_get_free_stack(g_pcont);
+    serializeConfig();
+    cont_check(g_pcont);
+    auto stack_after = cont_get_free_stack(g_pcont);
+    DEBUG_PRINT(F("ArduinoJson Stack used: ")); DEBUG_PRINTLN(stack_before - stack_after);
+  }
 
   cont_repaint_stack(g_pcont);
   yield();
