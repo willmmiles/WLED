@@ -150,8 +150,7 @@
 #endif
 
 #define ARDUINOJSON_DECODE_UNICODE 0
-//#include "src/dependencies/json/ArduinoJson-v7.0.2.h"
-#include "src/dependencies/json/ArduinoJson-a3454e3.h"
+#include "ArduinoJson.h"
 #include "src/dependencies/json/AsyncJson-v7.h"
 
 // ESP32-WROVER features SPI RAM (aka PSRAM) which can be allocated using ps_malloc()
