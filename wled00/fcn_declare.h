@@ -139,8 +139,8 @@ void handleIR();
 
 //json.cpp
 #include "ESPAsyncWebServer.h"
-#include "src/dependencies/json/ArduinoJson-v7.0.2.h"
-//#include "src/dependencies/json/ArduinoJson-c98b05e.h"
+//#include "src/dependencies/json/ArduinoJson-v7.0.2.h"
+#include "src/dependencies/json/ArduinoJson-a3454e3.h"
 #include "src/dependencies/json/AsyncJson-v7.h"
 #include "FX.h"
 

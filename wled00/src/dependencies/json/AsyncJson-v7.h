@@ -12,8 +12,8 @@
 */
 #ifndef ASYNC_JSON_H_
 #define ASYNC_JSON_H_
-#include "ArduinoJson-v7.0.2.h"
-//#include "ArduinoJson-c98b05e.h"
+//#include "ArduinoJson-v7.0.2.h"
+#include "ArduinoJson-a3454e3.h"
 #include <Print.h>
 #include <ESPAsyncWebServer.h>
 

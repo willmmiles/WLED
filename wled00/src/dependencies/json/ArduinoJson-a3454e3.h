@@ -2568,7 +2568,7 @@ struct VariantTo<JsonVariant> {
 class VariantAttorney {
  public:
   template <typename TClient>
-  FORCE_INLINE static auto getResourceManager(TClient& client)
+  static auto getResourceManager(TClient& client)
       -> decltype(client.getResourceManager()) {
     return client.getResourceManager();
   }
@@ -2836,67 +2836,65 @@ class JsonVariantConst : public detail::VariantTag,
   explicit JsonVariantConst(const detail::VariantData* data,
                             const detail::ResourceManager* resources)
       : data_(data), resources_(resources) {}
-  FORCE_INLINE bool isNull() const {
+  bool isNull() const {
     return detail::VariantData::isNull(data_);
   }
-  FORCE_INLINE bool isUnbound() const {
+  bool isUnbound() const {
     return !data_;
   }
-  FORCE_INLINE size_t nesting() const {
+  size_t nesting() const {
     return detail::VariantData::nesting(data_, resources_);
   }
   size_t size() const {
     return detail::VariantData::size(data_, resources_);
   }
   template <typename T>
-  FORCE_INLINE typename detail::enable_if<!detail::is_same<T, char*>::value &&
-                                              !detail::is_same<T, char>::value,
-                                          T>::type
+  typename detail::enable_if<!detail::is_same<T, char*>::value &&
+                                 !detail::is_same<T, char>::value,
+                             T>::type
   as() const {
     return Converter<T>::fromJson(*this);
   }
   template <typename T>
-  FORCE_INLINE typename detail::enable_if<!detail::is_same<T, char*>::value &&
-                                              !detail::is_same<T, char>::value,
-                                          bool>::type
+  typename detail::enable_if<!detail::is_same<T, char*>::value &&
+                                 !detail::is_same<T, char>::value,
+                             bool>::type
   is() const {
     return Converter<T>::checkJson(*this);
   }
   template <typename T>
-  FORCE_INLINE operator T() const {
+  operator T() const {
     return as<T>();
   }
-  FORCE_INLINE JsonVariantConst operator[](size_t index) const {
+  JsonVariantConst operator[](size_t index) const {
     return JsonVariantConst(
         detail::VariantData::getElement(data_, index, resources_), resources_);
   }
   template <typename TString>
-  FORCE_INLINE typename detail::enable_if<detail::IsString<TString>::value,
-                                          JsonVariantConst>::type
+  typename detail::enable_if<detail::IsString<TString>::value,
+                             JsonVariantConst>::type
   operator[](const TString& key) const {
     return JsonVariantConst(detail::VariantData::getMember(
                                 data_, detail::adaptString(key), resources_),
                             resources_);
   }
   template <typename TChar>
-  FORCE_INLINE typename detail::enable_if<detail::IsString<TChar*>::value,
-                                          JsonVariantConst>::type
+  typename detail::enable_if<detail::IsString<TChar*>::value,
+                             JsonVariantConst>::type
   operator[](TChar* key) const {
     return JsonVariantConst(detail::VariantData::getMember(
                                 data_, detail::adaptString(key), resources_),
                             resources_);
   }
   template <typename TString>
-  FORCE_INLINE
-      typename detail::enable_if<detail::IsString<TString>::value, bool>::type
-      containsKey(const TString& key) const {
+  typename detail::enable_if<detail::IsString<TString>::value, bool>::type
+  containsKey(const TString& key) const {
     return detail::VariantData::getMember(getData(), detail::adaptString(key),
                                           resources_) != 0;
   }
   template <typename TChar>
-  FORCE_INLINE
-      typename detail::enable_if<detail::IsString<TChar*>::value, bool>::type
-      containsKey(TChar* key) const {
+  typename detail::enable_if<detail::IsString<TChar*>::value, bool>::type
+  containsKey(TChar* key) const {
     return detail::VariantData::getMember(getData(), detail::adaptString(key),
                                           resources_) != 0;
   }
@@ -2926,13 +2924,13 @@ template <typename TDerived>
 class VariantRefBase : public VariantTag {
   friend class VariantAttorney;
  public:
-  FORCE_INLINE void clear() const {
+  void clear() const {
     VariantData::setNull(getOrCreateData(), getResourceManager());
   }
-  FORCE_INLINE bool isNull() const {
+  bool isNull() const {
     return VariantData::isNull(getData());
   }
-  FORCE_INLINE bool isUnbound() const {
+  bool isUnbound() const {
     return !getData();
   }
   template <typename T>
@@ -2942,8 +2940,7 @@ class VariantRefBase : public VariantTag {
     return Converter<T>::fromJson(getVariantConst());
   }
   template <typename T>
-  FORCE_INLINE typename enable_if<ConverterNeedsWriteableRef<T>::value, T>::type
-  as() const;
+  typename enable_if<ConverterNeedsWriteableRef<T>::value, T>::type as() const;
   template <typename T,
             typename = typename enable_if<!is_same<T, TDerived>::value>::type>
   FORCE_INLINE operator T() const {
@@ -3083,17 +3080,17 @@ class ElementProxy : public VariantRefBase<ElementProxy<TUpstream>>,
     return *this;
   }
   template <typename T>
-  FORCE_INLINE ElementProxy& operator=(const T& src) {
+  ElementProxy& operator=(const T& src) {
     this->set(src);
     return *this;
   }
   template <typename T>
-  FORCE_INLINE ElementProxy& operator=(T* src) {
+  ElementProxy& operator=(T* src) {
     this->set(src);
     return *this;
   }
  private:
-  FORCE_INLINE ResourceManager* getResourceManager() const {
+  ResourceManager* getResourceManager() const {
     return VariantAttorney::getResourceManager(upstream_);
   }
   FORCE_INLINE VariantData* getData() const {
@@ -3101,7 +3098,7 @@ class ElementProxy : public VariantRefBase<ElementProxy<TUpstream>>,
         VariantAttorney::getData(upstream_), index_,
         VariantAttorney::getResourceManager(upstream_));
   }
-  FORCE_INLINE VariantData* getOrCreateData() const {
+  VariantData* getOrCreateData() const {
     auto data = VariantAttorney::getOrCreateData(upstream_);
     if (!data)
       return nullptr;
@@ -3121,13 +3118,13 @@ class JsonVariant : public detail::VariantRefBase<JsonVariant>,
   JsonVariant(detail::VariantData* data, detail::ResourceManager* resources)
       : data_(data), resources_(resources) {}
  private:
-  FORCE_INLINE detail::ResourceManager* getResourceManager() const {
+  detail::ResourceManager* getResourceManager() const {
     return resources_;
   }
-  FORCE_INLINE detail::VariantData* getData() const {
+  detail::VariantData* getData() const {
     return data_;
   }
-  FORCE_INLINE detail::VariantData* getOrCreateData() const {
+  detail::VariantData* getOrCreateData() const {
     return data_;
   }
   detail::VariantData* data_;
@@ -3240,35 +3237,35 @@ class JsonArrayConst : public detail::VariantOperators<JsonArrayConst> {
   friend class detail::VariantAttorney;
  public:
   typedef JsonArrayConstIterator iterator;
-  FORCE_INLINE iterator begin() const {
+  iterator begin() const {
     if (!data_)
       return iterator();
     return iterator(data_->createIterator(resources_), resources_);
   }
-  FORCE_INLINE iterator end() const {
+  iterator end() const {
     return iterator();
   }
-  FORCE_INLINE JsonArrayConst() : data_(0) {}
-  FORCE_INLINE JsonArrayConst(const detail::ArrayData* data,
-                              const detail::ResourceManager* resources)
+  JsonArrayConst() : data_(0) {}
+  JsonArrayConst(const detail::ArrayData* data,
+                 const detail::ResourceManager* resources)
       : data_(data), resources_(resources) {}
-  FORCE_INLINE JsonVariantConst operator[](size_t index) const {
+  JsonVariantConst operator[](size_t index) const {
     return JsonVariantConst(
         detail::ArrayData::getElement(data_, index, resources_), resources_);
   }
   operator JsonVariantConst() const {
     return JsonVariantConst(getData(), resources_);
   }
-  FORCE_INLINE bool isNull() const {
+  bool isNull() const {
     return data_ == 0;
   }
-  FORCE_INLINE operator bool() const {
+  operator bool() const {
     return data_ != 0;
   }
-  FORCE_INLINE size_t nesting() const {
+  size_t nesting() const {
     return detail::VariantData::nesting(getData(), resources_);
   }
-  FORCE_INLINE size_t size() const {
+  size_t size() const {
     return data_ ? data_->size(resources_) : 0;
   }
   ARDUINOJSON_DEPRECATED("always returns zero")
@@ -3305,9 +3302,8 @@ class JsonArray : public detail::VariantOperators<JsonArray> {
   friend class detail::VariantAttorney;
  public:
   typedef JsonArrayIterator iterator;
-  FORCE_INLINE JsonArray() : data_(0), resources_(0) {}
-  FORCE_INLINE JsonArray(detail::ArrayData* data,
-                         detail::ResourceManager* resources)
+  JsonArray() : data_(0), resources_(0) {}
+  JsonArray(detail::ArrayData* data, detail::ResourceManager* resources)
       : data_(data), resources_(resources) {}
   operator JsonVariant() {
     void* data = data_;  // prevent warning cast-align
@@ -3514,47 +3510,47 @@ class JsonObjectConst : public detail::VariantOperators<JsonObjectConst> {
   operator JsonVariantConst() const {
     return JsonVariantConst(getData(), resources_);
   }
-  FORCE_INLINE bool isNull() const {
+  bool isNull() const {
     return data_ == 0;
   }
-  FORCE_INLINE operator bool() const {
+  operator bool() const {
     return data_ != 0;
   }
-  FORCE_INLINE size_t nesting() const {
+  size_t nesting() const {
     return detail::VariantData::nesting(getData(), resources_);
   }
-  FORCE_INLINE size_t size() const {
+  size_t size() const {
     return data_ ? data_->size(resources_) : 0;
   }
-  FORCE_INLINE iterator begin() const {
+  iterator begin() const {
     if (!data_)
       return iterator();
     return iterator(data_->createIterator(resources_), resources_);
   }
-  FORCE_INLINE iterator end() const {
+  iterator end() const {
     return iterator();
   }
   template <typename TString>
-  FORCE_INLINE bool containsKey(const TString& key) const {
+  bool containsKey(const TString& key) const {
     return detail::ObjectData::getMember(data_, detail::adaptString(key),
                                          resources_) != 0;
   }
   template <typename TChar>
-  FORCE_INLINE bool containsKey(TChar* key) const {
+  bool containsKey(TChar* key) const {
     return detail::ObjectData::getMember(data_, detail::adaptString(key),
                                          resources_) != 0;
   }
   template <typename TString>
-  FORCE_INLINE typename detail::enable_if<detail::IsString<TString>::value,
-                                          JsonVariantConst>::type
+  typename detail::enable_if<detail::IsString<TString>::value,
+                             JsonVariantConst>::type
   operator[](const TString& key) const {
     return JsonVariantConst(detail::ObjectData::getMember(
                                 data_, detail::adaptString(key), resources_),
                             resources_);
   }
   template <typename TChar>
-  FORCE_INLINE typename detail::enable_if<detail::IsString<TChar*>::value,
-                                          JsonVariantConst>::type
+  typename detail::enable_if<detail::IsString<TChar*>::value,
+                             JsonVariantConst>::type
   operator[](TChar* key) const {
     return JsonVariantConst(detail::ObjectData::getMember(
                                 data_, detail::adaptString(key), resources_),
@@ -3595,11 +3591,11 @@ class MemberProxy
       public VariantOperators<MemberProxy<TUpstream, TStringRef>> {
   friend class VariantAttorney;
  public:
-  FORCE_INLINE MemberProxy(TUpstream upstream, TStringRef key)
+  MemberProxy(TUpstream upstream, TStringRef key)
       : upstream_(upstream), key_(key) {}
   MemberProxy(const MemberProxy& src)
       : upstream_(src.upstream_), key_(src.key_) {}
-  FORCE_INLINE MemberProxy& operator=(const MemberProxy& src) {
+  MemberProxy& operator=(const MemberProxy& src) {
     this->set(src);
     return *this;
   }
@@ -3614,7 +3610,7 @@ class MemberProxy
     return *this;
   }
  private:
-  FORCE_INLINE ResourceManager* getResourceManager() const {
+  ResourceManager* getResourceManager() const {
     return VariantAttorney::getResourceManager(upstream_);
   }
   FORCE_INLINE VariantData* getData() const {
@@ -3640,9 +3636,8 @@ class JsonObject : public detail::VariantOperators<JsonObject> {
   friend class detail::VariantAttorney;
  public:
   typedef JsonObjectIterator iterator;
-  FORCE_INLINE JsonObject() : data_(0), resources_(0) {}
-  FORCE_INLINE JsonObject(detail::ObjectData* data,
-                          detail::ResourceManager* resource)
+  JsonObject() : data_(0), resources_(0) {}
+  JsonObject(detail::ObjectData* data, detail::ResourceManager* resource)
       : data_(data), resources_(resource) {}
   operator JsonVariant() const {
     void* data = data_;  // prevent warning cast-align
@@ -3774,7 +3769,8 @@ class JsonDocument : public detail::VariantOperators<const JsonDocument&> {
   JsonDocument(const JsonDocument& src) : JsonDocument(src.allocator()) {
     set(src);
   }
-  JsonDocument(JsonDocument&& src) : JsonDocument() {
+  JsonDocument(JsonDocument&& src)
+      : JsonDocument(detail::DefaultAllocator::instance()) {
     swap(*this, src);
   }
   template <typename T>
@@ -3860,9 +3856,8 @@ class JsonDocument : public detail::VariantOperators<const JsonDocument&> {
     return data_.getMember(detail::adaptString(key), &resources_) != 0;
   }
   template <typename TString>
-  FORCE_INLINE typename detail::enable_if<
-      detail::IsString<TString>::value,
-      detail::MemberProxy<JsonDocument&, TString>>::type
+  typename detail::enable_if<detail::IsString<TString>::value,
+                             detail::MemberProxy<JsonDocument&, TString>>::type
   operator[](const TString& key) {
     return {*this, key};
   }
@@ -4810,13 +4805,12 @@ class StaticStringWriter {
 ARDUINOJSON_END_PRIVATE_NAMESPACE
 #if ARDUINOJSON_ENABLE_STD_STRING
 ARDUINOJSON_BEGIN_PRIVATE_NAMESPACE
-template <class...>
-using void_t = void;
 template <class T, typename = void>
 struct is_std_string : false_type {};
 template <class T>
 struct is_std_string<
-    T, void_t<decltype(T().push_back('a')), decltype(T().append(""))>>
+    T, typename enable_if<is_same<void, decltype(T().push_back('a'))>::value &&
+                          is_same<T&, decltype(T().append(""))>::value>::type>
     : true_type {};
 template <typename TDestination>
 class Writer<TDestination,
