@@ -4,6 +4,7 @@ Repeated-build test for ArduinoJson v7 in WLED
 Requires -Wframe-larger-than=128 in the build_flags to generate stack usage reports
 """
 
+from collections import defaultdict
 import fileinput
 import os
 import pickle
@@ -126,12 +127,63 @@ def collect_metrics():
     return (baseline, no_inline, inline_results)
 
 
-def main():
-    """ Main program """
+def produce_metrics():
     metrics = collect_metrics()
     with open('metrics.pickle', 'wb') as f:
         pickle.dump(metrics, f)
+    return metrics
 
+def load_metrics():
+    with open('metrics.pickle', 'rb') as f:
+        return pickle.load(f)
+
+
+def invert_dict(d: dict, key, values):
+    for k, v in values.items():
+        d[k][key] = v
+
+def flatten_results(r):
+    #print(r)
+    return {"flash": r[1]['flash'], **r[0]}
+
+
+def filter_metrics(baseline, no_inline, per_line_metrics):
+    """ Filter the results """
+    # Invert the map to be by function instead of by test
+    function_results = defaultdict(dict)
+    invert_dict(function_results, "no_inline", no_inline)
+    for key, value in per_line_metrics.items():
+        invert_dict(function_results, key, value)
+
+    # Map the results with respect to the baseline
+    for key, values in function_results.items():
+        baseline_value = baseline.get(key,128)
+        function_results[key] = {k: v-baseline_value for k, v in values.items()}        
+
+    # Discard any functions that show a change of zero, or are all the same (baseline issue)
+    function_results = {k: values for k, values in function_results.items() if any(values.values()) and len(set(values.values())) > 1}
+
+    return function_results
+
+def print_function_results(results, keys):
+    # print header
+    print("| function | ",end="")
+    print(" | ".join(results.keys()), end=" |\n")
+    print("| ----- ",end="")
+    print(" | ----------" * len(results), end=" |\n")
+    for key in sorted(keys):
+        print(f"| {key} | ", end="")
+        k_results = [str(values.get(key, "N/A")) for values in results.values()]
+        print(" | ".join(k_results), end=" |\n")
+
+
+def main():
+    """ Main program """
+    #metrics = produce_metrics()
+    metrics = load_metrics()
+    #print(metrics)
+    final_results = filter_metrics(flatten_results(metrics[0]), flatten_results(metrics[1]), {f"{k[0]}:{k[1]}": flatten_results(v) for k, v in metrics[2].items()})
+    print_function_results(final_results, ["no_inline", *[f"{k[0]}:{k[1]}" for k in metrics[2].keys()]])
 
 
 
