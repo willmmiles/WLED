@@ -131,13 +131,13 @@ void appendGPIOinfo() {
     oappend(","); oappend(itoa(spi_sclk,nS,10));
   }
   // usermod pin reservations will become unnecessary when settings pages will read cfg.json directly
-  if (requestJSONBufferLock(6)) {
-    // if we can't allocate JSON buffer ignore usermod pins
-    JsonObject mods = (*pDoc)[F("um")].to<JsonObject>();
+  {
+    JsonDocument doc(json_allocator);
+    JsonObject mods = doc.as<JsonObject>()[F("um")].to<JsonObject>();
     usermods.addToConfig(mods);
     if (!mods.isNull()) fillUMPins(mods);
-    releaseJSONBufferLock();
   }
+
   oappend(SET_F("];"));
 
   // add reserved and usermod pins as d.um_p array
