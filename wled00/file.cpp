@@ -176,7 +176,7 @@ static void writeSpace(size_t l)
   if (knownLargestSpace < l) knownLargestSpace = l;
 }
 
-bool appendObjectToFile(const char* key, JsonDocument* content, uint32_t s, uint32_t contentLen = 0)
+bool appendObjectToFile(const char* key, JsonObject content, uint32_t s, uint32_t contentLen = 0)
 {
   #ifdef WLED_DEBUG_FS
     DEBUGFS_PRINTLN(F("Append"));
@@ -191,18 +191,18 @@ bool appendObjectToFile(const char* key, JsonDocument* content, uint32_t s, uint
     f.print(init);
   }
 
-  if (content->isNull()) {
+  if (content.isNull()) {
     doCloseFile = true;
     return true; //nothing  to append
   }
 
   //if there is enough empty space in file, insert there instead of appending
-  if (!contentLen) contentLen = measureJson(*content);
+  if (!contentLen) contentLen = measureJson(content);
   DEBUGFS_PRINTF("CLen %d\n", contentLen);
   if (bufferedFindSpace(contentLen + strlen(key) + 1)) {
     if (f.position() > 2) f.write(','); //add comma if not first object
     f.print(key);
-    serializeJson(*content, f);
+    serializeJson(content, f);
     DEBUGFS_PRINTF("Inserted, took %d ms (total %d)", millis() - s1, millis() - s);
     doCloseFile = true;
     return true;
@@ -247,7 +247,7 @@ bool appendObjectToFile(const char* key, JsonDocument* content, uint32_t s, uint
   f.print(key);
 
   //Append object
-  serializeJson(*content, f);
+  serializeJson(content, f);
   f.write('}');
 
   doCloseFile = true;
@@ -255,14 +255,14 @@ bool appendObjectToFile(const char* key, JsonDocument* content, uint32_t s, uint
   return true;
 }
 
-bool writeObjectToFileUsingId(const char* file, uint16_t id, JsonDocument* content)
+bool writeObjectToFileUsingId(const char* file, uint16_t id, JsonObject content)
 {
   char objKey[10];
   sprintf(objKey, "\"%d\":", id);
   return writeObjectToFile(file, objKey, content);
 }
 
-bool writeObjectToFile(const char* file, const char* key, JsonDocument* content)
+bool writeObjectToFile(const char* file, const char* key, JsonObject content)
 {
   uint32_t s = 0; //timing
   #ifdef WLED_DEBUG_FS
@@ -300,17 +300,17 @@ bool writeObjectToFile(const char* file, const char* key, JsonDocument* content)
   //4. The new content is larger than old + trailing spaces, delete old and append
 
   size_t contentLen = 0;
-  if (!content->isNull()) contentLen = measureJson(*content);
+  if (!content.isNull()) contentLen = measureJson(content);
 
   if (contentLen && contentLen <= oldLen) { //replace and fill diff with spaces
     DEBUGFS_PRINTLN(F("replace"));
     f.seek(pos);
-    serializeJson(*content, f);
+    serializeJson(content, f);
     writeSpace(pos2 - f.position());
   } else if (contentLen && bufferedFindSpace(contentLen - oldLen, false)) { //enough leading spaces to replace
     DEBUGFS_PRINTLN(F("replace (trailing)"));
     f.seek(pos);
-    serializeJson(*content, f);
+    serializeJson(content, f);
   } else {
     DEBUGFS_PRINTLN(F("delete"));
     pos -= strlen(key);

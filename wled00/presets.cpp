@@ -26,10 +26,11 @@ static void doSaveState() {
 
   unsigned long start = millis();
   while (strip.isUpdating() && millis()-start < (2*FRAMETIME_FIXED)+1) yield(); // wait 2 frames
-  if (!requestJSONBufferLock(10)) return; // will set fileDoc
 
   initPresetsFile(); // just in case if someone deleted presets.json using /edit
-  JsonObject sObj = pDoc->to<JsonObject>();
+  
+  JsonDocument fileDoc;
+  JsonObject sObj = fileDoc.to<JsonObject>();
 
   DEBUG_PRINTLN(F("Serialize current state"));
   if (playlistSave) {
@@ -44,14 +45,14 @@ static void doSaveState() {
 /*
   #ifdef WLED_DEBUG
     DEBUG_PRINTLN(F("Serialized preset"));
-    serializeJson(*pDoc,Serial);
+    serializeJson(fileDoc,Serial);
     DEBUG_PRINTLN();
   #endif
 */
   #if defined(ARDUINO_ARCH_ESP32)
   if (!persist) {
     if (tmpRAMbuffer!=nullptr) free(tmpRAMbuffer);
-    size_t len = measureJson(*fileDoc) + 1;
+    size_t len = measureJson(fileDoc) + 1;
     DEBUG_PRINTLN(len);
     // if possible use SPI RAM on ESP32
     #if defined(BOARD_HAS_PSRAM) && defined(WLED_USE_PSRAM)
@@ -61,16 +62,16 @@ static void doSaveState() {
     #endif
       tmpRAMbuffer = (char*) malloc(len);
     if (tmpRAMbuffer!=nullptr) {
-      serializeJson(*fileDoc, tmpRAMbuffer, len);
+      serializeJson(fileDoc, tmpRAMbuffer, len);
     } else {
-      writeObjectToFileUsingId(filename, presetToSave, fileDoc);
+      writeObjectToFileUsingId(filename, presetToSave, sObj);
     }
   } else
   #endif
-  writeObjectToFileUsingId(filename, presetToSave, fileDoc);
+  writeObjectToFileUsingId(filename, presetToSave, sObj);
 
   if (persist) presetsModifiedTime = toki.second(); //unix time
-  releaseJSONBufferLock();
+
   updateFSInfo();
 
   // clean up
@@ -83,17 +84,16 @@ static void doSaveState() {
 
 bool getPresetName(byte index, String& name)
 {
-  if (!requestJSONBufferLock(9)) return false;
+  JsonDocument fileDoc;
   bool presetExists = false;
-  if (readObjectFromFileUsingId(getFileName(), index, pDoc))
+  if (readObjectFromFileUsingId(getFileName(), index, &fileDoc))
   {
-    JsonObject fdo = pDoc->as<JsonObject>();
+    JsonObject fdo = fileDoc.as<JsonObject>();
     if (fdo["n"]) {
       name = (const char*)(fdo["n"]);
       presetExists = true;
     }
   }
-  releaseJSONBufferLock();
   return presetExists;
 }
 
@@ -140,17 +140,16 @@ void handlePresets()
     return;
   }
 
-  if (presetToApply == 0 || fileDoc) return; // no preset waiting to apply, or JSON buffer is already allocated, return to loop until free
+  if (presetToApply == 0) return; // no preset waiting to apply
 
   bool changePreset = false;
   uint8_t tmpPreset = presetToApply; // store temporary since deserializeState() may call applyPreset()
   uint8_t tmpMode   = callModeToApply;
 
-  JsonObject fdo;
   const char *filename = getFileName(tmpPreset < 255);
 
   // allocate buffer
-  if (!requestJSONBufferLock(9)) return;  // will also assign fileDoc
+  JsonDocument fileDoc;
 
   presetToApply = 0; //clear request for preset
   callModeToApply = 0;
@@ -160,14 +159,14 @@ void handlePresets()
 
   #ifdef ARDUINO_ARCH_ESP32
   if (tmpPreset==255 && tmpRAMbuffer!=nullptr) {
-    deserializeJson(*fileDoc,tmpRAMbuffer);
+    deserializeJson(fileDoc,tmpRAMbuffer);
     errorFlag = ERR_NONE;
   } else
   #endif
   {
-  errorFlag = readObjectFromFileUsingId(filename, tmpPreset, fileDoc) ? ERR_NONE : ERR_FS_PLOAD;
+  errorFlag = readObjectFromFileUsingId(filename, tmpPreset, &fileDoc) ? ERR_NONE : ERR_FS_PLOAD;
   }
-  fdo = fileDoc->as<JsonObject>();
+  JsonObject fdo = fileDoc.as<JsonObject>();
 
   //HTTP API commands
   const char* httpwin = fdo["win"];
@@ -194,13 +193,12 @@ void handlePresets()
   }
   #endif
 
-  releaseJSONBufferLock(); // will also clear fileDoc
   if (changePreset) notify(tmpMode); // force UDP notification
   stateUpdated(tmpMode);  // was colorUpdated() if anything breaks
   updateInterfaces(tmpMode);
 }
 
-//called from handleSet(PS=) [network callback (fileDoc==nullptr), IR (irrational), deserializeState, UDP] and deserializeState() [network callback (filedoc!=nullptr)]
+//called from handleSet(PS=) [network callback, IR (irrational), deserializeState, UDP] and deserializeState() [network callback]
 void savePreset(byte index, const char* pname, JsonObject sObj)
 {
   if (index == 0 || (index > 250 && index < 255)) return;
@@ -226,7 +224,7 @@ void savePreset(byte index, const char* pname, JsonObject sObj)
     if (sObj[F("playlist")].isNull()) {
       // we will save API call immediately (often causes presets.json corruption)
       presetToSave = 0;
-      if (index > 250 || !fileDoc) return; // cannot save API calls to temporary preset (255)
+      if (index > 250) return; // cannot save API calls to temporary preset (255)
       sObj.remove("o");
       sObj.remove("v");
       sObj.remove("time");
@@ -234,7 +232,7 @@ void savePreset(byte index, const char* pname, JsonObject sObj)
       sObj.remove(F("psave"));
       if (sObj["n"].isNull()) sObj["n"] = saveName;
       initPresetsFile(); // just in case if someone deleted presets.json using /edit
-      writeObjectToFileUsingId(getFileName(index<255), index, fileDoc);
+      writeObjectToFileUsingId(getFileName(index<255), index, sObj);
       presetsModifiedTime = toki.second(); //unix time
       updateFSInfo();
     } else {
@@ -248,7 +246,7 @@ void savePreset(byte index, const char* pname, JsonObject sObj)
 
 void deletePreset(byte index) {
   JsonDocument empty;
-  writeObjectToFileUsingId(getFileName(), index, &empty);
+  writeObjectToFileUsingId(getFileName(), index, empty.as<JsonObject>());
   presetsModifiedTime = toki.second(); //unix time
   updateFSInfo();
 }

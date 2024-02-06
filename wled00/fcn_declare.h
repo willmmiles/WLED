@@ -104,8 +104,8 @@ void sendArtnetPollReply(ArtPollReply* reply, IPAddress ipAddress, uint16_t port
 
 //file.cpp
 bool handleFileRead(AsyncWebServerRequest*, String path);
-bool writeObjectToFileUsingId(const char* file, uint16_t id, JsonDocument* content);
-bool writeObjectToFile(const char* file, const char* key, JsonDocument* content);
+bool writeObjectToFileUsingId(const char* file, uint16_t id, JsonObject content);
+bool writeObjectToFile(const char* file, const char* key, JsonObject content);
 bool readObjectFromFileUsingId(const char* file, uint16_t id, JsonDocument* dest);
 bool readObjectFromFile(const char* file, const char* key, JsonDocument* dest);
 void updateFSInfo();
