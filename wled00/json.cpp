@@ -1022,16 +1022,6 @@ void serializeModeNames(JsonArray arr)
 }
 
 
-// Global buffer locking response helper class
-class GlobalBufferAsyncJsonResponse: public JSONBufferGuard, public AsyncJsonResponse {
-  public:
-  inline GlobalBufferAsyncJsonResponse(bool isArray) : JSONBufferGuard(17), AsyncJsonResponse(pDoc, isArray) {};
-  virtual ~GlobalBufferAsyncJsonResponse() {};
-
-  // Other members are inherited
-};
-
-
 void serveJson(AsyncWebServerRequest* request)
 {
   byte subJson = 0;
@@ -1062,54 +1052,42 @@ void serveJson(AsyncWebServerRequest* request)
     return;
   }
 
-  GlobalBufferAsyncJsonResponse *response = new GlobalBufferAsyncJsonResponse(subJson==JSON_PATH_FXDATA || subJson==JSON_PATH_EFFECTS); // will clear and convert JsonDocument into JsonArray if necessary
-  if (!response->owns_lock()) {
-    serveJsonError(request, 503, ERR_NOBUF);
-    delete response;
-    return;
-  }
-
-  JsonVariant lDoc = response->getRoot();
-
+  JsonDocument doc(json_allocator);  
   switch (subJson)
   {
     case JSON_PATH_STATE:
-      serializeState(lDoc); break;
+      serializeState(doc.to<JsonObject>()); break;
     case JSON_PATH_INFO:
-      serializeInfo(lDoc); break;
+      serializeInfo(doc.to<JsonObject>()); break;
     case JSON_PATH_NODES:
-      serializeNodes(lDoc); break;
+      serializeNodes(doc.to<JsonObject>()); break;
     case JSON_PATH_PALETTES:
-      serializePalettes(lDoc, request->hasParam("page") ? request->getParam("page")->value().toInt() : 0); break;
+      serializePalettes(doc.to<JsonObject>(), request->hasParam("page") ? request->getParam("page")->value().toInt() : 0); break;
     case JSON_PATH_EFFECTS:
-      serializeModeNames(lDoc); break;
+      serializeModeNames(doc.to<JsonArray>()); break;
     case JSON_PATH_FXDATA:
-      serializeModeData(lDoc); break;
+      serializeModeData(doc.to<JsonArray>()); break;
     case JSON_PATH_NETWORKS:
-      serializeNetworks(lDoc); break;
+      serializeNetworks(doc.to<JsonObject>()); break;
     default: //all
-      JsonObject state = lDoc["state"].to<JsonObject>();
+      JsonObject root = doc.to<JsonObject>();
+      JsonObject state = root["state"].to<JsonObject>();
       serializeState(state);
-      JsonObject info = lDoc["info"].to<JsonObject>();
+      JsonObject info = root["info"].to<JsonObject>();
       serializeInfo(info);
       if (subJson != JSON_PATH_STATE_INFO)
       {
-        JsonArray effects = lDoc[F("effects")].to<JsonArray>();
+        JsonArray effects = root[F("effects")].to<JsonArray>();
         serializeModeNames(effects); // remove WLED-SR extensions from effect names
-        lDoc[F("palettes")] = serialized((const __FlashStringHelper*)JSON_palette_names);
+        root[F("palettes")] = serialized((const __FlashStringHelper*)JSON_palette_names);
       }
-      //lDoc["m"] = lDoc.memoryUsage(); // JSON buffer usage, for remote debugging
   }
 
-  DEBUG_PRINTF("JSON buffer size: %u for request: %d\n", measureJson(lDoc), subJson);
-
-  #ifdef WLED_DEBUG
-  size_t len =
-  #endif
-  response->setLength();
-  DEBUG_PRINT(F("JSON content length: ")); DEBUG_PRINTLN(len);
-
-  request->send(response);
+  String out;
+  serializeJson(doc, out);
+  doc.clear();  // Release memory, now that we're done serializing
+  DEBUG_PRINT(F("JSON content length: ")); DEBUG_PRINT(out.length()); DEBUG_PRINTF(" for request: "); DEBUG_PRINTLN(subJson);
+  request->send(200, "application/json", std::move(out));
 }
 
 #ifdef WLED_ENABLE_JSONLIVE
