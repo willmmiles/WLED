@@ -166,12 +166,11 @@ void initServer()
     bool verboseResponse = false;
     bool isConfig = false;
 
-    if (!requestJSONBufferLock(14)) return;
+    JsonDocument doc(json_allocator);
 
-    DeserializationError error = deserializeJson(*pDoc, (uint8_t*)(request->_tempObject));
-    JsonObject root = pDoc->as<JsonObject>();
+    DeserializationError error = deserializeJson(doc, (uint8_t*)(request->_tempObject));
+    JsonObject root = doc.as<JsonObject>();
     if (error || root.isNull()) {
-      releaseJSONBufferLock();
       serveJsonError(request, 400, ERR_JSON);
       return;
     }
@@ -190,13 +189,13 @@ void initServer()
       verboseResponse = deserializeState(root);
     } else {
       if (!correctPIN && strlen(settingsPIN)>0) {
-        releaseJSONBufferLock();
         serveJsonError(request, 401, ERR_DENIED);
         return;
       }
       verboseResponse = deserializeConfig(root); //use verboseResponse to determine whether cfg change should be saved immediately
     }
-    releaseJSONBufferLock();
+    
+    doc.clear();   // free memory before replying
 
     if (verboseResponse) {
       if (!isConfig) {
@@ -509,19 +508,17 @@ String dmxProcessor(const String& var)
 
 void serveSettingsJS(AsyncWebServerRequest* request)
 {
-  char buf[SETTINGS_STACK_BUF_SIZE+37];
-  buf[0] = 0;
   byte subPage = request->arg(F("p")).toInt();
   if (subPage > 10) {
-    strcpy_P(buf, PSTR("alert('Settings for this request are not implemented.');"));
-    request->send(501, "application/javascript", buf);
+    request->send(501, "application/javascript", PSTR("alert('Settings for this request are not implemented.');"));
     return;
   }
   if (subPage > 0 && !correctPIN && strlen(settingsPIN)>0) {
-    strcpy_P(buf, PSTR("alert('PIN incorrect.');"));
-    request->send(401, "application/javascript", buf);
+    request->send(401, "application/javascript", PSTR("alert('PIN incorrect.');"));
     return;
   }
+  char buf[SETTINGS_STACK_BUF_SIZE+37];
+  buf[0] = 0;
   strcat_P(buf,PSTR("function GetV(){var d=document;"));
   getSettingsJS(subPage, buf+strlen(buf));  // this may overflow by 35bytes!!!
   strcat_P(buf,PSTR("}"));
