@@ -391,7 +391,8 @@ void WLED::setup()
   #if defined(WLED_USE_PSRAM)
   if (psramFound()) {
     // Switch to using PSRAM for the global JSON buffer
-    gDoc = JsonDocument(&pAlloc);
+    json_allocator = &pAlloc;
+    gDoc = JsonDocument(json_allocator);
     DEBUG_PRINT(F("Total PSRAM: ")); DEBUG_PRINT(ESP.getPsramSize()/1024); DEBUG_PRINTLN("kB");
     DEBUG_PRINT(F("Free PSRAM : ")); DEBUG_PRINT(ESP.getFreePsram()/1024); DEBUG_PRINTLN("kB");
   }

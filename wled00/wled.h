@@ -771,6 +771,7 @@ WLED_GLOBAL int8_t spi_sclk  _INIT(SPISCLKPIN);
 #if defined(ARDUINO_ARCH_ESP32) && defined(BOARD_HAS_PSRAM) && defined(WLED_USE_PSRAM)
 WLED_GLOBAL PSRAM_Allocator pAlloc _INIT ( PSRAM_Allocator {} );
 #endif
+WLED_GLOBAL ArduinoJson::Allocator* json_allocator _INIT(ArduinoJson::detail::DefaultAllocator::instance());
 WLED_GLOBAL JsonDocument gDoc _INIT( JsonDocument {} );
 WLED_GLOBAL JsonDocument *pDoc _INIT(&gDoc);
 WLED_GLOBAL volatile uint8_t jsonBufferLock _INIT(0);
