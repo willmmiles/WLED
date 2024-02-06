@@ -36,12 +36,11 @@ void wsEvent(AsyncWebSocket * server, AsyncWebSocketClient * client, AwsEventTyp
         }
 
         bool verboseResponse = false;
-        if (!requestJSONBufferLock(11)) return;
+        JsonDocument doc(json_allocator);
 
-        DeserializationError error = deserializeJson(*pDoc, data, len);
-        JsonObject root = pDoc->as<JsonObject>();
+        DeserializationError error = deserializeJson(doc, data, len);
+        JsonObject root = doc.as<JsonObject>();
         if (error || root.isNull()) {
-          releaseJSONBufferLock();
           return;
         }
         if (root["v"] && root.size() == 1) {
@@ -52,7 +51,7 @@ void wsEvent(AsyncWebSocket * server, AsyncWebSocketClient * client, AwsEventTyp
         } else {
           verboseResponse = deserializeState(root);
         }
-        releaseJSONBufferLock();
+        doc.clear();
 
         if (!interfaceUpdateCallMode) { // individual client response only needed if no WS broadcast soon
           if (verboseResponse) {
@@ -100,15 +99,14 @@ void sendDataWs(AsyncWebSocketClient * client)
 {
   if (!ws.count()) return;
   AsyncWebSocketMessageBuffer * buffer;
+  JsonDocument doc(json_allocator);
 
-  if (!requestJSONBufferLock(12)) return;
-
-  JsonObject state = (*pDoc)["state"].to<JsonObject>();
+  JsonObject state = doc["state"].to<JsonObject>();
   serializeState(state);
-  JsonObject info  = (*pDoc)["info"].to<JsonObject>();
+  JsonObject info  = doc["info"].to<JsonObject>();
   serializeInfo(info);
 
-  size_t len = measureJson(*pDoc);
+  size_t len = measureJson(doc);
   DEBUG_PRINTF("JSON buffer size for WS request: %u.\n", len);
 
   size_t heap1 = ESP.getFreeHeap();
@@ -127,7 +125,6 @@ void sendDataWs(AsyncWebSocketClient * client)
   size_t heap2 = 0; // ESP32 variants do not have the same issue and will work without checking heap allocation
   #endif
   if (!buffer || heap1-heap2<len) {
-    releaseJSONBufferLock();
     DEBUG_PRINTLN(F("WS buffer allocation failed."));
     ws.closeAll(1013); //code 1013 = temporary overload, try again later
     ws.cleanupClients(0); //disconnect all clients to release memory
@@ -136,7 +133,8 @@ void sendDataWs(AsyncWebSocketClient * client)
   }
 
   buffer->lock();
-  serializeJson(*pDoc, (char *)buffer->get(), len);
+  serializeJson(doc, (char *)buffer->get(), len);
+  doc.clear();
 
   DEBUG_PRINT(F("Sending WS data "));
   if (client) {
@@ -148,8 +146,6 @@ void sendDataWs(AsyncWebSocketClient * client)
   }
   buffer->unlock();
   ws._cleanBuffers();
-
-  releaseJSONBufferLock();
 }
 
 bool sendLiveLedsWs(uint32_t wsClient)
