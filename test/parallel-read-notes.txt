@@ -1,0 +1,6 @@
+# Some test commands to load the web server
+
+TARGET=192.168.1.153
+
+curl --compressed -Z http://$TARGET -o /dev/null http://$TARGET/json/palettes -o /dev/null http://$TARGET/json/fxdata -o /dev/null http://$TARGET/json/effectx -o /dev/null
+curl -Z --parallel-immediate --parallel-max 50 http://$TARGET/json/state -o /dev/null  http://$TARGET/json/info -o /dev/null http://$TARGET/json/si -o /dev/null  http://$TARGET/json/state2 -o /dev/null  http://$TARGET/json/si2 -o /dev/null
