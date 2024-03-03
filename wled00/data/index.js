@@ -277,18 +277,12 @@ function onLoad()
 	pmtLS = localStorage.getItem('wledPmt');
 
 	// Load initial data
-	loadPalettes(()=>{
-		// fill effect extra data array
-		loadFXData(()=>{
-			// load and populate effects
-			loadFX(()=>{
-				loadPalettesData(()=>{
-					requestJson();// will load presets and create WS
-					if (cfg.comp.css) setTimeout(()=>{loadSkinCSS('skinCss')},50);
-				});
-			});
-		});
-	});
+	loadPalettes();
+	loadFXData();	// fill effect extra data array
+	loadFX();
+	loadPalettesData();	// load and populate effects
+	requestJson();	// will load presets and create WS
+	if (cfg.comp.css) setTimeout(()=>{loadSkinCSS('skinCss')},50);
 	resetUtil();
 
 	d.addEventListener("visibilitychange", handleVisibilityChange, false);
