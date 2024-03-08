@@ -128,7 +128,7 @@ void sendDataWs(AsyncWebSocketClient * client)
     return;
   }
   #endif
-  AsyncWebSocketSharedBuffer buffer(len); // will not allocate correct memory sometimes on ESP8266
+  AsyncWebSocketBuffer buffer(len);
   #ifdef ESP8266
   size_t heap2 = ESP.getFreeHeap();
   DEBUG_PRINT(F("heap ")); DEBUG_PRINTLN(ESP.getFreeHeap());
@@ -149,7 +149,7 @@ void sendDataWs(AsyncWebSocketClient * client)
     client->text(std::move(buffer));
     DEBUG_PRINTLN(F("to a single client."));
   } else {
-    ws.textAll(buffer);
+    ws.textAll(std::move(buffer));
     DEBUG_PRINTLN(F("to multiple clients."));
   }
 
@@ -181,7 +181,7 @@ bool sendLiveLedsWs(uint32_t wsClient)
 #endif
   size_t bufSize = pos + (used/n)*3;
 
-  AsyncWebSocketSharedBuffer wsBuf(bufSize);
+  AsyncWebSocketBuffer wsBuf(bufSize);
   if (!wsBuf) return false; //out of memory
   uint8_t* buffer = reinterpret_cast<uint8_t*>(wsBuf.data());
   if (!buffer) return false; //out of memory
