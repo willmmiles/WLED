@@ -122,7 +122,7 @@ void sendDataWs(AsyncWebSocketClient * client)
 
   DEBUG_PRINT(F("heap ")); DEBUG_PRINTLN(ESP.getFreeHeap());
   
-  SharedBufferList buffer = allocateSharedBufferList(len, TCP_MSS - 8);
+  DynamicBufferList buffer = allocateDynamicBufferList(len, TCP_MSS - 8);
 
   #ifdef ESP8266
   DEBUG_PRINT(F("heap ")); DEBUG_PRINTLN(ESP.getFreeHeap());
@@ -135,7 +135,7 @@ void sendDataWs(AsyncWebSocketClient * client)
     return; //out of memory
   }
 
-  SharedBufferListPrint printer(buffer);
+  DynamicBufferListPrint printer(buffer);
   serializeJson(*pDoc, printer);
 
   DEBUG_PRINT(F("Sending WS data "));
