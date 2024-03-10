@@ -142,6 +142,7 @@ async function writeHtmlGzipped(sourceFile, resultFile, page) {
     src += `const uint8_t PAGE_${page}[] PROGMEM = {\n${array}\n};\n\n`;
     console.info("Writing " + resultFile);
     fs.writeFileSync(resultFile, src);
+    fs.writeFileSync(`build_output/${page}.gz`, result)
   });
 }
 
