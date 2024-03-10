@@ -231,6 +231,10 @@ function onLoad()
 		// detect reverse proxy and/or HTTPS
 		let pathn = l.pathname;
 		let paths = pathn.slice(1,pathn.endsWith('/')?-1:undefined).split("/");
+		// Discard filename from non-folders
+		if (!pathn.endsWith('/')) {
+			paths.pop();
+		}
 		locproto = l.protocol;
 		locip = l.hostname + (l.port ? ":" + l.port : "");
 		if (paths.length > 0 && paths[0]!=="") {
