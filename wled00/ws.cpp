@@ -120,29 +120,23 @@ void sendDataWs(AsyncWebSocketClient * client)
   size_t len = measureJson(*pDoc);
   DEBUG_PRINTF_P(PSTR("JSON buffer size: %u for WS request (%u).\n"), pDoc->memoryUsage(), len);
 
-  size_t heap1 = ESP.getFreeHeap();
   DEBUG_PRINT(F("heap ")); DEBUG_PRINTLN(ESP.getFreeHeap());
+  
+  DynamicBufferList buffer = allocateDynamicBufferList(len, TCP_MSS - 8);
+
   #ifdef ESP8266
-  if (len>heap1) {
-    DEBUG_PRINTLN(F("Out of memory (WS)!"));
-    return;
-  }
-  #endif
-  AsyncWebSocketBuffer buffer(len);
-  #ifdef ESP8266
-  size_t heap2 = ESP.getFreeHeap();
   DEBUG_PRINT(F("heap ")); DEBUG_PRINTLN(ESP.getFreeHeap());
-  #else
-  size_t heap2 = 0; // ESP32 variants do not have the same issue and will work without checking heap allocation
   #endif
-  if (!buffer || heap1-heap2<len) {
+
+  if (totalSize(buffer) != len) {
     releaseJSONBufferLock();
     DEBUG_PRINTLN(F("WS buffer allocation failed."));
     ws.closeAll(1013); //code 1013 = temporary overload, try again later
-    ws.cleanupClients(0); //disconnect all clients to release memory
     return; //out of memory
   }
-  serializeJson(*pDoc, (char *)buffer.data(), len);
+
+  DynamicBufferListPrint printer(buffer);
+  serializeJson(*pDoc, printer);
 
   DEBUG_PRINT(F("Sending WS data "));
   if (client) {
@@ -184,7 +178,6 @@ bool sendLiveLedsWs(uint32_t wsClient)
   AsyncWebSocketBuffer wsBuf(bufSize);
   if (!wsBuf) return false; //out of memory
   uint8_t* buffer = reinterpret_cast<uint8_t*>(wsBuf.data());
-  if (!buffer) return false; //out of memory
   buffer[0] = 'L';
   buffer[1] = 1; //version
 
