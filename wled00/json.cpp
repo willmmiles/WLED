@@ -1076,7 +1076,7 @@ void serveJson(AsyncWebServerRequest* request)
     return;
   }
 
-  if (!requestJSONBufferLock(17)) {
+  if (!requestJSONBufferLock(17, false)) {
     serveJsonError(request, 503, ERR_NOBUF);
     return;
   }
