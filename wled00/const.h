@@ -508,7 +508,7 @@
 
 // Web server limits
 // Minimum heap remaining before serving a request
-#define WLED_REQUEST_MIN_HEAP 4096
+#define WLED_REQUEST_MIN_HEAP (4096+2048)
 // Maximum heap required by any one request - currently the peak is OTA events
 #define WLED_REQUEST_HEAP_USAGE 4096
 
