@@ -508,9 +508,12 @@
 
 // Web server limits
 // Minimum heap remaining before serving a request
-#define WLED_REQUEST_MIN_HEAP (4096+2048)
-// Maximum heap required by any one request - currently the peak is OTA events
-#define WLED_REQUEST_HEAP_USAGE 4096
+#define WLED_REQUEST_MIN_HEAP (6*1024)
+// Estimated maximum heap required by any one request - currently the peak is OTA events
+#define WLED_REQUEST_HEAP_USAGE (6*1024)
+// Maximum number of requests in queue
+// ESP32's TCP stack seems to crash past 5 parallel connections
+#define WLED_REQUEST_MAX_QUEUE 5
 
 // Maximum size of node map (list of other WLED instances)
 #ifdef ESP8266
