@@ -507,13 +507,13 @@
 #define MIN_HEAP_SIZE 2048
 
 // Web server limits
-// Minimum heap remaining before serving a request
+// Minimum heap remaining before queuing a request
 #define WLED_REQUEST_MIN_HEAP (6*1024)
-// Estimated maximum heap required by any one request - currently the peak is OTA events
+// Estimated maximum heap required by any one request
 #define WLED_REQUEST_HEAP_USAGE (6*1024)
 // Maximum number of requests in queue
-// ESP32's TCP stack seems to crash past 5 parallel connections
-#define WLED_REQUEST_MAX_QUEUE 5
+// ESP32's TCP stack seems to crash past 4 parallel connections
+#define WLED_REQUEST_MAX_QUEUE 4
 
 // Maximum size of node map (list of other WLED instances)
 #ifdef ESP8266
