@@ -1086,13 +1086,12 @@ class AudioReactive : public Usermod {
 
     bool receiveAudioData()   // check & process new data. return TRUE in case that new audio data was received. 
     {
+      static constexpr size_t MAX_PACKET_SIZE = std::max(sizeof(audioSyncPacket),sizeof(audioSyncPacket_v1));
       if (!udpSyncConnected) return false;
-      bool haveFreshData = false;
-
+      bool haveFreshData = false;      
       size_t packetSize = fftUdp.parsePacket();
-      if (packetSize > 5) {
-        //DEBUGSR_PRINTLN("Received UDP Sync Packet");
-        uint8_t fftBuff[packetSize];
+      if ((packetSize > 5) && (packetSize <= MAX_PACKET_SIZE)) {
+        uint8_t fftBuff[MAX_PACKET_SIZE];
         fftUdp.read(fftBuff, packetSize);
 
         // VERIFY THAT THIS IS A COMPATIBLE PACKET
