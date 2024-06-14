@@ -2,6 +2,7 @@
 #include "wled.h"
 #include "wled_ethernet.h"
 #include <Arduino.h>
+#include "isr_debug.h"
 
 #if defined(ARDUINO_ARCH_ESP32) && defined(WLED_DISABLE_BROWNOUT_DET)
 #include "soc/soc.h"
@@ -50,6 +51,7 @@ void WLED::loop()
   static size_t        avgStripMillis = 0;
   unsigned long        stripMillis;
 #endif
+  track_event(0, lastRun);
 
   handleTime();
 #ifndef WLED_DISABLE_INFRARED
@@ -267,6 +269,7 @@ void WLED::loop()
     }
     strip.printSize();
     server.printStatus(DEBUGOUT);
+    print_events();
     loops = 0;
     maxLoopMillis = 0;
     maxUsermodMillis = 0;
@@ -383,6 +386,11 @@ void WLED::setup()
     DEBUG_PRINT(F("Free PSRAM : ")); DEBUG_PRINT(ESP.getFreePsram()/1024); DEBUG_PRINTLN("kB");
   }
 #endif
+
+  DEBUG_PRINT(F("Reset for: ")); DEBUG_PRINTLN(ESP.getResetInfo());
+  print_events();
+  clear_events();
+  setup_isr_tracking();
 
 #if defined(WLED_DEBUG) && !defined(WLED_DEBUG_HOST)
   pinManager.allocatePin(hardwareTX, true, PinOwner::DebugOut); // TX (GPIO1 on ESP32) reserved for debug output
