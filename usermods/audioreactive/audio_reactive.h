@@ -1027,10 +1027,11 @@ class AudioReactive : public Usermod {
     }
 
     void decodeAudioData(int packetSize, uint8_t *fftBuff) {
-      audioSyncPacket *receivedPacket = reinterpret_cast<audioSyncPacket*>(fftBuff);
+      audioSyncPacket receivedPacket;
+      memcpy(&receivedPacket, fftBuff, sizeof(receivedPacket)); // don't violate alignment
       // update samples for effects
-      volumeSmth   = fmaxf(receivedPacket->sampleSmth, 0.0f);
-      volumeRaw    = fmaxf(receivedPacket->sampleRaw, 0.0f);
+      volumeSmth   = fmaxf(receivedPacket.sampleSmth, 0.0f);
+      volumeRaw    = fmaxf(receivedPacket.sampleRaw, 0.0f);
 #ifdef ARDUINO_ARCH_ESP32
       // update internal samples
       sampleRaw    = volumeRaw;
@@ -1043,21 +1044,22 @@ class AudioReactive : public Usermod {
       // If it's true already, then the animation still needs to respond.
       autoResetPeak();
       if (!samplePeak) {
-            samplePeak = receivedPacket->samplePeak >0 ? true:false;
+            samplePeak = receivedPacket.samplePeak >0 ? true:false;
             if (samplePeak) timeOfPeak = millis();
             //userVar1 = samplePeak;
       }
       //These values are only computed by ESP32
-      for (int i = 0; i < NUM_GEQ_CHANNELS; i++) fftResult[i] = receivedPacket->fftResult[i];
-      my_magnitude  = fmaxf(receivedPacket->FFT_Magnitude, 0.0f);
+      for (int i = 0; i < NUM_GEQ_CHANNELS; i++) fftResult[i] = receivedPacket.fftResult[i];
+      my_magnitude  = fmaxf(receivedPacket.FFT_Magnitude, 0.0f);
       FFT_Magnitude = my_magnitude;
-      FFT_MajorPeak = constrain(receivedPacket->FFT_MajorPeak, 1.0f, 11025.0f);  // restrict value to range expected by effects
+      FFT_MajorPeak = constrain(receivedPacket.FFT_MajorPeak, 1.0f, 11025.0f);  // restrict value to range expected by effects
     }
 
     void decodeAudioData_v1(int packetSize, uint8_t *fftBuff) {
-      audioSyncPacket_v1 *receivedPacket = reinterpret_cast<audioSyncPacket_v1*>(fftBuff);
+      audioSyncPacket_v1 receivedPacket;
+      memcpy(&receivedPacket, fftBuff, sizeof(receivedPacket)); // don't violate alignment
       // update samples for effects
-      volumeSmth   = fmaxf(receivedPacket->sampleAgc, 0.0f);
+      volumeSmth   = fmaxf(receivedPacket.sampleAgc, 0.0f);
       volumeRaw    = volumeSmth;   // V1 format does not have "raw" AGC sample
 #ifdef ARDUINO_ARCH_ESP32
       // update internal samples
@@ -1071,15 +1073,15 @@ class AudioReactive : public Usermod {
       // If it's true already, then the animation still needs to respond.
       autoResetPeak();
       if (!samplePeak) {
-            samplePeak = receivedPacket->samplePeak >0 ? true:false;
+            samplePeak = receivedPacket.samplePeak >0 ? true:false;
             if (samplePeak) timeOfPeak = millis();
             //userVar1 = samplePeak;
       }
       //These values are only available on the ESP32
-      for (int i = 0; i < NUM_GEQ_CHANNELS; i++) fftResult[i] = receivedPacket->fftResult[i];
-      my_magnitude  = fmaxf(receivedPacket->FFT_Magnitude, 0.0);
+      for (int i = 0; i < NUM_GEQ_CHANNELS; i++) fftResult[i] = receivedPacket.fftResult[i];
+      my_magnitude  = fmaxf(receivedPacket.FFT_Magnitude, 0.0);
       FFT_Magnitude = my_magnitude;
-      FFT_MajorPeak = constrain(receivedPacket->FFT_MajorPeak, 1.0, 11025.0);  // restrict value to range expected by effects
+      FFT_MajorPeak = constrain(receivedPacket.FFT_MajorPeak, 1.0, 11025.0);  // restrict value to range expected by effects
     }
 
     bool receiveAudioData()   // check & process new data. return TRUE in case that new audio data was received. 
