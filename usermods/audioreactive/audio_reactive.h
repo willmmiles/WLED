@@ -587,14 +587,17 @@ class AudioReactive : public Usermod {
     #endif
 #endif
 
-    // new "V2" audiosync struct - 40 Bytes
+#pragma pack(push,1)
+    // new "V2" audiosync struct - 44 Bytes
     struct audioSyncPacket {
       char    header[6];      //  06 Bytes
+      uint8_t reserved1[2];   //  02 Bytes - former padding for alignment
       float   sampleRaw;      //  04 Bytes  - either "sampleRaw" or "rawSampleAgc" depending on soundAgc setting
       float   sampleSmth;     //  04 Bytes  - either "sampleAvg" or "sampleAgc" depending on soundAgc setting
       uint8_t samplePeak;     //  01 Bytes  - 0 no peak; >=1 peak detected. In future, this will also provide peak Magnitude
-      uint8_t reserved1;      //  01 Bytes  - for future extensions - not used yet
+      uint8_t reserved2;      //  01 Bytes  - for future extensions - not used yet
       uint8_t fftResult[16];  //  16 Bytes
+      uint8_t reserved3[2];   //  02 Bytes - former padding for alignment
       float  FFT_Magnitude;   //  04 Bytes
       float  FFT_MajorPeak;   //  04 Bytes
     };
@@ -603,14 +606,15 @@ class AudioReactive : public Usermod {
     struct audioSyncPacket_v1 {
       char header[6];         //  06 Bytes
       uint8_t myVals[32];     //  32 Bytes
-      int sampleAgc;          //  04 Bytes
-      int sampleRaw;          //  04 Bytes
+      int32_t sampleAgc;          //  04 Bytes
+      int32_t sampleRaw;          //  04 Bytes
       float sampleAvg;        //  04 Bytes
       bool samplePeak;        //  01 Bytes
       uint8_t fftResult[16];  //  16 Bytes
       double FFT_Magnitude;   //  08 Bytes
       double FFT_MajorPeak;   //  08 Bytes
     };
+#pragma pack(pop)    
 
     // set your config variables to their boot default value (this can also be done in readFromConfig() or a constructor if you prefer)
     #ifdef UM_AUDIOREACTIVE_ENABLE
