@@ -1378,14 +1378,14 @@ class AudioReactive : public Usermod {
           // Only run the audio listener code if we're in Receive mode
           static float syncVolumeSmth = 0;
           bool have_new_sample = false;
-          if (millis() - lastTime > delayMs) {
+          //if (millis() - lastTime > delayMs) {
             have_new_sample = receiveAudioData();
             if (have_new_sample) last_UDPTime = millis();
 #ifdef ARDUINO_ARCH_ESP32
             else fftUdp.flush(); // Flush udp input buffers if we haven't read it - avoids hickups in receive mode. Does not work on 8266.
 #endif
             lastTime = millis();
-          }
+          //}
           if (have_new_sample) syncVolumeSmth = volumeSmth;   // remember received sample
           else volumeSmth = syncVolumeSmth;                   // restore originally received sample for next run of dynamics limiter
           limitSampleDynamics();                              // run dynamics limiter on received volumeSmth, to hide jumps and hickups
