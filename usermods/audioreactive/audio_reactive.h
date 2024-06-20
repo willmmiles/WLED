@@ -1,6 +1,7 @@
 #pragma once
 
 #include "wled.h"
+#include "isr_debug.h"
 
 #ifdef ARDUINO_ARCH_ESP32
 
@@ -1029,6 +1030,7 @@ class AudioReactive : public Usermod {
     void decodeAudioData(int packetSize, uint8_t *fftBuff) {
       audioSyncPacket receivedPacket;
       memcpy(&receivedPacket, fftBuff, sizeof(receivedPacket)); // don't violate alignment
+      //track_event(110, packetSize);
       // update samples for effects
       volumeSmth   = fmaxf(receivedPacket.sampleSmth, 0.0f);
       volumeRaw    = fmaxf(receivedPacket.sampleRaw, 0.0f);
@@ -1048,11 +1050,13 @@ class AudioReactive : public Usermod {
             if (samplePeak) timeOfPeak = millis();
             //userVar1 = samplePeak;
       }
+      track_event(111, packetSize);
       //These values are only computed by ESP32
       for (int i = 0; i < NUM_GEQ_CHANNELS; i++) fftResult[i] = receivedPacket.fftResult[i];
       my_magnitude  = fmaxf(receivedPacket.FFT_Magnitude, 0.0f);
       FFT_Magnitude = my_magnitude;
       FFT_MajorPeak = constrain(receivedPacket.FFT_MajorPeak, 1.0f, 11025.0f);  // restrict value to range expected by effects
+      //track_event(112, packetSize);
     }
 
     void decodeAudioData_v1(int packetSize, uint8_t *fftBuff) {
@@ -1089,26 +1093,30 @@ class AudioReactive : public Usermod {
       static constexpr size_t MAX_PACKET_SIZE = std::max(sizeof(audioSyncPacket),sizeof(audioSyncPacket_v1));
       if (!udpSyncConnected) return false;
       bool haveFreshData = false;      
-      size_t packetSize = fftUdp.parsePacket();
-      if ((packetSize > 5) && (packetSize <= MAX_PACKET_SIZE)) {
-        uint8_t fftBuff[MAX_PACKET_SIZE];
-        fftUdp.read(fftBuff, packetSize);
-
-        // VERIFY THAT THIS IS A COMPATIBLE PACKET
-        if (packetSize == sizeof(audioSyncPacket) && (isValidUdpSyncVersion((const char *)fftBuff))) {
-          decodeAudioData(packetSize, fftBuff);
-          //DEBUGSR_PRINTLN("Finished parsing UDP Sync Packet v2");
-          haveFreshData = true;
-          receivedFormat = 2;
-        } else {
-          if (packetSize == sizeof(audioSyncPacket_v1) && (isValidUdpSyncVersion_v1((const char *)fftBuff))) {
-            decodeAudioData_v1(packetSize, fftBuff);
-            //DEBUGSR_PRINTLN("Finished parsing UDP Sync Packet v1");
+      size_t packetSize;
+      while(packetSize = fftUdp.parsePacket()) {
+        track_event(100, packetSize);
+        if ((packetSize > 5) && (packetSize <= MAX_PACKET_SIZE)) {
+          uint8_t fftBuff[MAX_PACKET_SIZE];
+          fftUdp.read(fftBuff, packetSize);
+          track_event(101, packetSize);
+          // VERIFY THAT THIS IS A COMPATIBLE PACKET
+          if (packetSize == sizeof(audioSyncPacket) && (isValidUdpSyncVersion((const char *)fftBuff))) {
+            decodeAudioData(packetSize, fftBuff);
+            //DEBUGSR_PRINTLN("Finished parsing UDP Sync Packet v2");
             haveFreshData = true;
-            receivedFormat = 1;
-          } else receivedFormat = 0; // unknown format
+            receivedFormat = 2;
+          } else {
+            if (packetSize == sizeof(audioSyncPacket_v1) && (isValidUdpSyncVersion_v1((const char *)fftBuff))) {
+              decodeAudioData_v1(packetSize, fftBuff);
+              //DEBUGSR_PRINTLN("Finished parsing UDP Sync Packet v1");
+              haveFreshData = true;
+              receivedFormat = 1;
+            } else receivedFormat = 0; // unknown format
+          }
         }
       }
+      if (haveFreshData) track_event(199, 0);
       return haveFreshData;
     }
 

@@ -282,6 +282,8 @@ void WLED::loop()
   loops++;
   lastRun = millis();
 #endif        // WLED_DEBUG
+  track_event(1, *(uint32_t*)0x3FFFDAB8);
+  ESP.resetFreeContStack();
 }
 
 #if WLED_WATCHDOG_TIMEOUT > 0
@@ -331,6 +333,7 @@ void WLED::setup()
   #if !defined(WLED_DEBUG) && defined(ARDUINO_ARCH_ESP32) && !defined(WLED_DEBUG_HOST) && ARDUINO_USB_CDC_ON_BOOT
   Serial.setDebugOutput(false); // switch off kernel messages when using USBCDC
   #endif
+  Serial.setDebugOutput(true);
   DEBUG_PRINTLN();
   DEBUG_PRINT(F("---WLED "));
   DEBUG_PRINT(versionString);
