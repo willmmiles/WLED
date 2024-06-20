@@ -10,7 +10,7 @@ static inline void __wsr_vecbase(uint32_t vector_base) {
 	asm volatile("wsr.vecbase %0" :: "r" (vector_base));
 }
 
-constexpr auto NUM_EVENT_SLOTS = 16U;
+constexpr auto NUM_EVENT_SLOTS = 64U;
 constexpr auto NUM_ISR_VECS = 64U;
 
 typedef void (*isr_func)(void);
@@ -26,7 +26,7 @@ struct event_info {
   uint32_t data;  // can be packed with interesting info, isr leaves 0
 };
 unsigned event_slot_index = 0;
-
+event_info event_buf[NUM_EVENT_SLOTS] __attribute__((section(".noinit")));
 
 static inline IRAM_ATTR intptr_t get_vecbase() {
   intptr_t val;
@@ -58,14 +58,14 @@ static inline IRAM_ATTR uint32_t get_cycle_count() {
   return ccount;
 }
 
-IRAM_ATTR __attribute__((__noinline__)) void track_event(uint32_t lvl, uint32_t data) {
-  register intptr_t pc asm("a0"); // dunno if this works?
-  register intptr_t sp asm("a1");
+IRAM_ATTR __attribute__((__noinline__)) void track_event(uint32_t lvl, uint32_t data, intptr_t pc, intptr_t sp) {
+  register intptr_t pcx asm("a0"); // dunno if this works?
+  register intptr_t spx asm("a1");
 
   noInterrupts();
-  auto info = event_info { 0x80000000U + lvl, pc, sp, get_cycle_count(), get_interrupt() + (get_intenable() << 16), data };
-  system_rtc_mem_write(64 + event_slot_index * sizeof(event_info) / 4, (uint32_t*) &info, sizeof(info));
-  event_slot_index = (event_slot_index+1)%NUM_EVENT_SLOTS;
+  ++event_slot_index;
+  auto info = event_info { 0x80000000U + lvl, pc ? pc : pcx, sp ? sp : spx, get_cycle_count(), get_interrupt() + (get_intenable() << 16), data };
+  event_buf[event_slot_index & 0x3F] = info;
   interrupts();
 }
 
@@ -73,7 +73,7 @@ void print_events() {
   auto buf = reinterpret_cast<event_info*>(malloc(NUM_EVENT_SLOTS * sizeof(event_info)));
   if (buf) {
     noInterrupts();
-    system_rtc_mem_read(64, buf, NUM_EVENT_SLOTS * sizeof(event_info));
+    memcpy(buf, event_buf, sizeof(event_buf));
     interrupts();
 
     // Find minimum point
@@ -90,7 +90,7 @@ void print_events() {
         id_char = 'U';
         info.lvl -= 0x80000000U;
       }
-      Serial.printf_P(PSTR("[%u] - %c%02u  %04X:%04X - %08X %08X - %u\r\n"), info.ccy, id_char, info.lvl, info.interrupt>>16, info.interrupt & 0xFFFF, info.pc, info.sptr, info.data);
+      Serial.printf_P(PSTR("[%u] - %c%04u  %04X:%04X - %08X %08X - %08X\r\n"), info.ccy, id_char, info.lvl, info.interrupt>>16, info.interrupt & 0xFFFF, info.pc, info.sptr, info.data);
     }
     Serial.print(PSTR("\r\n"));
     free(buf);
@@ -100,11 +100,9 @@ void print_events() {
 }
 
 void clear_events() {
-  char null_entry[sizeof(event_info)];
-  memset(&null_entry, 0, sizeof(null_entry));
-  for(auto i = 0U; i < NUM_EVENT_SLOTS; ++i) {
-    system_rtc_mem_write(64 + i * sizeof(event_info) / 4, (uint32_t*) &null_entry, sizeof(null_entry));
-  }
+  noInterrupts();
+  memset(event_buf, 0, sizeof(event_buf));
+  interrupts();
 }
 
 void setup_isr_tracking() {
@@ -119,4 +117,37 @@ void setup_isr_tracking() {
   }
 
   interrupts();
-};  
+};
+
+
+// Hook the scheduler
+static inline void track_active_tasks(int id, intptr_t pc, intptr_t sp) {
+  auto active_tasks = *(uint32_t*)0x3FFFDAB8;
+  if (active_tasks & 0xFFFFFFFE) {  // ignore the 1st task (the user task); otherwise a delay() or yield() loop generates a *lot* of events
+    track_event(id, active_tasks, pc, sp);
+  }
+}
+
+extern "C" void __esp_suspend();
+extern "C" IRAM_ATTR void esp_suspend() {
+  register intptr_t pcx asm("a0");
+  register intptr_t spx asm("a1");
+  track_active_tasks(1000, pcx, spx);
+  __esp_suspend();
+}
+
+extern "C" void __esp_delay(unsigned long ms);
+extern "C" void esp_delay(unsigned long ms) {
+  register intptr_t pcx asm("a0");
+  register intptr_t spx asm("a1");
+  track_active_tasks(3000, pcx, spx);
+  __esp_delay(ms);
+}
+
+extern "C" void __yield();
+extern "C" void yield() {
+  register intptr_t pcx asm("a0");
+  register intptr_t spx asm("a1");
+  track_active_tasks(2000, pcx, spx);
+  __yield();
+}

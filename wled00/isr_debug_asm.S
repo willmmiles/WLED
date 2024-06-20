@@ -5,7 +5,8 @@
 
 int_vectors_ptr: .int int_vectors    
 isr_idx_ptr: .int event_slot_index
-rtc_mem_ptr: .int 0x60001200
+//event_mem_ptr: .int 0x60001200
+event_mem_ptr: .int event_buf
 
     .global   track_isr_hook
     .type     track_isr_hook, @function
@@ -16,11 +17,11 @@ track_isr_hook:
     l32i a4, a3, 0x0
     addi.n a4, a4, 0x01
     s32i.n a4, a3, 0x0
-    movi a3, 0x0F
+    movi a3, 0x3F
     and a4, a4, a3
     movi a3, 0x18 // sizeof(isr_data)
     mull a4, a4, a3
-    l32r a3, rtc_mem_ptr
+    l32r a3, event_mem_ptr
     add a4, a4, a3
 
     // store exccause
