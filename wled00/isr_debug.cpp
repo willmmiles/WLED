@@ -120,33 +120,38 @@ void setup_isr_tracking() {
 
 
 // Hook the scheduler
-static inline void track_active_tasks(int id, intptr_t pc, intptr_t sp) {
+static inline bool track_active_tasks(int id, intptr_t pc, intptr_t sp, bool force) {
   auto active_tasks = *(uint32_t*)0x3FFFDAB8;
-  if (active_tasks & 0xFFFFFFFE) {  // ignore the 1st task (the user task); otherwise a delay() or yield() loop generates a *lot* of events
+  if (force || (active_tasks & 0xFFFFFFFE)) {  // ignore the 1st task (the user task); otherwise a delay() or yield() loop generates a *lot* of events
     track_event(id, active_tasks, pc, sp);
+    return true;
   }
+  return false;
 }
 
 extern "C" void __esp_suspend();
 extern "C" IRAM_ATTR void esp_suspend() {
   register intptr_t pcx asm("a0");
   register intptr_t spx asm("a1");
-  track_active_tasks(1000, pcx, spx);
+  auto r = track_active_tasks(1000, pcx, spx, false);
   __esp_suspend();
+  track_active_tasks(1001, pcx, spx, r);
 }
 
 extern "C" void __esp_delay(unsigned long ms);
 extern "C" void esp_delay(unsigned long ms) {
   register intptr_t pcx asm("a0");
   register intptr_t spx asm("a1");
-  track_active_tasks(3000, pcx, spx);
+  auto r = track_active_tasks(3000, pcx, spx, false);
   __esp_delay(ms);
+  track_active_tasks(3001, pcx, spx, r);
 }
 
 extern "C" void __yield();
 extern "C" void yield() {
   register intptr_t pcx asm("a0");
   register intptr_t spx asm("a1");
-  track_active_tasks(2000, pcx, spx);
+  auto r = track_active_tasks(2000, pcx, spx, false);
   __yield();
+  track_active_tasks(2001, pcx, spx, r);
 }
