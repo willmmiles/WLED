@@ -61,12 +61,11 @@ static inline IRAM_ATTR uint32_t get_cycle_count() {
 IRAM_ATTR __attribute__((__noinline__)) void track_event(uint32_t lvl, uint32_t data, intptr_t pc, intptr_t sp) {
   register intptr_t pcx asm("a0"); // dunno if this works?
   register intptr_t spx asm("a1");
-
-  noInterrupts();
-  ++event_slot_index;
-  auto info = event_info { 0x80000000U + lvl, pc ? pc : pcx, sp ? sp : spx, get_cycle_count(), get_interrupt() + (get_intenable() << 16), data };
-  event_buf[event_slot_index & 0x3F] = info;
-  interrupts();
+  
+  uint32_t savedPS = xt_rsil(15);
+  ++event_slot_index;  
+  event_buf[event_slot_index & 0x3F] = event_info { 0x80000000U + lvl, pc ? pc : pcx, sp ? sp : spx, get_cycle_count(), get_interrupt() + (get_intenable() << 16), data };
+  xt_wsr_ps(savedPS);
 }
 
 void print_events() {  
