@@ -1050,7 +1050,7 @@ class AudioReactive : public Usermod {
             if (samplePeak) timeOfPeak = millis();
             //userVar1 = samplePeak;
       }
-      track_event(111, packetSize);
+      //track_event(111, packetSize);
       //These values are only computed by ESP32
       for (int i = 0; i < NUM_GEQ_CHANNELS; i++) fftResult[i] = receivedPacket.fftResult[i];
       my_magnitude  = fmaxf(receivedPacket.FFT_Magnitude, 0.0f);
@@ -1099,7 +1099,7 @@ class AudioReactive : public Usermod {
         if ((packetSize > 5) && (packetSize <= MAX_PACKET_SIZE)) {
           uint8_t fftBuff[MAX_PACKET_SIZE];
           fftUdp.read(fftBuff, packetSize);
-          track_event(101, packetSize);
+          //track_event(101, packetSize);
           // VERIFY THAT THIS IS A COMPATIBLE PACKET
           if (packetSize == sizeof(audioSyncPacket) && (isValidUdpSyncVersion((const char *)fftBuff))) {
             decodeAudioData(packetSize, fftBuff);
