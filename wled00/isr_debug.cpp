@@ -64,7 +64,7 @@ IRAM_ATTR __attribute__((__noinline__)) void track_event(uint32_t lvl, uint32_t 
   
   uint32_t savedPS = xt_rsil(15);
   ++event_slot_index;  
-  event_buf[event_slot_index & 0x3F] = event_info { 0x80000000U + lvl, pc ? pc : pcx, sp ? sp : spx, get_cycle_count(), get_interrupt() + (get_intenable() << 16), data };
+  event_buf[event_slot_index & 0x3F] = event_info { lvl, pc ? pc : pcx, sp ? sp : spx, get_cycle_count(), get_interrupt() + (get_intenable() << 16), data };
   xt_wsr_ps(savedPS);
 }
 
@@ -84,9 +84,9 @@ void print_events() {
     Serial.printf_P(PSTR("ISR log [%u]:\r\n"), get_cycle_count());
     for(auto i = 0U; i < NUM_EVENT_SLOTS; ++i) {
       event_info& info = buf[(min_idx + i) % NUM_EVENT_SLOTS];
-      auto id_char = 'I';
+      auto id_char = 'U';
       if (info.lvl >= 0x80000000U) {
-        id_char = 'U';
+        id_char = 'I';
         info.lvl -= 0x80000000U;
       }
       Serial.printf_P(PSTR("[%u] - %c%04u  %04X:%04X - %08X %08X - %08X\r\n"), info.ccy, id_char, info.lvl, info.interrupt>>16, info.interrupt & 0xFFFF, info.pc, info.sptr, info.data);
@@ -104,6 +104,7 @@ void clear_events() {
   interrupts();
 }
 
+/*
 void setup_isr_tracking() {
   auto vb = (isr_func*) 0x3fffc000; // ISR table address, from Ghidra  
   noInterrupts();
@@ -117,6 +118,16 @@ void setup_isr_tracking() {
 
   interrupts();
 };
+*/
+
+extern "C" void InstrumentedVectorTable();
+void setup_isr_tracking() {
+  const intptr_t our_vecbase = (intptr_t) &InstrumentedVectorTable;
+  int32_t old_vb;
+  __asm__ __volatile__("rsr %0,vecbase":"=a"(old_vb));
+  Serial.printf_P(PSTR("Vector base: %08X -> %08X\n"), old_vb, our_vecbase);
+  __asm__ __volatile__("wsr %0,vecbase"::"a"(our_vecbase));
+}
 
 
 // Hook the scheduler
