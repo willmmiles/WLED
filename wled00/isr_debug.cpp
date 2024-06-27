@@ -6,16 +6,7 @@ extern "C" {
 #include "user_interface.h"
 }
 
-static inline void __wsr_vecbase(uint32_t vector_base) {
-	asm volatile("wsr.vecbase %0" :: "r" (vector_base));
-}
-
 constexpr auto NUM_EVENT_SLOTS = 64U;
-constexpr auto NUM_ISR_VECS = 64U;
-
-typedef void (*isr_func)(void);
-isr_func int_vectors[NUM_ISR_VECS];  // storage for original interrupt vectors
-extern "C" void track_isr_hook(); // assembly hook
 
 struct event_info {
   uint32_t lvl; // exception level.  High bit is set for s/w events
@@ -27,12 +18,6 @@ struct event_info {
 };
 unsigned event_slot_index = 0;
 event_info event_buf[NUM_EVENT_SLOTS] __attribute__((section(".noinit")));
-
-static inline IRAM_ATTR intptr_t get_vecbase() {
-  intptr_t val;
-  __asm__ __volatile__("rsr %0,vecbase":"=a"(val));
-  return val;    
-}
 
 static inline IRAM_ATTR uint32_t get_cause() {
   uint32_t val;
@@ -64,7 +49,7 @@ IRAM_ATTR __attribute__((__noinline__)) void track_event(uint32_t lvl, uint32_t 
   
   uint32_t savedPS = xt_rsil(15);
   ++event_slot_index;  
-  event_buf[event_slot_index & 0x3F] = event_info { lvl, pc ? pc : pcx, sp ? sp : spx, get_cycle_count(), get_interrupt() + (get_intenable() << 16), data };
+  event_buf[event_slot_index & (NUM_EVENT_SLOTS-1)] = event_info { lvl, pc ? pc : pcx, sp ? sp : spx, get_cycle_count(), get_interrupt() + (get_intenable() << 16), data };
   xt_wsr_ps(savedPS);
 }
 
@@ -104,21 +89,6 @@ void clear_events() {
   interrupts();
 }
 
-/*
-void setup_isr_tracking() {
-  auto vb = (isr_func*) 0x3fffc000; // ISR table address, from Ghidra  
-  noInterrupts();
-  memcpy(int_vectors, vb, sizeof(int_vectors));
-
-  // rewrite table entries
-  for(auto i = 0U; i < NUM_ISR_VECS; ++i) {
-    //if (i == 4) continue;    
-    vb[i] = track_isr_hook;
-  }
-
-  interrupts();
-};
-*/
 
 extern "C" void InstrumentedVectorTable();
 void setup_isr_tracking() {
