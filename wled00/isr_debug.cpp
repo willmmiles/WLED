@@ -6,7 +6,7 @@ extern "C" {
 #include "user_interface.h"
 }
 
-constexpr auto NUM_EVENT_SLOTS = 64U;
+constexpr auto NUM_EVENT_SLOTS = 128U;
 
 struct event_info {
   uint32_t lvl; // exception level.  High bit is set for s/w events

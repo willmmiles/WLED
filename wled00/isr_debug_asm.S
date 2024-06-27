@@ -7,7 +7,7 @@
 // Assume we won't see nested exceptions, except for NMI
 reg_spill: .skip 64
 reg_spill_nmi: .skip 64
-
+last_epx: .skip 8
 
 
 
@@ -44,8 +44,6 @@ InstrumentedDoubleExceptionVector:
     j track_doubleexception
     .space 32 - (. - InstrumentedDoubleExceptionVector), 0
 
-
-
 // Common hook macros
 .macro spill_regs
     s32i.n a1,a0,0x04
@@ -78,6 +76,9 @@ InstrumentedDoubleExceptionVector:
 // data pointers
 reg_spill_ptr: .int reg_spill
 reg_spill_nmi_ptr: .int reg_spill_nmi
+last_epx_ptr: .int last_epx
+_NMILevelVector_ptr: .int _NMILevelVector
+//_NMILevelVector_size: .int 0xBB // size of above
 
 .align 4
 .global   track_debugexception
@@ -95,11 +96,42 @@ InstrumentedDebugExceptionVector_loop:
 .global   track_nmi
 .type     track_nmi, @function
 track_nmi:
-    track_exception 0x02, reg_spill_nmi_ptr
+    //track_exception 0x02, reg_spill_nmi_ptr
+    // expanded for additional check
+    l32r a0, reg_spill_nmi_ptr
+    spill_regs
+    movi.n a2, 0x02
+    call0 track_isr_hook
+    rsr a0, epc3
+    l32r a1, _NMILevelVector_ptr
+    blt a0, a1, do_nmi  // all good
+    addi.n a1, a1, 0xbb // length of nmi handler
+    l32r a2, last_epx_ptr
+    blt a0, a1, handle_crash   // WTF?!?
+    s32i.n a0, a2, 0        // save last good epc3
+    rsr a0, eps3
+    s32i.n a0, a2, 4        // save eps3
+do_nmi:        
+    l32r a0, reg_spill_nmi_ptr
+    restore_regs
+    
     rsr a0, excsave3
 // The actual nmi vector.  Not sure what it does with the return address in a0??
     call0 _NMILevelVector
 
+handle_crash:
+    // attempt to recover.  assume no other regs have changed and just rewrite the epc reg with the last known good value.
+    l32i.n a0, a2, 0
+    wsr a0, epc3
+    l32i.n a0, a2, 4
+    wsr a0, eps3
+    j do_nmi
+/*
+    movi.n a2, 0
+    call0 NmiTimSetFunc
+crashloop:
+    j crashloop
+*/
 
 .align 4
 .global   track_kernelexception
@@ -153,7 +185,7 @@ track_isr_hook:
     l32i a4, a3, 0x0
     addi.n a4, a4, 0x01
     s32i.n a4, a3, 0x0
-    movi a3, 0x3F
+    movi a3, 0x7F
     and a4, a4, a3
     movi a3, 0x18 // sizeof(isr_data)
     mull a4, a4, a3
@@ -194,8 +226,8 @@ track_epc:
     add.n a3, a3, a2    
     s32i a3, a4, 16
 
-    // store excvaddr in the data field
-    rsr a3, excvaddr
+    // data field
+    rsr a3, excsave3
     s32i a3, a4, 20
 
     ret.n
