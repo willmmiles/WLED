@@ -3,7 +3,8 @@
   "build": {
     "srcDir": ".",
     "includeDir": "../../wled00",
-    "libLDFMode": "chain+"
+    "libLDFMode": "chain+",
+    "libArchive": false
   },
   "dependencies": [
     {

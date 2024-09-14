@@ -341,41 +341,6 @@ void usermods_onStateChange(uint8_t);
 Usermod* usermod_lookup(uint16_t mod_id);
 size_t usermods_getCount();
 
-class UsermodManager {
-  private:
-    Usermod* ums[WLED_MAX_USERMODS];
-    byte numMods = 0;
-
-  public:
-    void loop();
-    void handleOverlayDraw();
-    bool handleButton(uint8_t b);
-    bool getUMData(um_data_t **um_data, uint8_t mod_id = USERMOD_ID_RESERVED); // USERMOD_ID_RESERVED will poll all usermods
-    void setup();
-    void connected();
-    void appendConfigData();
-    void addToJsonState(JsonObject& obj);
-    void addToJsonInfo(JsonObject& obj);
-    void readFromJsonState(JsonObject& obj);
-    void addToConfig(JsonObject& obj);
-    bool readFromConfig(JsonObject& obj);
-#ifndef WLED_DISABLE_MQTT
-    void onMqttConnect(bool sessionPresent);
-    bool onMqttMessage(char* topic, char* payload);
-#endif
-#ifndef WLED_DISABLE_ESPNOW
-    bool onEspNowMessage(uint8_t* sender, uint8_t* payload, uint8_t len);
-#endif
-    void onUpdateBegin(bool);
-    void onStateChange(uint8_t);
-    bool add(Usermod* um);
-    Usermod* lookup(uint16_t mod_id);
-    byte getModCount() {return numMods;};
-};
-
-//usermods_list.cpp
-void registerUsermods();
-
 //usermod.cpp
 void userSetup();
 void userConnected();
