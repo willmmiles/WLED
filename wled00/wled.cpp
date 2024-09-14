@@ -70,7 +70,7 @@ void WLED::loop()
   unsigned long usermodMillis = millis();
   #endif
   userLoop();
-  usermods.loop();
+  usermods_loop();
   #ifdef WLED_DEBUG
   usermodMillis = millis() - usermodMillis;
   avgUsermodMillis += usermodMillis;
@@ -464,7 +464,7 @@ void WLED::setup()
 
   DEBUG_PRINTLN(F("Usermods setup"));
   userSetup();
-  usermods.setup();
+  usermods_setup();
   DEBUG_PRINTF_P(PSTR("heap %u\n"), ESP.getFreeHeap());
 
   if (strcmp(multiWiFi[0].clientSSID, DEFAULT_CLIENT_SSID) == 0)
@@ -1009,7 +1009,7 @@ void WLED::handleConnection()
     }
     initInterfaces();
     userConnected();
-    usermods.connected();
+    usermods_connected();
     lastMqttReconnectAttempt = 0; // force immediate update
 
     // shut down AP

@@ -88,7 +88,7 @@ void _overlayAnalogCountdown()
 }
 
 void handleOverlayDraw() {
-  usermods.handleOverlayDraw();
+  usermods_handleOverlayDraw();
   if (analogClockSolidBlack) {
     const Segment* segments = strip.getSegments();
     for (unsigned i = 0; i < strip.getSegmentsNum(); i++) {

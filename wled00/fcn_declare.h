@@ -294,7 +294,7 @@ class Usermod {
   protected:
     um_data_t *um_data; // um_data should be allocated using new in (derived) Usermod's setup() or constructor
   public:
-    Usermod() { um_data = nullptr; }
+    Usermod();
     virtual ~Usermod() { if (um_data) delete um_data; }
     virtual void setup() = 0; // pure virtual, has to be overriden
     virtual void loop() = 0;  // pure virtual, has to be overriden
@@ -315,6 +315,31 @@ class Usermod {
     virtual void onStateChange(uint8_t mode) {}                              // fired upon WLED state change
     virtual uint16_t getId() {return USERMOD_ID_UNSPECIFIED;}
 };
+
+// Usermod API functions
+void usermods_loop();
+void usermods_handleOverlayDraw();
+bool usermods_handleButton(uint8_t b);
+bool getUMData(um_data_t **um_data, uint8_t mod_id = USERMOD_ID_RESERVED); // USERMOD_ID_RESERVED will poll all usermods
+void usermods_setup();
+void usermods_connected();
+void usermods_appendConfigData();
+void usermods_addToJsonState(JsonObject& obj);
+void usermods_addToJsonInfo(JsonObject& obj);
+void usermods_readFromJsonState(JsonObject& obj);
+void usermods_addToConfig(JsonObject& obj);
+bool usermods_readFromConfig(JsonObject& obj);
+#ifndef WLED_DISABLE_MQTT
+void usermods_onMqttConnect(bool sessionPresent);
+bool usermods_onMqttMessage(char* topic, char* payload);
+#endif
+#ifndef WLED_DISABLE_ESPNOW
+bool usermods_onEspNowMessage(uint8_t* sender, uint8_t* payload, uint8_t len);
+#endif
+void usermods_onUpdateBegin(bool);
+void usermods_onStateChange(uint8_t);
+Usermod* usermod_lookup(uint16_t mod_id);
+size_t usermods_getCount();
 
 class UsermodManager {
   private:

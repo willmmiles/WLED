@@ -663,7 +663,7 @@ bool deserializeConfig(JsonObject doc, bool fromFS) {
   DEBUG_PRINTLN(F("Starting usermod config."));
   JsonObject usermods_settings = doc["um"];
   if (!usermods_settings.isNull()) {
-    needsSave = !usermods.readFromConfig(usermods_settings);
+    needsSave = !usermods_readFromConfig(usermods_settings);
   }
 
   if (fromFS) return needsSave;
@@ -699,7 +699,7 @@ void deserializeConfigFromFS() {
     // save default values to /cfg.json
     // call readFromConfig() with an empty object so that usermods can initialize to defaults prior to saving
     JsonObject empty = JsonObject();
-    usermods.readFromConfig(empty);
+    usermods_readFromConfig(empty);
     serializeConfig();
     // init Ethernet (in case default type is set at compile time)
     #ifdef WLED_USE_ETHERNET
@@ -1119,7 +1119,7 @@ void serializeConfig() {
   #endif
 
   JsonObject usermods_settings = root.createNestedObject("um");
-  usermods.addToConfig(usermods_settings);
+  usermods_addToConfig(usermods_settings);
 
   File f = WLED_FS.open(FPSTR(s_cfg_json), "w");
   if (f) serializeJson(root, f);

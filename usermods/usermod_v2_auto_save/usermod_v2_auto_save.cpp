@@ -103,7 +103,7 @@ class AutoSaveUsermod : public Usermod {
       #ifdef USERMOD_FOUR_LINE_DISPLAY    
       // This Usermod has enhanced functionality if
       // FourLineDisplayUsermod is available.
-      display = (FourLineDisplayUsermod*) usermods.lookup(USERMOD_ID_FOUR_LINE_DISP);
+      display = (FourLineDisplayUsermod*) usermod_lookup(USERMOD_ID_FOUR_LINE_DISP);
       #endif
       initDone = true;
       if (enabled && applyAutoSaveOnBoot) applyPreset(autoSavePreset);
@@ -275,3 +275,5 @@ const char AutoSaveUsermod::_autoSaveEnabled[]     PROGMEM = "enabled";
 const char AutoSaveUsermod::_autoSaveAfterSec[]    PROGMEM = "autoSaveAfterSec";
 const char AutoSaveUsermod::_autoSavePreset[]      PROGMEM = "autoSavePreset";
 const char AutoSaveUsermod::_autoSaveApplyOnBoot[] PROGMEM = "autoSaveApplyOnBoot";
+
+static AutoSaveUsermod mod;

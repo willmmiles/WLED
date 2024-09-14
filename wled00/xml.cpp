@@ -135,7 +135,7 @@ void appendGPIOinfo() {
   if (requestJSONBufferLock(6)) {
     // if we can't allocate JSON buffer ignore usermod pins
     JsonObject mods = pDoc->createNestedObject(F("um"));
-    usermods.addToConfig(mods);
+    usermods_addToConfig(mods);
     if (!mods.isNull()) fillUMPins(mods);
     releaseJSONBufferLock();
   }
@@ -690,7 +690,7 @@ void getSettingsJS(byte subPage, char* dest)
   {
     appendGPIOinfo();
     oappend(SET_F("numM="));
-    oappendi(usermods.getModCount());
+    oappendi(usermods_getCount());
     oappend(";");
     sappend('v',SET_F("SDA"),i2c_sda);
     sappend('v',SET_F("SCL"),i2c_scl);
@@ -702,7 +702,7 @@ void getSettingsJS(byte subPage, char* dest)
     oappend(SET_F("addInfo('MOSI','")); oappendi(HW_PIN_DATASPI);  oappend(SET_F("');"));
     oappend(SET_F("addInfo('MISO','")); oappendi(HW_PIN_MISOSPI);  oappend(SET_F("');"));
     oappend(SET_F("addInfo('SCLK','")); oappendi(HW_PIN_CLOCKSPI); oappend(SET_F("');"));
-    usermods.appendConfigData();
+    usermods_appendConfigData();
   }
 
   if (subPage == SUBPAGE_UPDATE) // update

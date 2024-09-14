@@ -1,0 +1,16 @@
+{
+  "name": "audioreactive",
+  "build": {
+    "srcDir": ".",
+    "includeDir": "../../wled00",
+    "libLDFMode": "chain+"
+  },
+  "dependencies": [
+    {
+      "owner": "kosme",      
+      "name": "arduinoFFT",
+      "version": "2.0.1",
+      "platforms": "espressif32"
+    }
+  ]
+}
