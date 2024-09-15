@@ -276,4 +276,5 @@ const char AutoSaveUsermod::_autoSaveAfterSec[]    PROGMEM = "autoSaveAfterSec";
 const char AutoSaveUsermod::_autoSavePreset[]      PROGMEM = "autoSavePreset";
 const char AutoSaveUsermod::_autoSaveApplyOnBoot[] PROGMEM = "autoSaveApplyOnBoot";
 
-static AutoSaveUsermod mod;
+static AutoSaveUsermod autosave;
+REGISTER_USERMOD(autosave);

@@ -2063,3 +2063,4 @@ const char AudioReactive::UDP_SYNC_HEADER[]    PROGMEM = "00002"; // new sync he
 const char AudioReactive::UDP_SYNC_HEADER_v1[] PROGMEM = "00001"; // old sync header version - need to add backwards-compatibility feature
 
 AudioReactive ar_module;
+REGISTER_USERMOD(ar_module);

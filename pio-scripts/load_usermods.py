@@ -5,7 +5,5 @@ if usermods:
   deps = env.GetProjectOption('lib_deps')  
   src_dir = proj.get("platformio", "src_dir")
   src_dir = src_dir.replace('\\','/')
-  usermods = [f"{mod} = symlink://{src_dir}/../usermods/{mod}" for mod in usermods.split(" ")]
-  #usermods = usermods.split(" ")
+  usermods = [f"{mod} = symlink://{src_dir}/../usermods/{mod}" for mod in usermods.split(" ")]  
   proj.set("env:" + env['PIOENV'], 'lib_deps', deps + usermods)  
-#print(env.Dump())
