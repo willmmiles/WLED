@@ -9,6 +9,9 @@
 #endif
 
 extern "C" void usePWMFixedNMI();
+#ifdef DEBUG_FLASH_CRASH_DUMP
+static void dump_flash_crash_info();
+#endif
 
 /*
  * Main WLED class implementation. Mostly initialization and connection logic
@@ -438,6 +441,11 @@ void WLED::setup()
 #else
   initPresetsFile();
 #endif
+
+#if defined(ESP8266) && defined(DEBUG_FLASH_CRASH_DUMP)
+  dump_flash_crash_info();
+#endif
+
   updateFSInfo();
 
   // generate module IDs must be done before AP setup
@@ -1069,6 +1077,152 @@ void WLED::handleStatusLED()
     #else
       BusManager::setStatusPixel(0);
     #endif
+  }
+}
+#endif
+
+#ifdef DEBUG_FLASH_CRASH_DUMP
+
+namespace {
+  struct crash_metadata {
+    uint32_t magic;
+    rst_info info;
+    uint32_t stack, stack_end;
+  } __attribute__((aligned(4)));
+
+  constexpr uint32_t MAGIC_NUMBER = 0xDEAD9876U;
+}
+
+extern rst_info resetInfo;
+
+// Stolen from core_esp8266_postmortem
+static void ets_printf_P(const char *str, ...) {
+    char destStr[160];
+    char *c = destStr;
+    va_list argPtr;
+    va_start(argPtr, str);
+    vsnprintf(destStr, sizeof(destStr), str, argPtr);
+    va_end(argPtr);
+    while (*c) {
+        ets_uart_putc1(*(c++));
+    }
+}
+
+static uintptr_t getCrashFlashAddr() {
+  // Immediately after the sketch
+  return (ESP.getSketchSize() + FLASH_SECTOR_SIZE - 1) & (~(FLASH_SECTOR_SIZE - 1));
+}
+
+extern "C" void custom_crash_callback( struct rst_info * rst_info, uint32_t stack, uint32_t stack_end )
+{
+  // We're going to store the stack contents in to the flash for later recovery
+  // We write them to the flash immediately after the program, if available
+  
+  auto addr = getCrashFlashAddr();  
+  uint32_t existing_magic = 0;
+  ESP.flashRead(addr, &existing_magic, sizeof(existing_magic));
+  ets_printf_P(PSTR("Found magic number: %08x\n"), existing_magic);
+  if (existing_magic != 0xFFFFFFFFU) return;   // try to avoid hammering the flash
+  
+  auto size = stack_end - stack;
+  if ((addr + size) > (FS_start - 0x40200000)) return; // not enough space????
+
+  // Erase enough flash blocks for size, + 1
+  // (The first block is our metadata block)  
+  for(auto block = 0U; block < ((4U+size)/FLASH_SECTOR_SIZE)+1U; ++block) {
+    ESP.flashEraseSector((addr/FLASH_SECTOR_SIZE) + block);
+  }
+  {
+    crash_metadata meta = { MAGIC_NUMBER, *rst_info, stack, stack_end };
+    ESP.flashWrite(addr, (uint32_t*) &meta, sizeof(meta));  // guaranteed alignment, so use uint32_t overload
+  }  
+  ESP.flashWrite(addr + FLASH_SECTOR_SIZE, (uint32_t*)stack, stack_end - stack);
+}
+
+static const char crashFileName[] PROGMEM = "/dump.txt";
+
+static void cut_here(Print& file) {
+    file.print('\n');
+    for (auto i = 0; i < 15; i++ ) {
+        file.print('-');
+    }
+    file.print(F(" CUT HERE FOR EXCEPTION DECODER "));
+    for (auto i = 0; i < 15; i++ ) {
+        file.print('-');
+    }
+    file.print('\n');  
+}
+
+static void print_stack(Print& p, uint32_t start, size_t size, const uint32_t* buf) {
+    for (uint32_t pos = 0; pos < size; pos += 0x10) {
+        const uint32_t* values = buf + (pos/sizeof(uint32_t));
+        DEBUG_PRINTF_P(PSTR("Saving %08x %d from %08x\n"),start+pos,size-pos,buf + pos);
+
+        // rough indicator: stack frames usually have SP saved as the second word
+        bool looksLikeStackFrame = (values[2] == pos + 0x10);
+
+        p.printf_P(PSTR("%08x:  %08x %08x %08x %08x %c\n"),
+            start+pos, values[0], values[1], values[2], values[3], (looksLikeStackFrame)?'<':' ');
+    }
+}
+
+static void dump_flash_crash_info()
+{
+  // Check for something to do
+  auto addr = getCrashFlashAddr();
+  crash_metadata meta = { 0 };
+  ESP.flashRead(addr, (uint32_t*) &meta, sizeof(meta));
+  DEBUG_PRINTF("\nRead crash meta: %08x %08x %08x\n",meta.magic, meta.stack, meta.stack_end);
+  // If there's something pending, and we don't have a saved crash dump ...
+  if ((meta.magic == MAGIC_NUMBER) && (!WLED_FS.exists(FPSTR(crashFileName)))) {
+    DEBUG_PRINT(F("Saving crash dump\n"));
+    auto file = WLED_FS.open(FPSTR(crashFileName),"w");
+    if (!file) {
+      DEBUG_PRINT(F("Couldn't open file??"));
+      return;
+    }
+
+    // Do a little dance
+    {
+      auto ri_backup = resetInfo;
+      resetInfo = meta.info;
+      file.println(ESP.getResetInfo()); // TODO - use our reset info??
+      resetInfo = ri_backup;
+    };
+
+    // Replicate some of the core_esp8266_postmortem print logic
+    cut_here(file); // do we need this?
+    file.print(F("\n>>>stack>>>\n"));
+    
+    const uint32_t cont_stack_start = (uint32_t) &(g_pcont->stack);
+    const uint32_t cont_stack_end = (uint32_t) g_pcont->stack_end;
+
+    if ((meta.stack > cont_stack_start) && (meta.stack < cont_stack_end)) {
+      file.print(F("\nctx: cont\n"));
+    } else {
+      file.print(F("\nctx: sys\n"));
+    }
+    file.printf_P(PSTR("sp: %08x end: %08x offset: %04x\n"), meta.stack, meta.stack_end, 0);  // TODO - offset??
+
+    // Read and print flash blocks until we're out of space
+    DynamicBuffer buf(1024);
+    addr += FLASH_SECTOR_SIZE;
+    size_t offset = 0;        
+    while(offset < (meta.stack_end - meta.stack)) {
+      size_t print_amount = std::min(meta.stack_end - (meta.stack + offset), buf.size());
+      ESP.flashRead(addr + offset, reinterpret_cast<uint32_t*>(buf.data()), print_amount);      
+      print_stack(file, meta.stack+offset, print_amount, (uint32_t*) buf.data());
+      offset += print_amount;
+    }
+    file.print(F("\n<<<stack<<<\n"));
+    file.close();
+
+    // Erase the flash in this block, allow us to capture another.  Should clear the magic number??
+    ESP.flashEraseSector(getCrashFlashAddr() / FLASH_SECTOR_SIZE);
+  } else if ((meta.magic != MAGIC_NUMBER) && (meta.magic != 0xFFFFFFFF)) {
+    // Clear it for future use
+    DEBUG_PRINT(F("Clearing unrecognized flash\n"));
+    ESP.flashEraseSector(getCrashFlashAddr() / FLASH_SECTOR_SIZE);
   }
 }
 #endif
