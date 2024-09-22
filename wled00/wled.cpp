@@ -361,9 +361,7 @@ void WLED::setup()
   #if !defined(WLED_DEBUG) && defined(ARDUINO_ARCH_ESP32) && !defined(WLED_DEBUG_HOST) && ARDUINO_USB_CDC_ON_BOOT
   Serial.setDebugOutput(false); // switch off kernel messages when using USBCDC
   #endif
-  DEBUG_PRINTLN();
-  DEBUG_PRINTF_P(PSTR("---WLED %s %u INIT---\n"), versionString, VERSION);
-  DEBUG_PRINTLN();
+  DEBUG_PRINTF_P(PSTR("\n---WLED %s %u INIT---\n\n"), versionString, VERSION);
 #ifdef ARDUINO_ARCH_ESP32
   DEBUG_PRINTF_P(PSTR("esp32 %s\n"), ESP.getSdkVersion());
   #if defined(ESP_ARDUINO_VERSION)
