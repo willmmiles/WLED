@@ -387,6 +387,7 @@ void WLED::setup()
 #else
   DEBUG_PRINTF_P(PSTR("esp8266 @ %u MHz.\nCore: %s\n"), ESP.getCpuFreqMHz(), ESP.getCoreVersion());
   DEBUG_PRINTF_P(PSTR("FLASH: %u MB\n"), (ESP.getFlashChipSize()/1024)/1024);
+  DEBUG_PRINTLN(ESP.getResetInfo());
 #endif
   DEBUG_PRINTF_P(PSTR("heap %u\n"), ESP.getFreeHeap());
 
