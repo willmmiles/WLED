@@ -8,6 +8,11 @@
 #include "soc/rtc_cntl_reg.h"
 #endif
 
+#ifdef DEBUG_FLASH_CRASH_DUMP
+// Requires ESP8266Trace library
+#include <isr_debug.h>
+#endif
+
 extern "C" void usePWMFixedNMI();
 #ifdef DEBUG_FLASH_CRASH_DUMP
 static void dump_flash_crash_info();
@@ -444,6 +449,7 @@ void WLED::setup()
 
 #if defined(ESP8266) && defined(DEBUG_FLASH_CRASH_DUMP)
   dump_flash_crash_info();
+  setup_isr_tracking();
 #endif
 
   updateFSInfo();
@@ -1214,7 +1220,10 @@ static void dump_flash_crash_info()
       print_stack(file, meta.stack+offset, print_amount, (uint32_t*) buf.data());
       offset += print_amount;
     }
-    file.print(F("\n<<<stack<<<\n"));
+    file.print(F("\n<<<stack<<<\n\n"));
+
+    print_events(file);
+    
     file.close();
 
     // Erase the flash in this block, allow us to capture another.  Should clear the magic number??
