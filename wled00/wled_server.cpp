@@ -44,7 +44,7 @@ static void setStaticContentCacheHeaders(AsyncWebServerResponse *response, int c
   if (code != 200) return;
 
   // https://medium.com/@codebyamir/a-web-developers-guide-to-browser-caching-cc41f3b73e7c
-  #ifndef WLED_DEBUG
+  #ifndef WLED_DEBUG_DISABLE_CACHE
   // this header name is misleading, "no-cache" will not disable cache,
   // it just revalidates on every load using the "If-None-Match" header with the last ETag value
   response->addHeader(F("Cache-Control"), F("no-cache"));
