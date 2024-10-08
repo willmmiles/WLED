@@ -1,0 +1,21 @@
+{
+  "name":"ESP8266Trace",
+  "description":"ESP8266 event tracing library",
+  "keywords":"esp8266,trace",
+  "authors": [
+    {
+      "name": "Will Miles",
+      "maintainer": true
+    }    
+  ],
+  "repository":
+  {
+    "type": "git",
+    "url": "https://github.com/willmmiles/ESP8266Trace.git"
+  },
+  "version": "0.0.1",
+  "license": "LGPL-3.0",
+  "frameworks": "arduino",
+  "platforms": ["espressif8266"],
+  "dependencies": []
+}
