@@ -11,12 +11,10 @@
 #ifdef WLED_ENABLE_ESP8266TRACE
 // Requires ESP8266Trace library
 #include <ESP8266Trace.h>
+static void saveTrace();
 #endif
 
 extern "C" void usePWMFixedNMI();
-#ifdef WLED_ENABLE_ESP8266TRACE
-static void saveTrace();
-#endif
 
 /*
  * Main WLED class implementation. Mostly initialization and connection logic
@@ -1090,7 +1088,6 @@ void WLED::handleStatusLED()
 
 
 #ifdef WLED_ENABLE_ESP8266TRACE
-
 void saveTrace() {  
   static const char crashFileName[] PROGMEM = "/dump.txt";  
   if (!WLED_FS.exists(FPSTR(crashFileName))) {
@@ -1102,6 +1099,12 @@ void saveTrace() {
     }
     ESP8266Trace::print_crash_data(file);
     file.close();
+
+    auto corefile = WLED_FS.open(F("wled.core"), "w");
+    if (corefile) {
+      ESP8266Trace::dump_core(corefile);
+      corefile.close();
+    }
 
     ESP8266Trace::clear_crash_data();
   };
