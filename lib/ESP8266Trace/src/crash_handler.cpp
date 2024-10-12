@@ -8,10 +8,12 @@ namespace {
   struct crash_metadata {
     uint32_t magic;
     rst_info info;
-    uint32_t stack, stack_end;
+    uintptr_t stack, stack_end;
   } __attribute__((aligned(4)));
 
   constexpr uint32_t MAGIC_NUMBER = 0xDEAD9876U;
+  constexpr uint32_t RAM_BASE = 0x3FFE8000;
+  constexpr uint32_t RAM_SIZE = 0x18000;
 }
 
 extern rst_info resetInfo;
@@ -38,8 +40,9 @@ static uintptr_t getCrashFlashAddr() {
 
 extern "C" void custom_crash_callback( struct rst_info * rst_info, uint32_t stack, uint32_t stack_end )
 {
-  // We're going to store the stack contents in to the flash for later recovery
-  // We write them to the flash immediately after the program, if available
+  // We're going to store the RAM contents in to the flash for later recovery
+  // Use the OTA area immediately after the program
+  // First block holds the crash_metadata; subsequent blocks, the RAM contents 
   
   auto addr = getCrashFlashAddr();  
   uint32_t existing_magic = 0;
@@ -47,19 +50,18 @@ extern "C" void custom_crash_callback( struct rst_info * rst_info, uint32_t stac
   //ets_printf_P(PSTR("Found magic number: %08x\n"), existing_magic);
   if (existing_magic != 0xFFFFFFFFU) return;   // try to avoid hammering the flash
   
-  auto size = stack_end - stack;
-  if ((addr + size) > (FS_start - 0x40200000)) return; // not enough space????
+  if ((addr + RAM_SIZE) > (FS_start - 0x40200000)) return; // not enough space????
 
   // Erase enough flash blocks for size, + 1
   // (The first block is our metadata block)  
-  for(auto block = 0U; block < ((4U+size)/FLASH_SECTOR_SIZE)+1U; ++block) {
+  for(auto block = 0U; block < ((4U+RAM_SIZE)/FLASH_SECTOR_SIZE)+1U; ++block) {
     ESP.flashEraseSector((addr/FLASH_SECTOR_SIZE) + block);
   }
   {
     crash_metadata meta = { MAGIC_NUMBER, *rst_info, stack, stack_end };
     ESP.flashWrite(addr, (uint32_t*) &meta, sizeof(meta));  // guaranteed alignment, so use uint32_t overload
   }  
-  ESP.flashWrite(addr + FLASH_SECTOR_SIZE, (uint32_t*)stack, stack_end - stack);
+  ESP.flashWrite(addr + FLASH_SECTOR_SIZE, (uint32_t*) RAM_BASE, RAM_SIZE);  // all of RAM
 }
 
 static const char crashFileName[] PROGMEM = "/dump.txt";
@@ -136,9 +138,10 @@ void ESP8266Trace::print_crash_data(Print& dest)
   // Read and print flash blocks until we're out of space
   DynamicBuffer buf(1024);
   addr += FLASH_SECTOR_SIZE;
-  size_t offset = 0;        
-  while(offset < (meta.stack_end - meta.stack)) {
-    size_t print_amount = std::min(meta.stack_end - (meta.stack + offset), buf.size());
+  
+  size_t offset = meta.stack - RAM_BASE;
+  while(offset < (meta.stack_end - RAM_BASE)) {
+    size_t print_amount = std::min((meta.stack_end - RAM_BASE) - offset, buf.size());
     ESP.flashRead(addr + offset, reinterpret_cast<uint32_t*>(buf.data()), print_amount);      
     print_stack(dest, meta.stack+offset, print_amount, (uint32_t*) buf.data());
     offset += print_amount;
@@ -148,3 +151,20 @@ void ESP8266Trace::print_crash_data(Print& dest)
   // Also print the event trace
   print_events(dest);
 }
+
+void ESP8266Trace::dump_core(Print& dest) {
+  if (!crash_data_available()) return;
+
+  // Dump flash contents to dest
+  DynamicBuffer buf(1024);
+  auto addr = getCrashFlashAddr() + FLASH_SECTOR_SIZE;
+  
+  size_t offset = 0;
+  while(offset < RAM_SIZE) {
+    size_t amount = std::min(RAM_SIZE - offset, buf.size());
+    ESP.flashRead(addr + offset, reinterpret_cast<uint32_t*>(buf.data()), amount);      
+    dest.write(buf.data(), amount);
+    offset += amount;
+  }
+};
+

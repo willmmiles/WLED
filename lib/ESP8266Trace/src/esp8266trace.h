@@ -24,10 +24,11 @@ namespace ESP8266Trace {
 
 
   // ------- Crash handling -------
-  // This library also sets up a crash handler which saves the active stack trace
+  // This library also sets up a crash handler which saves the RAM contents
   // to the OTA area when a "regular" crash occurs.
   bool crash_data_available();
   void clear_crash_data();
   void print_crash_data(Print&);
+  void dump_core(Print&);
 
 }
