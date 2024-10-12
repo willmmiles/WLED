@@ -54,7 +54,7 @@ extern "C" void custom_crash_callback( struct rst_info * rst_info, uint32_t stac
 
   // Erase enough flash blocks for size, + 1
   // (The first block is our metadata block)  
-  for(auto block = 0U; block < ((4U+RAM_SIZE)/FLASH_SECTOR_SIZE)+1U; ++block) {
+  for(auto block = 0U; block < ((RAM_SIZE/FLASH_SECTOR_SIZE)+1U); ++block) {
     ESP.flashEraseSector((addr/FLASH_SECTOR_SIZE) + block);
   }
   {
@@ -114,10 +114,13 @@ void ESP8266Trace::print_crash_data(Print& dest)
   if (meta.magic != MAGIC_NUMBER) return;
 
   // Print reset info
-  {
+  if (meta.stack = 0xFFFFFFFFU) {
+    // HWDT - use global resetinfo
+    dest.println(ESP.getResetInfo());
+  } else {  
     auto ri_backup = resetInfo;
     resetInfo = meta.info;
-    dest.println(ESP.getResetInfo()); // TODO - use our reset info??
+    dest.println(ESP.getResetInfo());
     resetInfo = ri_backup;
   };
 
