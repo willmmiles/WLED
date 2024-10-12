@@ -114,7 +114,7 @@ void ESP8266Trace::print_crash_data(Print& dest)
   if (meta.magic != MAGIC_NUMBER) return;
 
   // Print reset info
-  if (meta.stack = 0xFFFFFFFFU) {
+  if (resetInfo.reason == REASON_WDT_RST) {
     // HWDT - use global resetinfo
     dest.println(ESP.getResetInfo());
   } else {  
