@@ -9,7 +9,9 @@
 //simple macro for ArduinoJSON's or syntax
 #define CJSON(a,b) a = b | a
 
-void getStringFromJson(char* dest, const char* src, size_t len) {
+// Template code: ensures correct length is inferred from the source array
+template<size_t len>
+inline void getStringFromJson(char (&dest)[len], const char* src) {
   if (src != nullptr) strlcpy(dest, src, len);
 }
 
@@ -28,17 +30,17 @@ bool deserializeConfig(JsonObject doc, bool fromFS) {
 #endif
 
   JsonObject id = doc["id"];
-  getStringFromJson(cmDNS, id[F("mdns")], 33);
-  getStringFromJson(serverDescription, id[F("name")], 33);
+  getStringFromJson(cmDNS, id[F("mdns")]);
+  getStringFromJson(serverDescription, id[F("name")]);
 #ifndef WLED_DISABLE_ALEXA
-  getStringFromJson(alexaInvocationName, id[F("inv")], 33);
+  getStringFromJson(alexaInvocationName, id[F("inv")]);
 #endif
   CJSON(simplifiedUI, id[F("sui")]);
 
   JsonObject nw = doc["nw"];
 #ifndef WLED_DISABLE_ESPNOW
   CJSON(enableESPNow, nw[F("espnow")]);
-  getStringFromJson(linked_remote, nw[F("linked_remote")], 13);
+  getStringFromJson(linked_remote, nw[F("linked_remote")]);
   linked_remote[12] = '\0';
 #endif
 
@@ -54,8 +56,8 @@ bool deserializeConfig(JsonObject doc, bool fromFS) {
       char ssid[33] = "";
       char pass[65] = "";
       IPAddress nIP = (uint32_t)0U, nGW = (uint32_t)0U, nSN = (uint32_t)0x00FFFFFF; // little endian
-      getStringFromJson(ssid, wifi[F("ssid")], 33);
-      getStringFromJson(pass, wifi["psk"], 65); // password is not normally present but if it is, use it
+      getStringFromJson(ssid, wifi[F("ssid")]);
+      getStringFromJson(pass, wifi["psk"]); // password is not normally present but if it is, use it
       for (size_t i = 0; i < 4; i++) {
         CJSON(nIP[i], ip[i]);
         CJSON(nGW[i], gw[i]);
@@ -78,8 +80,8 @@ bool deserializeConfig(JsonObject doc, bool fromFS) {
   }
 
   JsonObject ap = doc["ap"];
-  getStringFromJson(apSSID, ap[F("ssid")], 33);
-  getStringFromJson(apPass, ap["psk"] , 65); //normally not present due to security
+  getStringFromJson(apSSID, ap[F("ssid")]);
+  getStringFromJson(apPass, ap["psk"] ); //normally not present due to security
   //int ap_pskl = ap[F("pskl")];
   CJSON(apChannel, ap[F("chan")]);
   if (apChannel > 13 || apChannel < 1) apChannel = 1;
@@ -537,14 +539,14 @@ bool deserializeConfig(JsonObject doc, bool fromFS) {
 #ifndef WLED_DISABLE_MQTT
   JsonObject if_mqtt = interfaces["mqtt"];
   CJSON(mqttEnabled, if_mqtt["en"]);
-  getStringFromJson(mqttServer, if_mqtt[F("broker")], MQTT_MAX_SERVER_LEN+1);
+  getStringFromJson(mqttServer, if_mqtt[F("broker")]);
   CJSON(mqttPort, if_mqtt["port"]); // 1883
-  getStringFromJson(mqttUser, if_mqtt[F("user")], 41);
-  getStringFromJson(mqttPass, if_mqtt["psk"], 65); //normally not present due to security
-  getStringFromJson(mqttClientID, if_mqtt[F("cid")], 41);
+  getStringFromJson(mqttUser, if_mqtt[F("user")]);
+  getStringFromJson(mqttPass, if_mqtt["psk"]); //normally not present due to security
+  getStringFromJson(mqttClientID, if_mqtt[F("cid")]);
 
-  getStringFromJson(mqttDeviceTopic, if_mqtt[F("topics")][F("device")], MQTT_MAX_TOPIC_LEN+1); // "wled/test"
-  getStringFromJson(mqttGroupTopic, if_mqtt[F("topics")][F("group")], MQTT_MAX_TOPIC_LEN+1); // ""
+  getStringFromJson(mqttDeviceTopic, if_mqtt[F("topics")][F("device")]); // "wled/test"
+  getStringFromJson(mqttGroupTopic, if_mqtt[F("topics")][F("group")]); // ""
   CJSON(retainMqttMsg, if_mqtt[F("rtn")]);
 #endif
 
@@ -568,7 +570,7 @@ bool deserializeConfig(JsonObject doc, bool fromFS) {
 
   JsonObject if_ntp = interfaces[F("ntp")];
   CJSON(ntpEnabled, if_ntp["en"]);
-  getStringFromJson(ntpServerName, if_ntp[F("host")], 33); // "1.wled.pool.ntp.org"
+  getStringFromJson(ntpServerName, if_ntp[F("host")]); // "1.wled.pool.ntp.org"
   CJSON(currentTimezone, if_ntp[F("tz")]);
   CJSON(utcOffsetSecs, if_ntp[F("offset")]);
   CJSON(useAMPM, if_ntp[F("ampm")]);
@@ -642,7 +644,7 @@ bool deserializeConfig(JsonObject doc, bool fromFS) {
     CJSON(otaLock, ota[F("lock")]);
     CJSON(wifiLock, ota[F("lock-wifi")]);
     CJSON(aOtaEnabled, ota[F("aota")]);
-    getStringFromJson(otaPass, pwd, 33); //normally not present due to security
+    getStringFromJson(otaPass, pwd); //normally not present due to security
   }
 
   #ifdef WLED_ENABLE_DMX
@@ -1154,31 +1156,31 @@ bool deserializeConfigSec() {
     if (nw_ins.size() > 1 && nw_ins.size() > multiWiFi.size()) multiWiFi.resize(nw_ins.size()); // resize constructs objects while resizing
     for (JsonObject wifi : nw_ins) {
       char pw[65] = "";
-      getStringFromJson(pw, wifi["psk"], 65);
+      getStringFromJson(pw, wifi["psk"]);
       strlcpy(multiWiFi[n].clientPass, pw, 65);
       if (++n >= WLED_MAX_WIFI_COUNT) break;
     }
   }
 
   JsonObject ap = root["ap"];
-  getStringFromJson(apPass, ap["psk"] , 65);
+  getStringFromJson(apPass, ap["psk"] );
 
   [[maybe_unused]] JsonObject interfaces = root["if"];
 
 #ifndef WLED_DISABLE_MQTT
   JsonObject if_mqtt = interfaces["mqtt"];
-  getStringFromJson(mqttPass, if_mqtt["psk"], 65);
+  getStringFromJson(mqttPass, if_mqtt["psk"]);
 #endif
 
 #ifndef WLED_DISABLE_HUESYNC
-  getStringFromJson(hueApiKey, interfaces["hue"][F("key")], 47);
+  getStringFromJson(hueApiKey, interfaces["hue"][F("key")]);
 #endif
 
-  getStringFromJson(settingsPIN, root["pin"], 5);
+  getStringFromJson(settingsPIN, root["pin"]);
   correctPIN = !strlen(settingsPIN);
 
   JsonObject ota = root["ota"];
-  getStringFromJson(otaPass, ota[F("pwd")], 33);
+  getStringFromJson(otaPass, ota[F("pwd")]);
   CJSON(otaLock, ota[F("lock")]);
   CJSON(wifiLock, ota[F("lock-wifi")]);
   CJSON(aOtaEnabled, ota[F("aota")]);
