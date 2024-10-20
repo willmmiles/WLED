@@ -788,6 +788,7 @@ int8_t WLED::findWiFi(bool doScan) {
 void WLED::initConnection()
 {
   DEBUG_PRINTLN(F("initConnection() called."));
+  auto& activeWiFi = multiWiFi[selectedWiFi];
 
   #ifdef WLED_ENABLE_WEBSOCKETS
   ws.onEvent(wsEvent);
@@ -805,10 +806,10 @@ void WLED::initConnection()
 #ifdef ESP8266
   WiFi.setPhyMode(force802_3g ? WIFI_PHY_MODE_11G : WIFI_PHY_MODE_11N);
 #endif
-
-  if (multiWiFi[selectedWiFi].staticIP != 0U && multiWiFi[selectedWiFi].staticGW != 0U) {
-    WiFi.config(multiWiFi[selectedWiFi].staticIP, multiWiFi[selectedWiFi].staticGW, multiWiFi[selectedWiFi].staticSN, dnsAddress);
-  } else {
+  if (activeWiFi.staticIP != 0U && activeWiFi.staticGW != 0U) {
+    WiFi.config(activeWiFi.staticIP, activeWiFi.staticGW, activeWiFi.staticSN, dnsAddress);
+  } else
+   {
     WiFi.config(IPAddress((uint32_t)0), IPAddress((uint32_t)0), IPAddress((uint32_t)0));
   }
 
@@ -831,9 +832,7 @@ void WLED::initConnection()
   if (WLED_WIFI_CONFIGURED) {
     showWelcomePage = false;
     
-    DEBUG_PRINT(F("Connecting to "));
-    DEBUG_PRINT(multiWiFi[selectedWiFi].clientSSID);
-    DEBUG_PRINTLN(F("..."));
+    DEBUG_PRINTF_P(PSTR("Connecting to [%d] %s...\n"), selectedWiFi, activeWiFi.clientSSID);
 
     // convert the "serverDescription" into a valid DNS hostname (alphanumeric)
     char hostname[25];
@@ -841,12 +840,9 @@ void WLED::initConnection()
     WiFi.begin(activeWiFi.clientSSID, activeWiFi.clientPass); // no harm if called multiple times
 #ifdef ARDUINO_ARCH_ESP32
     WiFi.setTxPower(wifi_power_t(txPower));
+#endif
     WiFi.setSleep(!noWifiSleep);
     WiFi.setHostname(hostname);
-#else
-    wifi_set_sleep_type((noWifiSleep) ? NONE_SLEEP_T : MODEM_SLEEP_T);
-    WiFi.hostname(hostname);
-#endif
   }
 
 #ifndef WLED_DISABLE_ESPNOW
