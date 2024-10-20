@@ -838,6 +838,7 @@ void WLED::initConnection()
     // convert the "serverDescription" into a valid DNS hostname (alphanumeric)
     char hostname[25];
     prepareHostname(hostname, sizeof(hostname));
+    WiFi.begin(activeWiFi.clientSSID, activeWiFi.clientPass); // no harm if called multiple times
 #ifdef ARDUINO_ARCH_ESP32
     WiFi.setTxPower(wifi_power_t(txPower));
     WiFi.setSleep(!noWifiSleep);
