@@ -445,6 +445,22 @@ void WLED::setup()
   initPresetsFile();
 #endif
 
+#ifdef ESP8266
+  {
+    static const char reset_sdk[] PROGMEM = "/reset.sdk";
+    String rs = FPSTR(reset_sdk);
+    if (WLED_FS.exists(rs)) {
+      DEBUG_PRINTLN(F("Clearing SDK config!"));      
+#ifdef DEBUGOUT
+      DEBUGOUT.flush();
+#endif      
+      WLED_FS.remove(rs);
+      ESP.eraseConfig();
+      ESP.reset();
+    }
+  }
+#endif
+
 #if defined(WLED_ENABLE_ESP8266TRACE)
   if (ESP8266Trace::crash_data_available()) saveTrace();
   ESP8266Trace::setup_isr_tracking();
