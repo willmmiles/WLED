@@ -415,10 +415,9 @@ WLED_GLOBAL byte briMultiplier _INIT(100);          // % of brightness to set (t
 
 // User Interface CONFIG
 #ifndef SERVERNAME
-WLED_GLOBAL char serverDescription[33] _INIT("WLED");  // Name of module - use default
-#else
-WLED_GLOBAL char serverDescription[33] _INIT(SERVERNAME);  // use predefined name
+#define SERVERNAME "WLED"
 #endif
+WLED_GLOBAL char serverDescription[33] _INIT(SERVERNAME); 
 WLED_GLOBAL bool simplifiedUI          _INIT(false);   // enable simplified UI
 WLED_GLOBAL byte cacheInvalidate       _INIT(0);       // used to invalidate browser cache
 
