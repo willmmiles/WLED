@@ -749,7 +749,7 @@ bool WLED::initEthernet()
 // returns configured WiFi ID with the strongest signal (or default if no configured networks available)
 int8_t WLED::findWiFi(bool doScan) {
   if (multiWiFi.size() <= 1) {
-    DEBUG_PRINTLN(F("Defaulf WiFi used."));
+    DEBUG_PRINTLN(F("Default WiFi used."));
     return 0;
   }
 
