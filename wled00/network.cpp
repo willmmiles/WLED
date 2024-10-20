@@ -191,7 +191,7 @@ void WiFiEvent(WiFiEvent_t event)
       }
       // convert the "serverDescription" into a valid DNS hostname (alphanumeric)
       char hostname[64];
-      prepareHostname(hostname);
+      prepareHostname(hostname, sizeof(hostname));
       ETH.setHostname(hostname);
       showWelcomePage = false;
       break;

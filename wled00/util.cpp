@@ -111,27 +111,37 @@ size_t printSetClassElementHTML(Print& settingsScript, const char* key, const in
 
 
 
-void prepareHostname(char* hostname)
-{
-  sprintf_P(hostname, PSTR("wled-%*s"), 6, escapedMac.c_str() + 6);
-  const char *pC = serverDescription;
-  unsigned pos = 5;          // keep "wled-"
-  while (*pC && pos < 24) { // while !null and not over length
-    if (isalnum(*pC)) {     // if the current char is alpha-numeric append it to the hostname
-      hostname[pos] = *pC;
-      pos++;
-    } else if (*pC == ' ' || *pC == '_' || *pC == '-' || *pC == '+' || *pC == '!' || *pC == '?' || *pC == '*') {
-      hostname[pos] = '-';
-      pos++;
+void prepareHostname(char* hostname, size_t bufLen)
+{  
+  if (strncmp_P(serverDescription, PSTR(SERVERNAME), sizeof(serverDescription)) != 0) {
+    // Server description is customized; use it
+    static const char prefix[] PROGMEM = "wled-";    
+    unsigned pos = sizeof(prefix)-1;  // no need to copy the null terminator here
+    const char *pC = serverDescription;
+    --bufLen; // reserve last byte for null terminator
+
+    // Commit prefix
+    memcpy_P(hostname, prefix, std::min(bufLen,pos));    
+
+    // Copy printable part of serverDescription; map some characters to '-'    
+    while (*pC && pos < bufLen) { // while !null and not over length
+      if (isalnum(*pC)) {     // if the current char is alpha-numeric append it to the hostname
+        hostname[pos] = *pC;
+        pos++;
+      } else if (*pC == ' ' || *pC == '_' || *pC == '-' || *pC == '+' || *pC == '!' || *pC == '?' || *pC == '*') {
+        hostname[pos] = '-';
+        pos++;
+      }
+      // else do nothing - no leading hyphens and do not include hyphens for all other characters.
+      pC++;
     }
-    // else do nothing - no leading hyphens and do not include hyphens for all other characters.
-    pC++;
-  }
-  //last character must not be hyphen
-  if (pos > 5) {
-    while (pos > 4 && hostname[pos -1] == '-') pos--;
-    hostname[pos] = '\0'; // terminate string (leave at least "wled")
-  }
+    //last character must not be hyphen; will leave at least 'wled'
+    while (hostname[pos-1] == '-') pos--;
+    hostname[pos] = '\0'; // terminate string 
+  } else {
+    // Use cmDNS name, typically wled-MAC456
+    strlcpy(hostname, cmDNS, bufLen);
+  }  
 }
 
 
