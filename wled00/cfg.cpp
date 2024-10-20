@@ -11,8 +11,34 @@
 
 // Template code: ensures correct length is inferred from the source array
 template<size_t len>
-inline void getStringFromJson(char (&dest)[len], const char* src) {
+static inline void getStringFromJson(char (&dest)[len], const char* src) {
   if (src != nullptr) strlcpy(dest, src, len);
+}
+
+template<size_t len>
+static inline void getNonEmptyStringFromJson(char (&dest)[len], const char* src) {
+  if ((src != nullptr) && (*src != 0)) strlcpy(dest, src, len);
+}
+
+static IPAddress parseIPAddress(const JsonArray& array, uint32_t defaultIP) {
+  // Parse an IP address stored in the form [a,b,c,d]
+  auto result = IPAddress { defaultIP };
+  if (array.size() == 4) {
+    for(size_t idx = 0U; idx < 4; ++idx) {
+      CJSON(result[idx], array[idx]);
+    }
+  }
+  return result;
+};
+
+// Accepts result by reference to preserve old contents
+static void parseWiFiConfig(const JsonObject& cfg, WiFiConfig& result) {
+    getNonEmptyStringFromJson(result.clientSSID, cfg[F("ssid")]); // this will keep old SSID intact if not present in JSON
+    getNonEmptyStringFromJson(result.clientPass, cfg[F("psk")]);  // this will keep old password intact if not present in JSON
+    // These are always overwritten, even if not found
+    result.staticIP = parseIPAddress(cfg["ip"], 0U);
+    result.staticGW = parseIPAddress(cfg["gw"], 0U);
+    result.staticSN = parseIPAddress(cfg["sn"], 0x00FFFFFFU); // little endian
 }
 
 bool deserializeConfig(JsonObject doc, bool fromFS) {
@@ -50,34 +76,12 @@ bool deserializeConfig(JsonObject doc, bool fromFS) {
     // as password are stored separately in wsec.json when reading configuration vector resize happens there, but for dynamic config we need to resize if necessary
     if (nw_ins.size() > 1 && nw_ins.size() > multiWiFi.size()) multiWiFi.resize(nw_ins.size()); // resize constructs objects while resizing
     for (JsonObject wifi : nw_ins) {
-      JsonArray ip = wifi["ip"];
-      JsonArray gw = wifi["gw"];
-      JsonArray sn = wifi["sn"];
-      char ssid[33] = "";
-      char pass[65] = "";
-      IPAddress nIP = (uint32_t)0U, nGW = (uint32_t)0U, nSN = (uint32_t)0x00FFFFFF; // little endian
-      getStringFromJson(ssid, wifi[F("ssid")]);
-      getStringFromJson(pass, wifi["psk"]); // password is not normally present but if it is, use it
-      for (size_t i = 0; i < 4; i++) {
-        CJSON(nIP[i], ip[i]);
-        CJSON(nGW[i], gw[i]);
-        CJSON(nSN[i], sn[i]);
-      }
-      if (strlen(ssid) > 0) strlcpy(multiWiFi[n].clientSSID, ssid, 33); // this will keep old SSID intact if not present in JSON
-      if (strlen(pass) > 0) strlcpy(multiWiFi[n].clientPass, pass, 65); // this will keep old password intact if not present in JSON
-      multiWiFi[n].staticIP = nIP;
-      multiWiFi[n].staticGW = nGW;
-      multiWiFi[n].staticSN = nSN;
+      parseWiFiConfig(wifi, multiWiFi[n]);
       if (++n >= WLED_MAX_WIFI_COUNT) break;
     }
   }
 
-  JsonArray dns = nw[F("dns")];
-  if (!dns.isNull()) {
-    for (size_t i = 0; i < 4; i++) {
-      CJSON(dnsAddress[i], dns[i]);
-    }
-  }
+  dnsAddress = parseIPAddress(nw[F("dns")], dnsAddress);
 
   JsonObject ap = doc["ap"];
   getStringFromJson(apSSID, ap[F("ssid")]);
@@ -562,10 +566,7 @@ bool deserializeConfig(JsonObject doc, bool fromFS) {
   CJSON(hueApplyBri, if_hue_recv["bri"]);
   CJSON(hueApplyColor, if_hue_recv["col"]);
 
-  JsonArray if_hue_ip = if_hue["ip"];
-
-  for (unsigned i = 0; i < 4; i++)
-    CJSON(hueIP[i], if_hue_ip[i]);
+  hueIP = parseIPAddress(if_hue["ip"], hueIP);
 #endif
 
   JsonObject if_ntp = interfaces[F("ntp")];
