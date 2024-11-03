@@ -391,6 +391,13 @@ void initServer()
     }
   },[](AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final){
     if (!correctPIN || otaLock) return;
+    DEBUG_PRINTF_P(PSTR("Update: %d/%d %d/%d, i:%d l:%d\n"),
+      heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_DEFAULT),
+      heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL | MALLOC_CAP_DEFAULT),
+      heap_caps_get_free_size(MALLOC_CAP_DMA),
+      heap_caps_get_largest_free_block(MALLOC_CAP_DMA),
+      index, len
+    );    
     if(!index){
       DEBUG_PRINTLN(F("OTA Update Start"));
       #if WLED_WATCHDOG_TIMEOUT > 0
