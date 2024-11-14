@@ -11,7 +11,7 @@ struct event_info {
   uint32_t interrupt; // top 16 bits: intenable, bottom 16 bits: interrupt
   uint32_t data;  // can be packed with interesting info, isr leaves 0
 };
-unsigned event_slot_index = 0;
+unsigned event_slot_index = NUM_EVENT_SLOTS+1;
 event_info event_buf[NUM_EVENT_SLOTS] __attribute__((section(".noinit")));  // placed in noinit section to survive reboots
 
 static inline __attribute__((always_inline)) uint32_t get_interrupt() {
@@ -35,11 +35,11 @@ static inline __attribute__((always_inline)) uint32_t get_cycle_count() {
 IRAM_ATTR __attribute__((__noinline__)) void ESP8266Trace::track_event(uint32_t lvl, uint32_t data, intptr_t pc, intptr_t sp) {
   register intptr_t pcx asm("a0"); // dunno if this works?
   register intptr_t spx asm("a1");
-  
-  uint32_t savedPS = xt_rsil(15);
-  ++event_slot_index;  
-  event_buf[event_slot_index & (NUM_EVENT_SLOTS-1)] = event_info { lvl, pc ? pc : pcx, sp ? sp : spx, get_cycle_count(), get_interrupt() + (get_intenable() << 16), data };
+  if (event_slot_index > NUM_EVENT_SLOTS) return;
+  uint32_t savedPS = xt_rsil(15); 
+  event_buf[event_slot_index] = event_info { lvl, pc ? pc : pcx, sp ? sp : spx, get_cycle_count(), get_interrupt() + (get_intenable() << 16), data };
   xt_wsr_ps(savedPS);
+  event_slot_index = (event_slot_index + 1) & (NUM_EVENT_SLOTS-1);
 }
 
 void ESP8266Trace::print_events(Print& p) {  
@@ -80,7 +80,8 @@ void ESP8266Trace::clear_events() {
 
 
 extern "C" void InstrumentedVectorTable();
-void ESP8266Trace::setup_isr_tracking() {
+void ESP8266Trace::start_event_tracking() {
+  event_slot_index = 0;
   const intptr_t our_vecbase = (intptr_t) &InstrumentedVectorTable;
   int32_t old_vb;
   __asm__ __volatile__("rsr %0,vecbase":"=a"(old_vb));

@@ -469,7 +469,7 @@ void WLED::setup()
 
 #if defined(WLED_ENABLE_ESP8266TRACE)
   if (ESP8266Trace::crash_data_available()) saveTrace();
-  ESP8266Trace::setup_isr_tracking();
+  ESP8266Trace::start_event_tracking();
 #endif
 
   updateFSInfo();

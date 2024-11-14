@@ -18,8 +18,9 @@ namespace ESP8266Trace {
   // Write the contents of the ring buffer to an output source.
   void print_events(Print&);
 
-  // Enable tracking of interrupts.
-  void setup_isr_tracking();
+  // Enable  event tracking
+  void start_event_tracking();
+  //void stop_event_tracking();
 
 
 
