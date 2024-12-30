@@ -175,12 +175,12 @@ void publishMqtt()
   mqtt->publish(subuf, 0, true, "online");          // retain message for a LWT
 
   // TODO: use a DynamicBufferList.  Requires a list-read-capable MQTT client API.
-  DynamicBuffer buf(1024);
-  bufferPrint pbuf(buf.data(), buf.size());
+  std::vector<uint8_t> buf(1024);
+  bufferPrint pbuf((char*)buf.data(), buf.size());
   XML_response(pbuf);
   strlcpy(subuf, mqttDeviceTopic, 33);
   strcat_P(subuf, PSTR("/v"));
-  mqtt->publish(subuf, 0, retainMqttMsg, buf.data(), pbuf.size());   // optionally retain message (#2263)
+  mqtt->publish(subuf, 0, retainMqttMsg, (char*)buf.data(), pbuf.size());   // optionally retain message (#2263)
   #endif
 }
 

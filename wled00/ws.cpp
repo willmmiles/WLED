@@ -132,29 +132,29 @@ void sendDataWs(AsyncWebSocketClient * client)
     return;
   }
   #endif
-  AsyncWebSocketBuffer buffer(len);
+  AsyncWebSocketMessageBuffer buffer(len);
   #ifdef ESP8266
   size_t heap2 = ESP.getFreeHeap();
   DEBUG_PRINTF_P(PSTR("heap %u\n"), ESP.getFreeHeap());
   #else
   size_t heap2 = 0; // ESP32 variants do not have the same issue and will work without checking heap allocation
   #endif
-  if (!buffer || heap1-heap2<len) {
+  if (heap1-heap2<len) {
     releaseJSONBufferLock();
     DEBUG_PRINTLN(F("WS buffer allocation failed."));
     ws.closeAll(1013); //code 1013 = temporary overload, try again later
     ws.cleanupClients(0); //disconnect all clients to release memory
     return; //out of memory
   }
-  serializeJson(*pDoc, (char *)buffer.data(), len);
+  serializeJson(*pDoc, (char *)buffer.get(), len);
 
   DEBUG_PRINT(F("Sending WS data "));
   if (client) {
     DEBUG_PRINTLN(F("to a single client."));
-    client->text(std::move(buffer));
+    client->text(&buffer);
   } else {
     DEBUG_PRINTLN(F("to multiple clients."));
-    ws.textAll(std::move(buffer));
+    ws.textAll(&buffer);
   }
 
   releaseJSONBufferLock();
@@ -163,7 +163,7 @@ void sendDataWs(AsyncWebSocketClient * client)
 bool sendLiveLedsWs(uint32_t wsClient)
 {
   AsyncWebSocketClient * wsc = ws.client(wsClient);
-  if (!wsc || wsc->queueLength() > 0) return false; //only send if queue free
+  if (!wsc || wsc->queueLen() > 0) return false; //only send if queue free
 
   size_t used = strip.getLengthTotal();
 #ifdef ESP8266
@@ -185,9 +185,9 @@ bool sendLiveLedsWs(uint32_t wsClient)
 #endif
   size_t bufSize = pos + (used/n)*3;
 
-  AsyncWebSocketBuffer wsBuf(bufSize);
-  if (!wsBuf) return false; //out of memory
-  uint8_t* buffer = reinterpret_cast<uint8_t*>(wsBuf.data());
+  AsyncWebSocketMessageBuffer wsBuf(bufSize);
+  //if (!wsBuf) return false; //out of memory
+  uint8_t* buffer = reinterpret_cast<uint8_t*>(wsBuf.get());
   if (!buffer) return false; //out of memory
   buffer[0] = 'L';
   buffer[1] = 1; //version
@@ -215,7 +215,7 @@ bool sendLiveLedsWs(uint32_t wsClient)
     buffer[pos++] = bri ? qadd8(w, b) : 0; //B
   }
 
-  wsc->binary(std::move(wsBuf));
+  wsc->binary(&wsBuf);
   return true;
 }
 

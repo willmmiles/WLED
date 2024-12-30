@@ -21,6 +21,8 @@
   #define DYNAMIC_JSON_DOCUMENT_SIZE 16384
 #endif
 
+extern const char CONTENT_TYPE_JSON[];
+
 /*
  * Json Response
  * */
@@ -121,7 +123,7 @@ public:
   void setMaxContentLength(int maxContentLength){ _maxContentLength = maxContentLength; }
   void onRequest(ArJsonRequestHandlerFunction fn){ _onRequest = fn; }
 
-  virtual bool canHandle(AsyncWebServerRequest *request) override final{
+  virtual bool canHandle(AsyncWebServerRequest *request) const override final{
     if(!_onRequest)
       return false;
 
@@ -159,6 +161,6 @@ public:
       }
     }
   }
-  virtual bool isRequestHandlerTrivial() override final {return _onRequest ? false : true;}
+  virtual bool isRequestHandlerTrivial() const override final {return _onRequest ? false : true;}
 };
 #endif

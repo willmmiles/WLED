@@ -11,6 +11,8 @@
 #define JSON_PATH_NETWORKS   7
 #define JSON_PATH_EFFECTS    8
 
+const char CONTENT_TYPE_JSON[] PROGMEM = "application/json";
+
 /*
  * JSON API (De)serialization
  */

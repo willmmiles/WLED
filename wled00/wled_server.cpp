@@ -20,6 +20,8 @@ static const char s_notimplemented[] PROGMEM = "Not implemented";
 static const char s_accessdenied[]   PROGMEM = "Access Denied";
 static const char _common_js[]       PROGMEM = "/common.js";
 
+const char CONTENT_TYPE_CSS[] PROGMEM = "text/css";
+
 //Is this an IP?
 static bool isIp(String str) {
   for (size_t i = 0; i < str.length(); i++) {
@@ -60,7 +62,7 @@ static bool handleIfNoneMatchCacheHeader(AsyncWebServerRequest *request, int cod
   // Only send 304 (Not Modified) if response code is 200 (OK)
   if (code != 200) return false;
 
-  AsyncWebHeader *header = request->getHeader(F("If-None-Match"));
+  const AsyncWebHeader *header = request->getHeader(F("If-None-Match"));
   char etag[32];
   generateEtag(etag, eTagSuffix);
   if (header && header->value() == etag) {
@@ -154,7 +156,7 @@ static String msgProcessor(const String& var)
 
 static void handleUpload(AsyncWebServerRequest *request, const String& filename, size_t index, uint8_t *data, size_t len, bool final) {
   if (!correctPIN) {
-    if (final) request->send(401, FPSTR(CONTENT_TYPE_PLAIN), FPSTR(s_unlock_cfg));
+    if (final) request->send(401, asyncsrv::T_text_plain, FPSTR(s_unlock_cfg));
     return;
   }
   if (!index) {
@@ -174,10 +176,10 @@ static void handleUpload(AsyncWebServerRequest *request, const String& filename,
     request->_tempFile.close();
     if (filename.indexOf(F("cfg.json")) >= 0) { // check for filename with or without slash
       doReboot = true;
-      request->send(200, FPSTR(CONTENT_TYPE_PLAIN), F("Configuration restore successful.\nRebooting..."));
+      request->send(200, asyncsrv::T_text_plain, F("Configuration restore successful.\nRebooting..."));
     } else {
       if (filename.indexOf(F("palette")) >= 0 && filename.indexOf(F(".json")) >= 0) strip.loadCustomPalettes();
-      request->send(200, FPSTR(CONTENT_TYPE_PLAIN), F("File Uploaded!"));
+      request->send(200, asyncsrv::T_text_plain, F("File Uploaded!"));
     }
     cacheInvalidate++;
   }
@@ -193,12 +195,12 @@ void createEditHandler(bool enable) {
       editHandler = &server.addHandler(new SPIFFSEditor("","",WLED_FS));//http_username,http_password));
       #endif
     #else
-      editHandler = &server.on(F("/edit"), HTTP_GET, [](AsyncWebServerRequest *request){
+      editHandler = &server.on(PSTR("/edit"), HTTP_GET, [](AsyncWebServerRequest *request){
         serveMessage(request, 501, FPSTR(s_notimplemented), F("The FS editor is disabled in this build."), 254);
       });
     #endif
   } else {
-    editHandler = &server.on(F("/edit"), HTTP_ANY, [](AsyncWebServerRequest *request){
+    editHandler = &server.on(PSTR("/edit"), HTTP_ANY, [](AsyncWebServerRequest *request){
       serveMessage(request, 401, FPSTR(s_accessdenied), FPSTR(s_unlock_cfg), 254);
     });
   }
@@ -229,21 +231,21 @@ void initServer()
 
 #ifdef WLED_ENABLE_WEBSOCKETS
   #ifndef WLED_DISABLE_2D 
-  server.on(F("/liveview2D"), HTTP_GET, [](AsyncWebServerRequest *request) {
-    handleStaticContent(request, "", 200, FPSTR(CONTENT_TYPE_HTML), PAGE_liveviewws2D, PAGE_liveviewws2D_length);
+  server.on(PSTR("/liveview2D"), HTTP_GET, [](AsyncWebServerRequest *request) {
+    handleStaticContent(request, "", 200, asyncsrv::T_text_html, PAGE_liveviewws2D, PAGE_liveviewws2D_length);
   });
   #endif
 #endif
-  server.on(F("/liveview"), HTTP_GET, [](AsyncWebServerRequest *request) {
-    handleStaticContent(request, "", 200, FPSTR(CONTENT_TYPE_HTML), PAGE_liveview, PAGE_liveview_length);
+  server.on(PSTR("/liveview"), HTTP_GET, [](AsyncWebServerRequest *request) {
+    handleStaticContent(request, "", 200, asyncsrv::T_text_html, PAGE_liveview, PAGE_liveview_length);
   });
 
   server.on(_common_js, HTTP_GET, [](AsyncWebServerRequest *request) {
-    handleStaticContent(request, FPSTR(_common_js), 200, FPSTR(CONTENT_TYPE_JAVASCRIPT), JS_common, JS_common_length);
+    handleStaticContent(request, FPSTR(_common_js), 200, asyncsrv::T_application_javascript, JS_common, JS_common_length);
   });
 
   //settings page
-  server.on(F("/settings"), HTTP_GET, [](AsyncWebServerRequest *request){
+  server.on(PSTR("/settings"), HTTP_GET, [](AsyncWebServerRequest *request){
     serveSettings(request);
   });
 
@@ -265,21 +267,21 @@ void initServer()
     request->send(response);
   });
 
-  server.on(F("/welcome"), HTTP_GET, [](AsyncWebServerRequest *request){
+  server.on(PSTR("/welcome"), HTTP_GET, [](AsyncWebServerRequest *request){
     serveSettings(request);
   });
 
-  server.on(F("/reset"), HTTP_GET, [](AsyncWebServerRequest *request){
+  server.on(PSTR("/reset"), HTTP_GET, [](AsyncWebServerRequest *request){
     serveMessage(request, 200,F("Rebooting now..."),F("Please wait ~10 seconds..."),129);
     doReboot = true;
   });
 
-  server.on(F("/settings"), HTTP_POST, [](AsyncWebServerRequest *request){
+  server.on(PSTR("/settings"), HTTP_POST, [](AsyncWebServerRequest *request){
     serveSettings(request, true);
   });
 
   const static char _json[] PROGMEM = "/json";
-  server.on(FPSTR(_json), HTTP_GET, [](AsyncWebServerRequest *request){
+  server.on(_json, HTTP_GET, [](AsyncWebServerRequest *request){
     serveJson(request);
   });
 
@@ -335,29 +337,29 @@ void initServer()
   }, JSON_BUFFER_SIZE);
   server.addHandler(handler);
 
-  server.on(F("/version"), HTTP_GET, [](AsyncWebServerRequest *request){
-    request->send(200, FPSTR(CONTENT_TYPE_PLAIN), (String)VERSION);
+  server.on(PSTR("/version"), HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send(200, asyncsrv::T_text_plain, (String)VERSION);
   });
 
-  server.on(F("/uptime"), HTTP_GET, [](AsyncWebServerRequest *request){
-    request->send(200, FPSTR(CONTENT_TYPE_PLAIN), (String)millis());
+  server.on(PSTR("/uptime"), HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send(200, asyncsrv::T_text_plain, (String)millis());
   });
 
-  server.on(F("/freeheap"), HTTP_GET, [](AsyncWebServerRequest *request){
-    request->send(200, FPSTR(CONTENT_TYPE_PLAIN), (String)ESP.getFreeHeap());
+  server.on(PSTR("/freeheap"), HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send(200, asyncsrv::T_text_plain, (String)ESP.getFreeHeap());
   });
 
 #ifdef WLED_ENABLE_USERMOD_PAGE
   server.on("/u", HTTP_GET, [](AsyncWebServerRequest *request) {
-    handleStaticContent(request, "", 200, FPSTR(CONTENT_TYPE_HTML), PAGE_usermod, PAGE_usermod_length);
+    handleStaticContent(request, "", 200, asyncsrv::T_text_html, PAGE_usermod, PAGE_usermod_length);
   });
 #endif
 
-  server.on(F("/teapot"), HTTP_GET, [](AsyncWebServerRequest *request){
+  server.on(PSTR("/teapot"), HTTP_GET, [](AsyncWebServerRequest *request){
     serveMessage(request, 418, F("418. I'm a teapot."), F("(Tangible Embedded Advanced Project Of Twinkling)"), 254);
   });
 
-  server.on(F("/upload"), HTTP_POST, [](AsyncWebServerRequest *request) {},
+  server.on(PSTR("/upload"), HTTP_POST, [](AsyncWebServerRequest *request) {},
         [](AsyncWebServerRequest *request, const String& filename, size_t index, uint8_t *data,
                       size_t len, bool final) {handleUpload(request, filename, index, data, len, final);}
   );
@@ -427,11 +429,11 @@ void initServer()
 
 
 #ifdef WLED_ENABLE_DMX
-  server.on(F("/dmxmap"), HTTP_GET, [](AsyncWebServerRequest *request){
-    request->send_P(200, FPSTR(CONTENT_TYPE_HTML), PAGE_dmxmap     , dmxProcessor);
+  server.on(PSTR("/dmxmap"), HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send_P(200, asyncsrv::T_text_html, PAGE_dmxmap     , dmxProcessor);
   });
 #else
-  server.on(F("/dmxmap"), HTTP_GET, [](AsyncWebServerRequest *request){
+  server.on(PSTR("/dmxmap"), HTTP_GET, [](AsyncWebServerRequest *request){
     serveMessage(request, 501, FPSTR(s_notimplemented), F("DMX support is not enabled in this build."), 254);
   });
 #endif
@@ -439,7 +441,7 @@ void initServer()
   server.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
     if (captivePortal(request)) return;
     if (!showWelcomePage || request->hasArg(F("sliders"))) {
-      handleStaticContent(request, F("/index.htm"), 200, FPSTR(CONTENT_TYPE_HTML), PAGE_index, PAGE_index_L);
+      handleStaticContent(request, F("/index.htm"), 200, asyncsrv::T_text_html, PAGE_index, PAGE_index_L);
     } else {
       serveSettings(request);
     }
@@ -448,20 +450,20 @@ void initServer()
 #ifdef WLED_ENABLE_PIXART
   static const char _pixart_htm[] PROGMEM = "/pixart.htm";
   server.on(_pixart_htm, HTTP_GET, [](AsyncWebServerRequest *request) {
-    handleStaticContent(request, FPSTR(_pixart_htm), 200, FPSTR(CONTENT_TYPE_HTML), PAGE_pixart, PAGE_pixart_L);
+    handleStaticContent(request, FPSTR(_pixart_htm), 200, asyncsrv::T_text_html, PAGE_pixart, PAGE_pixart_L);
   });
 #endif
 
 #ifndef WLED_DISABLE_PXMAGIC
   static const char _pxmagic_htm[] PROGMEM = "/pxmagic.htm";
   server.on(_pxmagic_htm, HTTP_GET, [](AsyncWebServerRequest *request) {
-    handleStaticContent(request, FPSTR(_pxmagic_htm), 200, FPSTR(CONTENT_TYPE_HTML), PAGE_pxmagic, PAGE_pxmagic_L);
+    handleStaticContent(request, FPSTR(_pxmagic_htm), 200, asyncsrv::T_text_html, PAGE_pxmagic, PAGE_pxmagic_L);
   });
 #endif
 
   static const char _cpal_htm[] PROGMEM = "/cpal.htm";
   server.on(_cpal_htm, HTTP_GET, [](AsyncWebServerRequest *request) {
-    handleStaticContent(request, FPSTR(_cpal_htm), 200, FPSTR(CONTENT_TYPE_HTML), PAGE_cpal, PAGE_cpal_L);
+    handleStaticContent(request, FPSTR(_cpal_htm), 200, asyncsrv::T_text_html, PAGE_cpal, PAGE_cpal_L);
   });
 
 #ifdef WLED_ENABLE_WEBSOCKETS
@@ -486,7 +488,7 @@ void initServer()
     #ifndef WLED_DISABLE_ALEXA
     if(espalexa.handleAlexaApiCall(request)) return;
     #endif
-    handleStaticContent(request, request->url(), 404, FPSTR(CONTENT_TYPE_HTML), PAGE_404, PAGE_404_length);
+    handleStaticContent(request, request->url(), 404, asyncsrv::T_text_html, PAGE_404, PAGE_404_length);
   });
 }
 
@@ -497,7 +499,7 @@ void serveMessage(AsyncWebServerRequest* request, uint16_t code, const String& h
   messageSub = subl;
   optionType = optionT;
 
-  request->send_P(code, FPSTR(CONTENT_TYPE_HTML), PAGE_msg, msgProcessor);
+  request->send_P(code, asyncsrv::T_text_html, PAGE_msg, msgProcessor);
 }
 
 
@@ -517,20 +519,20 @@ void serveJsonError(AsyncWebServerRequest* request, uint16_t code, uint16_t erro
 void serveSettingsJS(AsyncWebServerRequest* request)
 {
   if (request->url().indexOf(FPSTR(_common_js)) > 0) {
-    handleStaticContent(request, FPSTR(_common_js), 200, FPSTR(CONTENT_TYPE_JAVASCRIPT), JS_common, JS_common_length);
+    handleStaticContent(request, FPSTR(_common_js), 200, asyncsrv::T_application_javascript, JS_common, JS_common_length);
     return;
   }
   byte subPage = request->arg(F("p")).toInt();
   if (subPage > 10) {
-    request->send_P(501, FPSTR(CONTENT_TYPE_JAVASCRIPT), PSTR("alert('Settings for this request are not implemented.');"));
+    request->send_P(501, asyncsrv::T_application_javascript, PSTR("alert('Settings for this request are not implemented.');"));
     return;
   }
   if (subPage > 0 && !correctPIN && strlen(settingsPIN)>0) {
-    request->send_P(401, FPSTR(CONTENT_TYPE_JAVASCRIPT), PSTR("alert('PIN incorrect.');"));
+    request->send_P(401, asyncsrv::T_application_javascript, PSTR("alert('PIN incorrect.');"));
     return;
   }
   
-  AsyncResponseStream *response = request->beginResponseStream(FPSTR(CONTENT_TYPE_JAVASCRIPT));
+  AsyncResponseStream *response = request->beginResponseStream(asyncsrv::T_application_javascript);
   response->addHeader(F("Cache-Control"), F("no-store"));
   response->addHeader(F("Expires"), F("0"));
 
@@ -615,7 +617,7 @@ void serveSettings(AsyncWebServerRequest* request, bool post) {
   }
 
   int code = 200;
-  String contentType = FPSTR(CONTENT_TYPE_HTML);
+  String contentType = asyncsrv::T_text_html;
   const uint8_t* content;
   size_t len;
 
