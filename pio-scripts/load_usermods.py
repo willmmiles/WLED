@@ -30,16 +30,15 @@ if usermods:
   src_dir = src_dir.replace('\\','/')
   mod_paths = {mod: find_usermod(mod) for mod in usermods.split(" ")}
   usermods = [f"{mod} = symlink://{path}" for mod, path in mod_paths.items()]
-  print(deps)
   proj.set("env:" + env['PIOENV'], 'lib_deps', deps + usermods)  
-  print(env.GetProjectOption('lib_deps'))
 
 
 # Monkey-patch ConfigureProjectLibBuilder to mark up the dependencies
 # Save the old value
-cpl = env.ConfigureProjectLibBuilder
+cplb = env.ConfigureProjectLibBuilder
 # Our new wrapper
-def cpl_wrapper(xenv):
+def cplb_wrapper(xenv):
+  wrapper_result = cplb.clone(xenv)()
   # Update usermod properties  
   lib_builders = xenv.GetLibBuilders()  
   wled_dir = xenv["PROJECT_SRC_DIR"]
@@ -63,8 +62,8 @@ def cpl_wrapper(xenv):
     build = um._manifest.get("build", {})
     build["libArchive"] = False
     um._manifest["build"] = build
-  return cpl.clone(xenv)()
+  return wrapper_result
 
 
 # Replace the old one with ours
-env.AddMethod(cpl_wrapper, "ConfigureProjectLibBuilder")
+env.AddMethod(cplb_wrapper, "ConfigureProjectLibBuilder")
