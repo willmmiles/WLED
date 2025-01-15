@@ -69,7 +69,10 @@ def cplb_wrapper(xenv):
   wled_dir = xenv["PROJECT_SRC_DIR"]
   um_deps = [dep for dep in lib_builders if usermod_dir in Path(dep.src_dir).parents]
   other_deps = [dep for dep in lib_builders if usermod_dir not in Path(dep.src_dir).parents]
+  for dep in lib_builders:
+     print(f"Found dep: {str(dep)}")
   for um in um_deps:
+    print(f"Adding properties to {str(um)} - {wled_dir}")
     # Add the wled folder to the include path
     um.env.PrependUnique(CPPPATH=wled_dir)
     # Add WLED's own dependencies
