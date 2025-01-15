@@ -44,6 +44,10 @@ def cpl_wrapper(xenv):
   um_deps = [dep for dep in lib_builders if usermod_dir in Path(dep.src_dir).parents]
   other_deps = [dep for dep in lib_builders if usermod_dir not in Path(dep.src_dir).parents]
   print(xenv.Dump())
+  for dep in lib_builders:
+    xr = usermod_dir in Path(dep.src_dir).parents
+    print(f"{dep.src_dir}: {xr}")
+
   for um in um_deps:
     # Add include paths for all non-usermod dependencies
     for dep in other_deps:
