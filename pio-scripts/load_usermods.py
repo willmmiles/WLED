@@ -25,12 +25,14 @@ def find_usermod(mod: str):
 usermods = env.GetProjectOption("custom_usermods","")
 if usermods:
   proj = env.GetProjectConfig()
-  deps = env.GetProjectOption('lib_deps')  
+  deps = env.GetProjectOption('lib_deps')
   src_dir = proj.get("platformio", "src_dir")
   src_dir = src_dir.replace('\\','/')
   mod_paths = {mod: find_usermod(mod) for mod in usermods.split(" ")}
   usermods = [f"{mod} = symlink://{path}" for mod, path in mod_paths.items()]
+  print(deps)
   proj.set("env:" + env['PIOENV'], 'lib_deps', deps + usermods)  
+  print(env.GetProjectOption('lib_deps'))
 
 
 # Monkey-patch ConfigureProjectLibBuilder to mark up the dependencies
