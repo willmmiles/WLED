@@ -57,6 +57,8 @@ if usermods:
       for spec in not_found_specs:
         #print(f"LU: forcing install of {spec}")
         lm.install(spec)
+  # Clear GetLibBuilders cache
+  DefaultEnvironment().Replace(__PIO_LIB_BUILDERS=None)
 
 
 # Monkey-patch ConfigureProjectLibBuilder to mark up the dependencies
@@ -64,11 +66,19 @@ if usermods:
 cplb = env.ConfigureProjectLibBuilder
 # Our new wrapper
 def cplb_wrapper(xenv):
-  # Update usermod properties  
-  lib_builders = xenv.GetLibBuilders()  
+  # Update usermod properties
+  print(xenv.GetProjectOption('lib_deps'))
+  lib_builders = xenv.GetLibBuilders()
   wled_dir = xenv["PROJECT_SRC_DIR"]
   um_deps = [dep for dep in lib_builders if usermod_dir in Path(dep.src_dir).parents]
   other_deps = [dep for dep in lib_builders if usermod_dir not in Path(dep.src_dir).parents]
+  if usermods and not um_deps:
+    # Debug: try resetting the lib builders??
+    print("REPLACING??")
+    xenv.Replace(__PIO_LIB_BUILDERS=None)
+    lib_builders = xenv.GetLibBuilders()
+    um_deps = [dep for dep in lib_builders if usermod_dir in Path(dep.src_dir).parents]
+    other_deps = [dep for dep in lib_builders if usermod_dir not in Path(dep.src_dir).parents]
   for dep in lib_builders:
      print(f"Found dep: {str(dep)}")
   for um in um_deps:
