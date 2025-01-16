@@ -57,45 +57,40 @@ if usermods:
       for spec in not_found_specs:
         #print(f"LU: forcing install of {spec}")
         lm.install(spec)
-  # Clear GetLibBuilders cache
-  DefaultEnvironment().Replace(__PIO_LIB_BUILDERS=None)
 
 
 # Monkey-patch ConfigureProjectLibBuilder to mark up the dependencies
 # Save the old value
-cplb = env.ConfigureProjectLibBuilder
+old_ConfigureProjectLibBuilder = env.ConfigureProjectLibBuilder
+
 # Our new wrapper
-def cplb_wrapper(xenv):
+def wrapped_ConfigureProjectLibBuilder(xenv):
   # Update usermod properties
-  print(xenv.GetProjectOption('lib_deps'))
-  lib_builders = xenv.GetLibBuilders()
+  # Set libArchive before build actions are added
+  for um in (um for um in xenv.GetLibBuilders() if usermod_dir in Path(um.src_dir).parents):
+    build = um._manifest.get("build", {})
+    build["libArchive"] = False
+    um._manifest["build"] = build
+
+  # Call the wrapped function
+  result = old_ConfigureProjectLibBuilder.clone(xenv)()
+
+  # Fix up include paths
+  # In PlatformIO >=6.1.17, this could be done prior to ConfigureProjectLibBuilder
   wled_dir = xenv["PROJECT_SRC_DIR"]
+  lib_builders = xenv.GetLibBuilders()
   um_deps = [dep for dep in lib_builders if usermod_dir in Path(dep.src_dir).parents]
   other_deps = [dep for dep in lib_builders if usermod_dir not in Path(dep.src_dir).parents]
-  if usermods and not um_deps:
-    # Debug: try resetting the lib builders??
-    print("REPLACING??")
-    xenv.Replace(__PIO_LIB_BUILDERS=None)
-    lib_builders = xenv.GetLibBuilders()
-    um_deps = [dep for dep in lib_builders if usermod_dir in Path(dep.src_dir).parents]
-    other_deps = [dep for dep in lib_builders if usermod_dir not in Path(dep.src_dir).parents]
-  for dep in lib_builders:
-     print(f"Found dep: {str(dep)}")
   for um in um_deps:
-    print(f"Adding properties to {str(um)} - {wled_dir}")
+    has_wled = wled_dir in um.env['CPPPATH']
     # Add the wled folder to the include path
     um.env.PrependUnique(CPPPATH=wled_dir)
     # Add WLED's own dependencies
     for dep in other_deps:
         for dir in dep.get_include_dirs():
-            um.env.PrependUnique(CPPPATH=dir)      
-    # Make sure we link directly, not through an archive
-    # Archives drop the .dtor table section we need
-    build = um._manifest.get("build", {})
-    build["libArchive"] = False
-    um._manifest["build"] = build
-  return cplb.clone(xenv)()
+            um.env.PrependUnique(CPPPATH=dir)
 
+  return result
 
-# Replace the old one with ours
-env.AddMethod(cplb_wrapper, "ConfigureProjectLibBuilder")
+# Apply the wrapper
+env.AddMethod(wrapped_ConfigureProjectLibBuilder, "ConfigureProjectLibBuilder")
