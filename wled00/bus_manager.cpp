@@ -22,6 +22,19 @@
 #include "bus_wrapper.h"
 #include <bits/unique_ptr.h>
 
+// c++11 shim for make_unique
+#if __cplusplus >= 201402L
+using std::make_unique;
+#else
+// Really simple shim; implementation from cppreference.com
+template<class T, class... Args>
+std::unique_ptr<T>
+make_unique(Args&&... args)
+{
+    return std::unique_ptr<T>(new T(std::forward<Args>(args)...));
+}
+#endif
+
 extern bool cctICused;
 extern bool useParallelI2S;
 
@@ -831,17 +844,13 @@ int BusManager::add(const BusConfig &bc) {
   unsigned numDigital = 0;
   for (const auto &bus : busses) if (bus->isDigital() && !bus->is2Pin()) numDigital++;
   if (Bus::isVirtual(bc.type)) {
-    //busses.push_back(std::make_unique<BusNetwork>(bc)); // when C++ >11
-    busses.push_back(new BusNetwork(bc));
+    busses.push_back(make_unique<BusNetwork>(bc));
   } else if (Bus::isDigital(bc.type)) {
-    //busses.push_back(std::make_unique<BusDigital>(bc, numDigital, colorOrderMap));
-    busses.push_back(new BusDigital(bc, numDigital, colorOrderMap));
+    busses.push_back(make_unique<BusDigital>(bc, numDigital, colorOrderMap));
   } else if (Bus::isOnOff(bc.type)) {
-    //busses.push_back(std::make_unique<BusOnOff>(bc));
-    busses.push_back(new BusOnOff(bc));
+    busses.push_back(make_unique<BusOnOff>(bc));
   } else {
-    //busses.push_back(std::make_unique<BusPwm>(bc));
-    busses.push_back(new BusPwm(bc));
+    busses.push_back(make_unique<BusPwm>(bc));
   }
   return busses.size();
 }
@@ -885,7 +894,6 @@ void BusManager::removeAll() {
   DEBUGBUS_PRINTLN(F("Removing all."));
   //prevents crashes due to deleting busses while in use.
   while (!canAllShow()) yield();
-  for (auto &bus : busses) delete bus; // needed when not using std::unique_ptr C++ >11
   busses.clear();
   PolyBus::setParallelI2S1Output(false);
 }
@@ -936,7 +944,7 @@ void BusManager::on() {
       uint8_t pins[2] = {255,255};
       if (bus->isDigital() && bus->getPins(pins)) {
         if (pins[0] == LED_BUILTIN || pins[1] == LED_BUILTIN) {
-          BusDigital *b = static_cast<BusDigital*>(bus);
+          BusDigital *b = static_cast<BusDigital*>(bus.get());
           b->begin();
           break;
         }
@@ -1013,7 +1021,7 @@ bool BusManager::canAllShow() {
 
 Bus* BusManager::getBus(uint8_t busNr) {
   if (busNr >= busses.size()) return nullptr;
-  return busses[busNr];
+  return busses[busNr].get();
 }
 
 //semi-duplicate of strip.getLengthTotal() (though that just returns strip._length, calculated in finalizeInit())
@@ -1032,8 +1040,7 @@ uint8_t Bus::_gAWM = 255;
 
 uint16_t BusDigital::_milliAmpsTotal = 0;
 
-//std::vector<std::unique_ptr<Bus>> BusManager::busses;
-std::vector<Bus*> BusManager::busses;
+std::vector<std::unique_ptr<Bus>> BusManager::busses;
 ColorOrderMap BusManager::colorOrderMap = {};
 uint16_t      BusManager::_milliAmpsUsed = 0;
 uint16_t      BusManager::_milliAmpsMax = ABL_MILLIAMPS_DEFAULT;

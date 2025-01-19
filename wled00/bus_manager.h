@@ -456,8 +456,7 @@ class BusManager {
     static inline ColorOrderMap& getColorOrderMap() { return colorOrderMap; }
 
   private:
-    //static std::vector<std::unique_ptr<Bus>> busses; // we'd need C++ >11
-    static std::vector<Bus*> busses;
+    static std::vector<std::unique_ptr<Bus>> busses;
     static ColorOrderMap colorOrderMap;
     static uint16_t _milliAmpsUsed;
     static uint16_t _milliAmpsMax;
