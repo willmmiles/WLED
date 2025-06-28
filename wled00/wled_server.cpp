@@ -176,7 +176,7 @@ static void handleUpload(AsyncWebServerRequest *request, const String& filename,
       doReboot = true;
       request->send(200, FPSTR(CONTENT_TYPE_PLAIN), F("Configuration restore successful.\nRebooting..."));
     } else {
-      if (filename.indexOf(F("palette")) >= 0 && filename.indexOf(F(".json")) >= 0) strip.loadCustomPalettes();
+      if (filename.indexOf(F("palette")) >= 0 && filename.indexOf(F(".json")) >= 0) loadCustomPalettes();
       request->send(200, FPSTR(CONTENT_TYPE_PLAIN), F("File Uploaded!"));
     }
     cacheInvalidate++;
@@ -328,7 +328,7 @@ void initServer()
         interfaceUpdateCallMode = CALL_MODE_WS_SEND; // schedule WS update
         serveJson(request); return; //if JSON contains "v"
       } else {
-        doSerializeConfig = true; //serializeConfig(); //Save new settings to FS
+        configNeedsWrite = true; //Save new settings to FS
       }
     }
     request->send(200, CONTENT_TYPE_JSON, F("{\"success\":true}"));
@@ -365,7 +365,6 @@ void initServer()
   createEditHandler(correctPIN);
 
   static const char _update[] PROGMEM = "/update";
-#ifndef WLED_DISABLE_OTA
   //init ota page
   server.on(_update, HTTP_GET, [](AsyncWebServerRequest *request){
     if (otaLock) {
@@ -419,12 +418,6 @@ void initServer()
       }
     }
   });
-#else
-  server.on(_update, HTTP_GET, [](AsyncWebServerRequest *request){
-    serveMessage(request, 501, FPSTR(s_notimplemented), F("OTA updating is disabled in this build."), 254);
-  });
-#endif
-
 
 #ifdef WLED_ENABLE_DMX
   server.on(F("/dmxmap"), HTTP_GET, [](AsyncWebServerRequest *request){
