@@ -1732,7 +1732,7 @@ class AudioReactive : public Usermod {
         }
 #endif
       }
-      if (root.containsKey(F("rmcpal")) && root[F("rmcpal")].as<bool>()) {
+      if (root[F("rmcpal")].is<bool>() && root[F("rmcpal")].as<bool>()) {
         // handle removal of custom palettes from JSON call so we don't break things
         removeAudioPalettes();
       }
@@ -1805,7 +1805,7 @@ class AudioReactive : public Usermod {
       cfg[F("gain")] = sampleGain;
       cfg[F("AGC")] = soundAgc;
 
-      JsonObject freqScale = top.createNestedObject(FPSTR(_frequency));
+      JsonObject freqScale = top[FPSTR(_frequency)].to<JsonObject>();
       freqScale[F("scale")] = FFTScalingMode;
 #endif
 

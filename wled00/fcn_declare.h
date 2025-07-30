@@ -267,7 +267,10 @@ void handleIR();
 
 //json.cpp
 #include "ESPAsyncWebServer.h"
-#include "src/dependencies/json/ArduinoJson-v7.0.2.h"
+#ifndef ARDUINOJSON_DECODE_UNICODE
+#define ARDUINOJSON_DECODE_UNICODE 0
+#endif
+#include "ArduinoJson.h"
 #include "src/dependencies/json/AsyncJson-v7.h"
 
 bool deserializeState(JsonObject root, byte callMode = CALL_MODE_DIRECT_CHANGE, byte presetId = 0);

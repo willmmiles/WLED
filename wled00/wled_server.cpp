@@ -321,7 +321,7 @@ void initServer()
       serveJsonError(request, 400, ERR_JSON);
       return;
     }
-    if (root.containsKey("pin")) checkSettingsPIN(root["pin"].as<const char*>());
+    if (root["pin"].is<const char*>()) checkSettingsPIN(root["pin"].as<const char*>());
 
     const String& url = request->url();
     isConfig = url.indexOf(F("cfg")) > -1;

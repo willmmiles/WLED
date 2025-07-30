@@ -88,7 +88,8 @@ void WS2812FX::setUpMatrix() {
           if (!map.isNull() && gapSize >= matrixSize) { // not an empty map
             gapTable = static_cast<int8_t*>(p_malloc(gapSize));
             if (gapTable) for (size_t i = 0; i < gapSize; i++) {
-              gapTable[i] = constrain(map[i], -1, 1);
+              auto entry = map[i].as<uint8_t>();
+              gapTable[i] = constrain(entry, -1, 1);
             }
           }
         }

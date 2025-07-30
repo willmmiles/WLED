@@ -157,8 +157,8 @@
 #endif
 
 #define ARDUINOJSON_DECODE_UNICODE 0
+#include "ArduinoJson.h"
 #include "src/dependencies/json/AsyncJson-v7.h"
-#include "src/dependencies/json/ArduinoJson-v7.0.2.h"
 
 // ESP32-WROVER features SPI RAM (aka PSRAM) which can be allocated using ps_malloc()
 // The following is a construct to enable using it for the primary JSON buffer
@@ -964,7 +964,7 @@ WLED_GLOBAL int8_t spi_sclk  _INIT(SPISCLKPIN);
 // global ArduinoJson buffer
 #if defined(ARDUINO_ARCH_ESP32)
 WLED_GLOBAL SemaphoreHandle_t jsonBufferLockMutex _INIT(xSemaphoreCreateRecursiveMutex());
-#if defined(ARDUINO_ARCH_ESP32) && defined(BOARD_HAS_PSRAM) && defined(WLED_USE_PSRAM)
+#if defined(ARDUINO_ARCH_ESP32)
 WLED_GLOBAL PSRAM_Allocator pAlloc _INIT ( PSRAM_Allocator {} );
 #endif
 #endif

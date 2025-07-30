@@ -375,6 +375,10 @@ void WLED::setup()
   if (!psramSafe) DEBUG_PRINTLN(F("Not using PSRAM."));
   #endif
   if (psramFound()) {
+    if (psramSafe) {
+      // Switch to using PSRAM for the global JSON buffer
+      gDoc = JsonDocument(&pAlloc);
+    }
     DEBUG_PRINTF_P(PSTR("PSRAM: %dkB/%dkB\n"), ESP.getFreePsram()/1024, ESP.getPsramSize()/1024);
   }
   DEBUG_PRINTF_P(PSTR("TX power: %d/%d\n"), WiFi.getTxPower(), txPower);

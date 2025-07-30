@@ -50,8 +50,8 @@ void wsEvent(AsyncWebSocket * server, AsyncWebSocketClient * client, AwsEventTyp
         if (root["v"] && root.size() == 1) {
           //if the received value is just "{"v":true}", send only to this client
           verboseResponse = true;
-        } else if (root.containsKey("lv")) {
-          wsLiveClientId = root["lv"] ? client->id() : 0;
+        } else if (root["lv"].is<bool>()) {
+          wsLiveClientId = root["lv"].as<bool>() ? client->id() : 0;
         } else {
           verboseResponse = deserializeState(root);
         }

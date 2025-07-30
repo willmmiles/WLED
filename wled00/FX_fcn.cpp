@@ -1990,7 +1990,7 @@ bool WS2812FX::deserializeMap(unsigned n) {
 
   if (!isFile || !requestJSONBufferLock(7)) return false;
 
-  StaticJsonDocument<64> filter;
+  JsonDocument filter;
   filter[F("width")]  = true;
   filter[F("height")] = true;
   if (!readObjectFromFile(fileName, nullptr, pDoc, &filter)) {
