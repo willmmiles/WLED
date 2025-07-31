@@ -1067,22 +1067,35 @@ void serializeModeNames(JsonArray arr)
   }
 }
 
+static inline void printheap(uint32_t p, size_t c) {
+  DEBUG_PRINTF_P("[%08x] HEAP %d: %d : %d\n",
+    p, c,
+    heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT),
+    heap_caps_get_free_size(MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT)
+  );
+}
+
 // Global buffer locking response helper class (to make sure lock is released when AsyncJsonResponse is destroyed)
 class LockedJsonResponse: public AsyncJsonResponse {
   bool _holding_lock;
+  size_t call_count;
   public:
   // WARNING: constructor assumes requestJSONBufferLock() was successfully acquired externally/prior to constructing the instance
   // Not a good practice with C++. Unfortunately AsyncJsonResponse only has 2 constructors - for dynamic buffer or existing buffer,
   // with existing buffer it clears its content during construction
   // if the lock was not acquired (using JSONBufferGuard class) previous implementation still cleared existing buffer
-  inline LockedJsonResponse(JsonDocument* doc, bool isArray) : AsyncJsonResponse(doc, isArray), _holding_lock(true) {};
+  inline LockedJsonResponse(JsonDocument* doc, bool isArray) : AsyncJsonResponse(doc, isArray), _holding_lock(true), call_count(0) {};
 
   virtual size_t _fillBuffer(uint8_t *buf, size_t maxLen) { 
     size_t result = AsyncJsonResponse::_fillBuffer(buf, maxLen);
+    if (++call_count == 1) {
+      printheap((intptr_t)this, call_count);
+    }
     // Release lock as soon as we're done filling content
     if (((result + _sentLength) >= (_contentLength)) && _holding_lock) {
       releaseJSONBufferLock();
       _holding_lock = false;
+      printheap((intptr_t) this, call_count);
     }
     return result;
   }
