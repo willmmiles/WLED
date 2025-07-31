@@ -443,7 +443,7 @@ bool deserializeState(JsonObject root, byte callMode, byte presetId)
     realtimeOverride = REALTIME_OVERRIDE_NONE;  // ignore request for override if using main segment only
   }
 
-  if (root.containsKey("live")) {
+  if (root["live"].is<bool>()) {
     if (root["live"].as<bool>()) {
       jsonTransitionOnce = true;
       strip.setTransition(0);
@@ -530,7 +530,7 @@ bool deserializeState(JsonObject root, byte callMode, byte presetId)
     else callMode = CALL_MODE_DIRECT_CHANGE;  // possible bugfix for playlist only containing HTTP API preset FX=~
   }
 
-  if (root.containsKey(F("rmcpal")) && root[F("rmcpal")].as<bool>()) {
+  if (root[F("rmcpal")].is<bool>() && root[F("rmcpal")].as<bool>()) {
     if (customPalettes.size()) {
       char fileName[32];
       sprintf_P(fileName, PSTR("/palette%d.json"), customPalettes.size()-1);

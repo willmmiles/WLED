@@ -531,7 +531,7 @@ um_data_t* simulateSound(uint8_t simulationId)
 static const char s_ledmap_tmpl[] PROGMEM = "ledmap%d.json";
 // enumerate all ledmapX.json files on FS and extract ledmap names if existing
 void enumerateLedmaps() {
-  StaticJsonDocument<64> filter;
+  JsonDocument filter;
   filter["n"] = true;
   ledMaps = 1;
   for (size_t i=1; i<WLED_MAX_LEDMAPS; i++) {

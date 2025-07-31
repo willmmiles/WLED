@@ -472,8 +472,8 @@ bool deserializeConfig(JsonObject doc, bool fromFS) {
       rlyPin = -1;
     }
   }
-  if (relay.containsKey("rev")) {
-    rlyMde = !relay["rev"];
+  if (relay[("rev")].is<bool>()) {
+    rlyMde = !relay["rev"].as<bool>();
   }
 
   CJSON(serialBaud, hw[F("baud")]);
@@ -818,7 +818,7 @@ void serializeConfigToFS() {
 }
 
 void serializeConfig(JsonObject root) {
-  JsonArray rev = root.createNestedArray("rev");
+  JsonArray rev = root["rev"].to<JsonArray>();
   rev.add(1); //major settings revision
   rev.add(0); //minor settings revision
 
@@ -835,7 +835,7 @@ void serializeConfig(JsonObject root) {
   JsonObject nw = root["nw"].to<JsonObject>();
 #ifndef WLED_DISABLE_ESPNOW
   nw[F("espnow")] = enableESPNow;
-  JsonArray lrem = nw.createNestedArray(F("linked_remote"));
+  JsonArray lrem = nw[F("linked_remote")].to<JsonArray>();
   for (size_t i = 0; i < linked_remotes.size(); i++) {
     lrem.add(linked_remotes[i].data());
   }
@@ -859,7 +859,7 @@ void serializeConfig(JsonObject root) {
     }
   }
 
-  JsonArray dns = nw.createNestedArray(F("dns"));
+  JsonArray dns = nw[F("dns")].to<JsonArray>();
   for (size_t i = 0; i < 4; i++) {
     dns.add(dnsAddress[i]);
   }

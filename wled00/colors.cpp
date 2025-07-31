@@ -257,7 +257,7 @@ void loadCustomPalettes() {
     char fileName[32];
     sprintf_P(fileName, PSTR("/palette%d.json"), index);
 
-    StaticJsonDocument<1536> pDoc; // barely enough to fit 72 numbers
+    JsonDocument pDoc;
     if (WLED_FS.exists(fileName)) {
       DEBUGFX_PRINTF_P(PSTR("Reading palette from %s\n"), fileName);
       if (readObjectFromFile(fileName, nullptr, &pDoc)) {

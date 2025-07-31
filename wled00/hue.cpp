@@ -143,7 +143,7 @@ void onHueData(void* arg, AsyncClient* client, void *data, size_t len)
   byte hueBri=0, hueSat=0, hueColormode=0;
 
   if (root["on"]) {
-    if (root.containsKey("bri")) //Dimmable device
+    if (root["bri"].is<byte>()) //Dimmable device
     {
       hueBri = root["bri"];
       hueBri++;
