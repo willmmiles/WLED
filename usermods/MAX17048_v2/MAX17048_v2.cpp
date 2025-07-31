@@ -75,7 +75,7 @@ class  Usermod_MAX17048 : public Usermod {
     {
         String t = String(F("homeassistant/sensor/")) + mqttClientID + F("/") + name + F("/config");
 
-        StaticJsonDocument<600> doc;
+        JsonDocument doc;
 
         doc[F("name")] = String(serverDescription) + " " + name;
         doc[F("state_topic")] = topic;
@@ -86,7 +86,7 @@ class  Usermod_MAX17048 : public Usermod {
         doc[F("device_class")] = deviceClass;
         doc[F("expire_after")] = 1800;
 
-        JsonObject device = doc.createNestedObject(F("device")); // attach the sensor to the same device
+        JsonObject device = doc[F("device")].as<JsonObject>(); // attach the sensor to the same device
         device[F("name")] = serverDescription;
         device[F("identifiers")] = "wled-sensor-" + String(mqttClientID);
         device[F("manufacturer")] = F("WLED");
@@ -175,10 +175,10 @@ class  Usermod_MAX17048 : public Usermod {
     {
       // if "u" object does not exist yet wee need to create it
       JsonObject user = root["u"];
-      if (user.isNull()) user = root.createNestedObject("u");
+      if (user.isNull()) user = root["u"].as<JsonObject>();
 
 
-      JsonArray battery_json = user.createNestedArray(F("Battery Monitor"));
+      JsonArray battery_json = user[F("Battery Monitor")].as<JsonArray>();
       if (!enabled) {
         battery_json.add(F("Disabled"));
       }
@@ -192,10 +192,10 @@ class  Usermod_MAX17048 : public Usermod {
         battery_json.add(F(" sec until read"));
       } else {
         battery_json.add(F("Enabled"));
-        JsonArray voltage_json = user.createNestedArray(F("Battery Voltage"));
+        JsonArray voltage_json = user[F("Battery Voltage")].as<JsonArray>();
         voltage_json.add(lastBattVoltage);
         voltage_json.add(F("V"));
-        JsonArray percent_json = user.createNestedArray(F("Battery Percent"));
+        JsonArray percent_json = user[F("Battery Percent")].as<JsonArray>();
         percent_json.add(lastBattPercent);
         percent_json.add(F("%"));
       }
@@ -206,7 +206,7 @@ class  Usermod_MAX17048 : public Usermod {
         JsonObject usermod = root[FPSTR(_name)];
         if (usermod.isNull())
         {
-        usermod = root.createNestedObject(FPSTR(_name));
+        usermod = root[FPSTR(_name)].as<JsonObject>();
         }
         usermod[FPSTR(_enabled)] = enabled;
     }
@@ -225,7 +225,7 @@ class  Usermod_MAX17048 : public Usermod {
 
     void addToConfig(JsonObject& root)
     {
-      JsonObject top = root.createNestedObject(FPSTR(_name));
+      JsonObject top = root[FPSTR(_name)].as<JsonObject>();
       top[FPSTR(_enabled)] = enabled;
       top[FPSTR(_maxReadInterval)] = maxReadingInterval;
       top[FPSTR(_minReadInterval)] = minReadingInterval;

@@ -129,7 +129,7 @@ class UsermodBattery : public Usermod
 #ifndef WLED_DISABLE_MQTT
     void addMqttSensor(const String &name, const String &type, const String &topic, const String &deviceClass, const String &unitOfMeasurement = "", const bool &isDiagnostic = false)
     {      
-      StaticJsonDocument<600> doc;
+      JsonDocument doc;
       char uid[128], json_str[1024], buf[128];
 
       doc[F("name")] = name;
@@ -150,7 +150,7 @@ class UsermodBattery : public Usermod
       if(isDiagnostic)
         doc[F("entity_category")] = "diagnostic";
 
-      JsonObject device = doc.createNestedObject(F("device")); // attach the sensor to the same device
+      JsonObject device = doc[F("device")].as<JsonObject>(); // attach the sensor to the same device
       device[F("name")] = serverDescription;
       device[F("ids")]  = String(F("wled-sensor-")) + mqttClientID;
       device[F("mf")]   = F(WLED_BRAND);
@@ -345,11 +345,11 @@ class UsermodBattery : public Usermod
       battery[FPSTR(_readInterval)] = readingInterval;
       battery[FPSTR(_haDiscovery)] = HomeAssistantDiscovery;
 
-      JsonObject ao = battery.createNestedObject(F("auto-off"));  // auto off section
+      JsonObject ao = battery[F("auto-off")].as<JsonObject>();  // auto off section
       ao[FPSTR(_enabled)] = autoOffEnabled;
       ao[FPSTR(_threshold)] = autoOffThreshold;
 
-      JsonObject lp = battery.createNestedObject(F("indicator")); // low power section
+      JsonObject lp = battery[F("indicator")].as<JsonObject>(); // low power section
       lp[FPSTR(_enabled)] = lowPowerIndicatorEnabled;
       lp[FPSTR(_preset)] = lowPowerIndicatorPreset; // dropdown trickery (String)lowPowerIndicatorPreset; 
       lp[FPSTR(_threshold)] = lowPowerIndicatorThreshold;
@@ -387,10 +387,10 @@ class UsermodBattery : public Usermod
      */
     void addToJsonState(JsonObject& root)
     {
-      JsonObject battery = root.createNestedObject(FPSTR(_name));
+      JsonObject battery = root[FPSTR(_name)].as<JsonObject>();
 
       if (battery.isNull())
-        battery = root.createNestedObject(FPSTR(_name));
+        battery = root[FPSTR(_name)].as<JsonObject>();
       
       addBatteryToJsonObject(battery, true);
       

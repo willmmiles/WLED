@@ -79,7 +79,7 @@ public:
 
   void addToConfig(JsonObject& root)
   {
-      JsonObject top = root.createNestedObject(FPSTR(_name)); // usermodname
+      JsonObject top = root[FPSTR(_name)].as<JsonObject>(); // usermodname
 
       top[FPSTR(_enabled)] = enabled;
       top[FPSTR(_update_interval)] = update_interval;

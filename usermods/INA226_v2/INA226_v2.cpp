@@ -259,7 +259,7 @@ private:
     {
         String t = String(F("homeassistant/sensor/")) + mqttClientID + "/" + name + F("/config");
 
-        StaticJsonDocument<600> doc;
+        JsonDocument doc;
 
         doc[F("name")] = name;
         doc[F("state_topic")] = topic;
@@ -270,7 +270,7 @@ private:
             doc[F("device_class")] = deviceClass;
         doc[F("expire_after")] = 1800;
 
-        JsonObject device = doc.createNestedObject(F("device"));
+        JsonObject device = doc[F("device")].as<JsonObject>();
         device[F("name")] = serverDescription;
         device[F("identifiers")] = "wled-sensor-" + String(mqttClientID);
         device[F("manufacturer")] = F(WLED_BRAND);
@@ -289,13 +289,13 @@ private:
     {
         String t = String(F("homeassistant/binary_sensor/")) + mqttClientID + "/" + name + F("/config");
 
-        StaticJsonDocument<600> doc;
+        JsonDocument doc;
 
         doc[F("name")] = name;
         doc[F("state_topic")] = topic;
         doc[F("unique_id")] = String(mqttClientID) + name;
 
-        JsonObject device = doc.createNestedObject(F("device"));
+        JsonObject device = doc[F("device")].as<JsonObject>();
         device[F("name")] = serverDescription;
         device[F("identifiers")] = "wled-sensor-" + String(mqttClientID);
         device[F("manufacturer")] = F(WLED_BRAND);
@@ -363,44 +363,44 @@ public:
     {
         JsonObject user = root["u"];
         if (user.isNull())
-            user = root.createNestedObject("u");
+            user = root["u"].as<JsonObject>();
 
 #ifdef USERMOD_INA226_DEBUG
-        JsonArray temp = user.createNestedArray(F("INA226 last loop"));
+        JsonArray temp = user[F("INA226 last loop")].as<JsonArray>();
         temp.add(_lastLoopCheck);
 
-        temp = user.createNestedArray(F("INA226 last status"));
+        temp = user[F("INA226 last status")].as<JsonArray>();
         temp.add(_lastStatus);
 
-        temp = user.createNestedArray(F("INA226 average samples"));
+        temp = user[F("INA226 average samples")].as<JsonArray>();
         temp.add(_settingInaSamples);
         temp.add(F("samples"));
 
-        temp = user.createNestedArray(F("INA226 conversion time"));
+        temp = user[F("INA226 conversion time")].as<JsonArray>();
         temp.add(_settingInaConversionTimeUs << 2);
         temp.add(F("μs"));
 
         // INA226 uses (2 * conversion time * samples) time to take a reading.
-        temp = user.createNestedArray(F("INA226 expected sample time"));
+        temp = user[F("INA226 expected sample time")].as<JsonArray>();
         uint32_t sampleTimeNeededUs = (static_cast<uint32_t>(_settingInaConversionTimeUs) << 2) * _settingInaSamples * 2;
         temp.add(truncateDecimals(sampleTimeNeededUs / 1000.0));
         temp.add(F("ms"));
 
-        temp = user.createNestedArray(F("INA226 mode"));
+        temp = user[F("INA226 mode")].as<JsonArray>();
         temp.add(_isTriggeredOperationMode ? F("triggered") : F("continuous"));
 
         if (_isTriggeredOperationMode)
         {
-            temp = user.createNestedArray(F("INA226 triggered"));
+            temp = user[F("INA226 triggered")].as<JsonArray>();
             temp.add(_measurementTriggered ? F("waiting for measurement") : F(""));
         }
 #endif
 
-        JsonArray jsonCurrent = user.createNestedArray(F("Current"));
-        JsonArray jsonVoltage = user.createNestedArray(F("Voltage"));
-        JsonArray jsonPower = user.createNestedArray(F("Power"));
-        JsonArray jsonShuntVoltage = user.createNestedArray(F("Shunt Voltage"));
-        JsonArray jsonOverflow = user.createNestedArray(F("Overflow"));
+        JsonArray jsonCurrent = user[F("Current")].as<JsonArray>();
+        JsonArray jsonVoltage = user[F("Voltage")].as<JsonArray>();
+        JsonArray jsonPower = user[F("Power")].as<JsonArray>();
+        JsonArray jsonShuntVoltage = user[F("Shunt Voltage")].as<JsonArray>();
+        JsonArray jsonOverflow = user[F("Overflow")].as<JsonArray>();
 
         if (_lastLoopCheck == 0)
         {
@@ -439,7 +439,7 @@ public:
 
     void addToConfig(JsonObject &root)
     {
-        JsonObject top = root.createNestedObject(FPSTR(_name));
+        JsonObject top = root[FPSTR(_name)].as<JsonObject>();
         top[F("Enabled")] = _settingEnabled;
         top[F("I2CAddress")] = static_cast<uint8_t>(_i2cAddress);
         top[F("CheckInterval")] = _checkInterval / 1000;

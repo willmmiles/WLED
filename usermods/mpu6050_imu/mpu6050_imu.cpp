@@ -304,36 +304,36 @@ class MPU6050Driver : public Usermod {
 
       // If an element is an array, the UI expects two elements in the form [value, unit]
       // Since our /value/ is an array, wrap it, eg. [[a, b, c]]
-      JsonArray quat_json = imu_meas["Quat")[].to<JsonArray>(].to<JsonArray>();
+      JsonArray quat_json = imu_meas["Quat"].to<JsonArray>()[0].to<JsonArray>();
       quat_json.add(qat.w);
       quat_json.add(qat.x);
       quat_json.add(qat.y);
       quat_json.add(qat.z);
-      JsonArray euler_json = imu_meas["Euler")[].to<JsonArray>(].to<JsonArray>();
+      JsonArray euler_json = imu_meas["Euler"].to<JsonArray>()[0].to<JsonArray>();
       euler_json.add(euler[0]);
       euler_json.add(euler[1]);
       euler_json.add(euler[2]);
-      JsonArray accel_json = imu_meas["Accel")[].to<JsonArray>(].to<JsonArray>();
+      JsonArray accel_json = imu_meas["Accel"].to<JsonArray>()[0].to<JsonArray>();
       accel_json.add(aa.x);
       accel_json.add(aa.y);
       accel_json.add(aa.z);
-      JsonArray gyro_json = imu_meas["Gyro")[].to<JsonArray>(].to<JsonArray>();
+      JsonArray gyro_json = imu_meas["Gyro"].to<JsonArray>()[0].to<JsonArray>();
       gyro_json.add(gy.x);
       gyro_json.add(gy.y);
       gyro_json.add(gy.z);
-      JsonArray world_json = imu_meas["WorldAccel")[].to<JsonArray>(].to<JsonArray>();
+      JsonArray world_json = imu_meas["WorldAccel"].to<JsonArray>()[0].to<JsonArray>();
       world_json.add(aaWorld.x);
       world_json.add(aaWorld.y);
       world_json.add(aaWorld.z);
-      JsonArray real_json = imu_meas["RealAccel")[].to<JsonArray>(].to<JsonArray>();
+      JsonArray real_json = imu_meas["RealAccel"].to<JsonArray>()[0].to<JsonArray>();
       real_json.add(aaReal.x);
       real_json.add(aaReal.y);
       real_json.add(aaReal.z);
-      JsonArray grav_json = imu_meas["Gravity")[].to<JsonArray>(].to<JsonArray>();
+      JsonArray grav_json = imu_meas["Gravity"].to<JsonArray>()[0].to<JsonArray>();
       grav_json.add(gravity.x);
       grav_json.add(gravity.y);
       grav_json.add(gravity.z);
-      JsonArray orient_json = imu_meas["Orientation")[].to<JsonArray>(].to<JsonArray>();
+      JsonArray orient_json = imu_meas["Orientation"].to<JsonArray>()[0].to<JsonArray>();
       orient_json.add(ypr[0]);
       orient_json.add(ypr[1]);
       orient_json.add(ypr[2]);

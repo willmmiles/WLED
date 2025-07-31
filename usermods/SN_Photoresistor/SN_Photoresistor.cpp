@@ -71,9 +71,9 @@ void Usermod_SN_Photoresistor::addToJsonInfo(JsonObject &root)
 {
   JsonObject user = root[F("u")];
   if (user.isNull())
-    user = root.createNestedObject(F("u"));
+    user = root[F("u")].as<JsonObject>();
 
-  JsonArray lux = user.createNestedArray(F("Luminance"));
+  JsonArray lux = user[F("Luminance")].as<JsonArray>();
 
   if (!getLuminanceComplete)
   {
@@ -95,7 +95,7 @@ void Usermod_SN_Photoresistor::addToJsonInfo(JsonObject &root)
 void Usermod_SN_Photoresistor::addToConfig(JsonObject &root)
 {
   // we add JSON object.
-  JsonObject top = root.createNestedObject(FPSTR(_name)); // usermodname
+  JsonObject top = root[FPSTR(_name)].as<JsonObject>(); // usermodname
   top[FPSTR(_enabled)] = !disabled;
   top[FPSTR(_readInterval)] = readingInterval / 1000;
   top[FPSTR(_referenceVoltage)] = referenceVoltage;

@@ -182,7 +182,7 @@ void UsermodTemperature::loop() {
         strcat_P(subuf, PSTR("_f"));
         mqtt->publish(subuf, 0, false, String(getTemperatureF()).c_str());
         if (idx > 0) {
-          StaticJsonDocument <128> msg;
+          JsonDocument msg;
           msg[F("idx")]    = idx;
           msg[F("RSSI")]   = WiFi.RSSI();
           msg[F("nvalue")] = 0;

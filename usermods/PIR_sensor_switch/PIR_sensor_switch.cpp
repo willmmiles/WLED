@@ -494,7 +494,7 @@ void PIRsensorSwitch::addToConfig(JsonObject &root)
   JsonObject top = root[FPSTR(_name)].to<JsonObject>();
   top[FPSTR(_enabled)]        = enabled;
   top[FPSTR(_switchOffDelay)] = m_switchOffDelay / 1000;
-  JsonArray pinArray          = top.createNestedArray("pin");
+  JsonArray pinArray          = top["pin"].as<JsonArray>();
   for (int i = 0; i < PIR_SENSOR_MAX_SENSORS; i++) pinArray.add(PIRsensorPin[i]);
   top[FPSTR(_onPreset)]       = m_onPreset;
   top[FPSTR(_offPreset)]      = m_offPreset;

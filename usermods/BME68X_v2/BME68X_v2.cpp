@@ -591,11 +591,11 @@
 		 /* Create all the necessary HAD MQTT entrys - see: https://www.home-assistant.io/integrations/sensor.mqtt/#configuration-variables */
 		 DynamicJsonDocument jdoc(700); // json document
 																					 // See: https://www.home-assistant.io/integrations/mqtt/
-		 JsonObject avail = jdoc.createNestedObject(F("avty"));						// 'avty': 'availability'
+		 JsonObject avail = jdoc[F("avty")].as<JsonObject>();						// 'avty': 'availability'
 		 avail[F("topic")] = mqttDeviceTopic + String("/status"); // An MQTT topic subscribed to receive availability (online/offline) updates.
 		 avail[F("payload_available")] = "online";
 		 avail[F("payload_not_available")] = "offline";
-		 JsonObject device = jdoc.createNestedObject(F("device")); // Information about the device this sensor is a part of to tie it into the device registry. Only works when unique_id is set. At least one of identifiers or connections must be present to identify the device.
+		 JsonObject device = jdoc[F("device")].as<JsonObject>(); // Information about the device this sensor is a part of to tie it into the device registry. Only works when unique_id is set. At least one of identifiers or connections must be present to identify the device.
 		 device[F("name")] = serverDescription;
 		 device[F("identifiers")] = String(mqttClientID);
 		 device[F("manufacturer")] = F("WLED");
@@ -634,17 +634,17 @@
 	 JsonObject user = root[F("u")];
  
 	 if (user.isNull())
-		 user = root.createNestedObject(F("u"));
+		 user = root[F("u")].as<JsonObject>();
  
 	 if (!flags.InitSuccessful) {
 		 // Init was not seccessful - let the user know
-		 JsonArray temperature_json = user.createNestedArray(F("BME68X Sensor"));
+		 JsonArray temperature_json = user[F("BME68X Sensor")].as<JsonArray>();
 		 temperature_json.add(F("not found"));
-		 JsonArray humidity_json = user.createNestedArray(F("BMW68x Reason"));
+		 JsonArray humidity_json = user[F("BMW68x Reason")].as<JsonArray>();
 		 humidity_json.add(InfoPageStatusLine);
 	 }
 	 else if (!settings.enabled) {
-		 JsonArray temperature_json = user.createNestedArray(F("BME68X Sensor"));
+		 JsonArray temperature_json = user[F("BME68X Sensor")].as<JsonArray>();
 		 temperature_json.add(F("disabled"));
 	 }
 	 else {
@@ -687,7 +687,7 @@
   */
  void UsermodBME68X::InfoHelper(JsonObject& root, const char* name, const float& sensorvalue, const int8_t& decimals, const char* unit) {
 	 if (decimals > -1) {
-		 JsonArray sub_json = root.createNestedArray(name);
+		 JsonArray sub_json = root[name].as<JsonArray>();
 		 sub_json.add(roundf(sensorvalue * powf(10, decimals)) / powf(10, decimals));
 		 sub_json.add(unit);
 	 }
@@ -702,7 +702,7 @@
   */
  void UsermodBME68X::InfoHelper(JsonObject& root, const char* name, const String& sensorvalue, const bool& status) {
 	 if (status) {
-		 JsonArray sub_json = root.createNestedArray(name);
+		 JsonArray sub_json = root[name].as<JsonArray>();
 		 sub_json.add(sensorvalue);
 	 }
  }
@@ -717,7 +717,7 @@
  void UsermodBME68X::addToConfig(JsonObject& root) {
 	 DEBUG_PRINT(F(UMOD_DEBUG_NAME "Creating configuration pages content: "));
  
-	 JsonObject top = root.createNestedObject(FPSTR(UMOD_NAME));
+	 JsonObject top = root[FPSTR(UMOD_NAME)].as<JsonObject>();
 	 /* general settings */
 	 top[FPSTR(_enabled)] = 						settings.enabled;
 	 top[FPSTR(_nameI2CAdr)] = 					settings.I2cadress;
@@ -732,7 +732,7 @@
 	 top[FPSTR(_nameDelCalib)] = 				flags.DeleteCaibration;
  
 	 /* Digs */
-	 JsonObject sensors_json = top.createNestedObject("Sensors");
+	 JsonObject sensors_json = top["Sensors"].as<JsonObject>();
 	 sensors_json[FPSTR(_nameTemp)] = 			settings.decimals.temperature;
 	 sensors_json[FPSTR(_nameHum)] = 			settings.decimals.humidity;
 	 sensors_json[FPSTR(_namePress)] = 			settings.decimals.pressure;

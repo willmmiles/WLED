@@ -231,20 +231,20 @@ class PWMFanUsermod : public Usermod {
       JsonObject user = root["u"];
       if (user.isNull()) user = root["u"].to<JsonObject>();
 
-      JsonArray infoArr = user[FPSTR(_name)].to<JsonArray>();
-      String uiDomString = F("<button class=\"btn btn-xs\" onclick=\"requestJson({'");
-      uiDomString += FPSTR(_name);
-      uiDomString += F("':{'");
-      uiDomString += FPSTR(_enabled);
-      uiDomString += F("':");
-      uiDomString += enabled ? "false" : "true";
-      uiDomString += F("}});\"><i class=\"icons ");
-      uiDomString += enabled ? "on" : "off";
-      uiDomString += F("\">&#xe08f;</i></button>");
-      infoArr.add(uiDomString);
+      {
+        String uiDomString = F("<button class=\"btn btn-xs\" onclick=\"requestJson({'");
+        uiDomString += FPSTR(_name);
+        uiDomString += F("':{'");
+        uiDomString += FPSTR(_enabled);
+        uiDomString += F("':");
+        uiDomString += enabled ? "false" : "true";
+        uiDomString += F("}});\"><i class=\"icons ");
+        uiDomString += enabled ? "on" : "off";
+        uiDomString += F("\">&#xe08f;</i></button>");
+        user[FPSTR(_name)].to<JsonArray>().add(uiDomString);
+      }
 
       if (enabled) {
-        JsonArray infoArr = user[F("Manual")].to<JsonArray>();
         String uiDomString = F("<div class=\"slider\"><div class=\"sliderwrap il\"><input class=\"noslide\" onchange=\"requestJson({'");
         uiDomString += FPSTR(_name);
         uiDomString += F("':{'");
@@ -252,7 +252,7 @@ class PWMFanUsermod : public Usermod {
         uiDomString += F("':parseInt(this.value)}});\" oninput=\"updateTrail(this);\" max=100 min=0 type=\"range\" value=");
         uiDomString += pwmValuePct;
         uiDomString += F(" /><div class=\"sliderdisplay\"></div></div></div>"); //<output class=\"sliderbubble\"></output>
-        infoArr.add(uiDomString);
+        user[F("Manual")].to<JsonArray>().add(uiDomString);
 
         JsonArray data = user[F("Speed")].to<JsonArray>();
         if (tachoPin >= 0) {

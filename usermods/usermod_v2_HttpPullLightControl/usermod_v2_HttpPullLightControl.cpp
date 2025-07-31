@@ -132,7 +132,7 @@ bool HttpPullLightControl::readFromConfig(JsonObject& root) {
 // This function is called by WLED when the USERMOD config is saved in the frontend
 void HttpPullLightControl::addToConfig(JsonObject& root) {
   // Create a nested object for this usermod
-  JsonObject top = root.createNestedObject(FPSTR(_name));
+  JsonObject top = root[FPSTR(_name)].as<JsonObject>();
 
   // Write the configuration parameters to the nested object
   top[FPSTR(_enabled)] = enabled;

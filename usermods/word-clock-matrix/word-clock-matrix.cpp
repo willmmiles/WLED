@@ -322,7 +322,7 @@ public:
 
     void addToConfig(JsonObject& root)
     {
-      JsonObject modName = root.createNestedObject("id");
+      JsonObject modName = root["id"].as<JsonObject>();
       modName[F("mdns")] = "wled-word-clock";
       modName[F("name")] = "WLED WORD CLOCK";
     }

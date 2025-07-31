@@ -56,7 +56,7 @@ class LD2410Usermod : public Usermod {
     {
       String t = String(F("homeassistant/binary_sensor/")) + mqttClientID + F("/") + name + F("/config");
       
-      StaticJsonDocument<600> doc;
+      JsonDocument doc;
       
       doc[F("name")] = String(serverDescription) + F(" Module");
       doc[F("state_topic")] = topic;
@@ -69,7 +69,7 @@ class LD2410Usermod : public Usermod {
       doc[F("payload_off")] = "OFF";
       doc[F("payload_on")] = "ON";
 
-      JsonObject device = doc.createNestedObject(F("device")); // attach the sensor to the same device
+      JsonObject device = doc[F("device")].as<JsonObject>(); // attach the sensor to the same device
       device[F("name")] = serverDescription;
       device[F("identifiers")] = "wled-sensor-" + String(mqttClientID);
       device[F("manufacturer")] = F("WLED");
@@ -137,10 +137,10 @@ class LD2410Usermod : public Usermod {
     {
       // if "u" object does not exist yet wee need to create it
       JsonObject user = root[F("u")];
-      if (user.isNull()) user = root.createNestedObject(F("u"));
+      if (user.isNull()) user = root[F("u")].as<JsonObject>();
 
-      JsonArray ld2410_sta_json = user.createNestedArray(F("LD2410 Stationary"));
-      JsonArray ld2410_mov_json = user.createNestedArray(F("LD2410 Movement"));
+      JsonArray ld2410_sta_json = user[F("LD2410 Stationary")].as<JsonArray>();
+      JsonArray ld2410_mov_json = user[F("LD2410 Movement")].as<JsonArray>();
       if (!enabled){
         ld2410_sta_json.add(F("disabled"));
         ld2410_mov_json.add(F("disabled"));
@@ -157,7 +157,7 @@ class LD2410Usermod : public Usermod {
 
     void addToConfig(JsonObject& root)
     {
-      JsonObject top = root.createNestedObject(FPSTR(_name));
+      JsonObject top = root[FPSTR(_name)].as<JsonObject>();
       top[FPSTR(_enabled)] = enabled;
       //save these vars persistently whenever settings are saved
       top["uart_rx_pin"] = default_uart_rx;

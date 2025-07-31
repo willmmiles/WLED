@@ -25,7 +25,7 @@ void Usermod_BH1750::_createMqttSensor(const String &name, const String &topic, 
 {
   String t = String(F("homeassistant/sensor/")) + mqttClientID + F("/") + name + F("/config");
   
-  StaticJsonDocument<600> doc;
+  JsonDocument doc;
   
   doc[F("name")] = String(serverDescription) + " " + name;
   doc[F("state_topic")] = topic;
@@ -36,7 +36,7 @@ void Usermod_BH1750::_createMqttSensor(const String &name, const String &topic, 
     doc[F("device_class")] = deviceClass;
   doc[F("expire_after")] = 1800;
 
-  JsonObject device = doc.createNestedObject(F("device")); // attach the sensor to the same device
+  JsonObject device = doc[F("device")].as<JsonObject>(); // attach the sensor to the same device
   device[F("name")] = serverDescription;
   device[F("identifiers")] = "wled-sensor-" + String(mqttClientID);
   device[F("manufacturer")] = F(WLED_BRAND);
@@ -106,9 +106,9 @@ void Usermod_BH1750::addToJsonInfo(JsonObject &root)
 {
   JsonObject user = root[F("u")];
   if (user.isNull())
-    user = root.createNestedObject(F("u"));
+    user = root[F("u")].as<JsonObject>();
 
-  JsonArray lux_json = user.createNestedArray(F("Luminance"));
+  JsonArray lux_json = user[F("Luminance")].as<JsonArray>();
   if (!enabled) {
     lux_json.add(F("disabled"));
   } else if (!sensorFound) {
@@ -131,7 +131,7 @@ void Usermod_BH1750::addToJsonInfo(JsonObject &root)
 void Usermod_BH1750::addToConfig(JsonObject &root)
 {
   // we add JSON object.
-  JsonObject top = root.createNestedObject(FPSTR(_name)); // usermodname
+  JsonObject top = root[FPSTR(_name)].as<JsonObject>(); // usermodname
   top[FPSTR(_enabled)] = enabled;
   top[FPSTR(_maxReadInterval)] = maxReadingInterval;
   top[FPSTR(_minReadInterval)] = minReadingInterval;

@@ -266,8 +266,8 @@ class RgbRotaryEncoderUsermod : public Usermod
       getJsonValue(top[FPSTR(_ebIo)], ebIo);
       getJsonValue(top[FPSTR(_stepsPerClick)], stepsPerClick);
       getJsonValue(top[FPSTR(_incrementPerClick)], incrementPerClick);
-      ledMode = top[FPSTR(_ledMode)] > 0 && top[FPSTR(_ledMode)] < 4 ? top[FPSTR(_ledMode)] : ledMode;
-      ledBrightness = top[FPSTR(_ledBrightness)] > 0 && top[FPSTR(_ledBrightness)] <= 255 ? top[FPSTR(_ledBrightness)] : ledBrightness;
+      ledMode = top[FPSTR(_ledMode)].as<byte>() > 0 && top[FPSTR(_ledMode)].as<byte>() < 4 ? top[FPSTR(_ledMode)].as<byte>() : ledMode;
+      ledBrightness = top[FPSTR(_ledBrightness)].as<byte>() > 0 && top[FPSTR(_ledBrightness)].as<byte>() <= 255 ? top[FPSTR(_ledBrightness)].as<byte>() : ledBrightness;
 
       if (!initDone) {
         // First run: reading from cfg.json

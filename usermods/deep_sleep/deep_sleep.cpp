@@ -151,7 +151,7 @@ class DeepSleepUsermod : public Usermod {
 
 void addToConfig(JsonObject& root) override
     {
-      JsonObject top = root.createNestedObject(FPSTR(_name));
+      JsonObject top = root[FPSTR(_name)].as<JsonObject>();
       top[FPSTR(_enabled)] = enabled;
       //save these vars persistently whenever settings are saved
       top["gpio"] = wakeupPin;

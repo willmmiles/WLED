@@ -314,9 +314,9 @@ class PixelsDiceTrayUsermod : public Usermod {
   void addToJsonInfo(JsonObject& root) override {
     JsonObject user = root["u"];
     if (user.isNull())
-      user = root.createNestedObject("u");
+      user = root["u"].as<JsonObject>();
 
-    JsonArray lightArr = user.createNestedArray("DiceTray");  // name
+    JsonArray lightArr = user["DiceTray"].as<JsonArray>();  // name
     lightArr.add(enabled ? F("installed") : F("disabled"));   // unit
   }
 
@@ -358,13 +358,13 @@ class PixelsDiceTrayUsermod : public Usermod {
    * deserialization in order to use custom settings!
    */
   void addToConfig(JsonObject& root) override {
-    JsonObject top = root.createNestedObject("DiceTray");
+    JsonObject top = root["DiceTray"].as<JsonObject>();
     top["ble_scan_duration"] = ble_scan_duration_sec;
     top["die_0"] = dice_settings.configured_die_names[0];
     top["die_1"] = dice_settings.configured_die_names[1];
 #if USING_TFT_DISPLAY
     top["rotation"] = rotation;
-    JsonArray pins = top.createNestedArray("pin");
+    JsonArray pins = top["pin"].as<JsonArray>();
     pins.add(TFT_CS);
     pins.add(TFT_DC);
     pins.add(TFT_RST);
@@ -425,7 +425,7 @@ class PixelsDiceTrayUsermod : public Usermod {
       return false;
     }
 
-    if (top.containsKey("die_0") && top.containsKey("die_1")) {
+    if (top["die_0"].is<std::string>() && top["die_1"].is<std::string>()) {
       const std::array<const std::string, MAX_NUM_DICE> new_die_names{
           top["die_0"], top["die_1"]};
       UpdateDieNames(new_die_names);

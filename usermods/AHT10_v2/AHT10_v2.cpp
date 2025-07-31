@@ -86,7 +86,7 @@ private:
   {
     String t = String(F("homeassistant/sensor/")) + mqttClientID + "/" + name + F("/config");
 
-    StaticJsonDocument<600> doc;
+    JsonDocument doc;
 
     doc[F("name")] = name;
     doc[F("state_topic")] = topic;
@@ -97,7 +97,7 @@ private:
       doc[F("device_class")] = deviceClass;
     doc[F("expire_after")] = 1800;
 
-    JsonObject device = doc.createNestedObject(F("device")); // attach the sensor to the same device
+    JsonObject device = doc[F("device")].to<JsonObject>(); // attach the sensor to the same device
     device[F("name")] = serverDescription;
     device[F("identifiers")] = "wled-sensor-" + String(mqttClientID);
     device[F("manufacturer")] = F(WLED_BRAND);
@@ -187,18 +187,18 @@ public:
     // if "u" object does not exist yet wee need to create it
     JsonObject user = root["u"];
     if (user.isNull())
-      user = root.createNestedObject("u");
+      user = root["u"].to<JsonObject>();
 
 #ifdef USERMOD_AHT10_DEBUG
-    JsonArray temp = user.createNestedArray(F("AHT last loop"));
+    JsonArray temp = user[F("AHT last loop")].as<JsonArray>();
     temp.add(_lastLoopCheck);
 
-    temp = user.createNestedArray(F("AHT last status"));
+    temp = user[F("AHT last status")].as<JsonArray>();
     temp.add(_lastStatus);
 #endif
 
-    JsonArray jsonTemp = user.createNestedArray(F("Temperature"));
-    JsonArray jsonHumidity = user.createNestedArray(F("Humidity"));
+    JsonArray jsonTemp = user[F("Temperature")].as<JsonArray>();
+    JsonArray jsonHumidity = user[F("Humidity")].as<JsonArray>();
 
     if (_lastLoopCheck == 0)
     {
@@ -224,7 +224,7 @@ public:
 
   void addToConfig(JsonObject &root)
   {
-    JsonObject top = root.createNestedObject(FPSTR(_name));
+    JsonObject top = root[FPSTR(_name)].as<JsonObject>();
     top[F("Enabled")] = _settingEnabled;
     top[F("I2CAddress")] = static_cast<uint8_t>(_i2cAddress);
     top[F("SensorType")] = _ahtType;

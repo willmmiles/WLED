@@ -72,17 +72,17 @@ public:
       return; // prevent crash on boot applyPreset()
     JsonObject user = root["u"];
     if (user.isNull())
-      user = root.createNestedObject("u");
+      user = root["u"].as<JsonObject>();
 
-    JsonArray switchArr = user.createNestedArray("RF433 Last Received"); // name
+    JsonArray switchArr = user["RF433 Last Received"].as<JsonArray>(); // name
     switchArr.add(lastCommand);
   }
 
   void addToConfig(JsonObject &root)
   {
-    JsonObject top = root.createNestedObject(FPSTR(_modName)); // usermodname
+    JsonObject top = root[FPSTR(_modName)].as<JsonObject>(); // usermodname
     top[FPSTR(_modEnabled)] = modEnabled;
-    JsonArray pinArray = top.createNestedArray("pin");
+    JsonArray pinArray = top["pin"].as<JsonArray>();
     pinArray.add(receivePin);
 
     DEBUG_PRINTLN(F(" config saved."));

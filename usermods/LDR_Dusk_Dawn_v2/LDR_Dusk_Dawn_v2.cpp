@@ -87,7 +87,7 @@ class LDR_Dusk_Dawn_v2 : public Usermod {
     }
 
   void addToConfig(JsonObject& root) {
-      JsonObject top = root.createNestedObject(FPSTR(_name));
+      JsonObject top = root[FPSTR(_name)].as<JsonObject>();
       top["Enabled"] = ldrEnabled;
       top["LDR Pin"] = ldrPin;
       top["Threshold Minutes"] = ldrThresholdMinutes;
@@ -118,28 +118,28 @@ class LDR_Dusk_Dawn_v2 : public Usermod {
   void addToJsonInfo(JsonObject& root) {
       // If "u" object does not exist yet we need to create it
       JsonObject user = root["u"];
-      if (user.isNull()) user = root.createNestedObject("u");
+      if (user.isNull()) user = root["u"].as<JsonObject>();
 
-      JsonArray LDR_Enabled = user.createNestedArray("LDR dusk/dawn enabled");
+      JsonArray LDR_Enabled = user["LDR dusk/dawn enabled"].as<JsonArray>();
       LDR_Enabled.add(ldrEnabled);
       if (!ldrEnabled) return; // do not add more if usermod is disabled
 
-      JsonArray LDR_Reading = user.createNestedArray("LDR reading");
+      JsonArray LDR_Reading = user["LDR reading"].as<JsonArray>();
       LDR_Reading.add(ldrReading);
 
-      JsonArray LDR_State = user.createNestedArray("LDR turned LEDs on");
+      JsonArray LDR_State = user["LDR turned LEDs on"].as<JsonArray>();
       LDR_State.add(bool(ldrLEDState));
 
       // Optional debug information:
-      //JsonArray LDR_On_Count = user.createNestedArray("LDR on count");
+      //JsonArray LDR_On_Count = user["LDR on count"].as<JsonArray>();
       //LDR_On_Count.add(ldrOnCount);
 
-      //JsonArray LDR_Off_Count = user.createNestedArray("LDR off count");
+      //JsonArray LDR_Off_Count = user["LDR off count"].as<JsonArray>();
       //LDR_Off_Count.add(ldrOffCount);
 
       //bool pinValid = ((ldrPin >= 0) && (digitalPinToAnalogChannel(ldrPin) >= 0));
       //if (PinManager::getPinOwner(ldrPin) != PinOwner::UM_LDR_DUSK_DAWN) pinValid = false;
-      //JsonArray LDR_valid = user.createNestedArray(F("LDR pin"));
+      //JsonArray LDR_valid = user[F("LDR pin")].as<JsonArray>();
       //LDR_valid.add(ldrPin);
       //LDR_valid.add(pinValid ? F(" OK"): F(" invalid"));
   }
