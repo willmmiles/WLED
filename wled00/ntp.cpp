@@ -192,7 +192,7 @@ void handleNetworkTime()
     if (millis() - ntpPacketSentTime > 10000)
     {
       #ifdef ARDUINO_ARCH_ESP32   // I had problems using udp.flush() on 8266
-      while (ntpUdp.parsePacket() > 0) ntpUdp.flush(); // flush any existing packets
+      while (ntpUdp.parsePacket() > 0) ntpUdp.clear(); // flush any existing packets
       #endif
       sendNTPPacket();
       ntpPacketSentTime = millis();
@@ -255,7 +255,7 @@ static bool checkNTPResponse()
   int cb = ntpUdp.parsePacket();
   if (cb < NTP_MIN_PACKET_SIZE) {
     #ifdef ARDUINO_ARCH_ESP32   // I had problems using udp.flush() on 8266
-    if (cb > 0) ntpUdp.flush();  // this avoids memory leaks on esp32
+    if (cb > 0) ntpUdp.clear();  // this avoids memory leaks on esp32
     #endif
     return false;
   }

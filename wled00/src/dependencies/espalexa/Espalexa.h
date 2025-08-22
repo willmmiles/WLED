@@ -215,7 +215,7 @@ private:
   void serveDescription()
   {
     EA_DEBUGLN("# Responding to description.xml ... #\n");
-    IPAddress localIP = Network.localIP();
+    IPAddress localIP = NetworkInfo::localIP();
     char s[16];
     snprintf(s, sizeof(s), "%d.%d.%d.%d", localIP[0], localIP[1], localIP[2], localIP[3]);
     char buf[1024];
@@ -251,10 +251,10 @@ private:
     #ifdef ESPALEXA_ASYNC
     if (serverAsync == nullptr) {
       serverAsync = new AsyncWebServer(80);
-      serverAsync->onNotFound([=](AsyncWebServerRequest *request){server = request; serveNotFound();});
+      serverAsync->onNotFound([this](AsyncWebServerRequest *request){server = request; serveNotFound();});
     }
     
-    serverAsync->onRequestBody([=](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total){
+    serverAsync->onRequestBody([this](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total){
       char b[len +1];
       b[len] = 0;
       memcpy(b, data, len);
@@ -263,9 +263,9 @@ private:
       EA_DEBUGLN(body);
     });
     #ifndef ESPALEXA_NO_SUBPAGE
-    serverAsync->on("/espalexa", HTTP_GET, [=](AsyncWebServerRequest *request){server = request; servePage();});
+    serverAsync->on("/espalexa", HTTP_GET, [this](AsyncWebServerRequest *request){server = request; servePage();});
     #endif
-    serverAsync->on("/description.xml", HTTP_GET, [=](AsyncWebServerRequest *request){server = request; serveDescription();});
+    serverAsync->on("/description.xml", HTTP_GET, [this](AsyncWebServerRequest *request){server = request; serveDescription();});
     serverAsync->begin();
     
     #else
@@ -289,7 +289,7 @@ private:
   //respond to UDP SSDP M-SEARCH
   void respondToSearch()
   {
-    IPAddress localIP = Network.localIP();
+    IPAddress localIP = NetworkInfo::localIP();
     char s[16];
     sprintf(s, "%d.%d.%d.%d", localIP[0], localIP[1], localIP[2], localIP[3]);
 
@@ -344,7 +344,7 @@ public:
     #ifdef ARDUINO_ARCH_ESP32
     udpConnected = espalexaUdp.beginMulticast(IPAddress(239, 255, 255, 250), 1900);
     #else
-    udpConnected = espalexaUdp.beginMulticast(Network.localIP(), IPAddress(239, 255, 255, 250), 1900);
+    udpConnected = espalexaUdp.beginMulticast(NetworkInfo::localIP(), IPAddress(239, 255, 255, 250), 1900);
     #endif
 
     if (udpConnected){
@@ -379,7 +379,7 @@ public:
     espalexaUdp.read(packetBuffer, packetSize);
     packetBuffer[packetSize] = 0;
   
-    espalexaUdp.flush();
+    espalexaUdp.clear();
     if (!discoverable) return; //do not reply to M-SEARCH if not discoverable
   
     const char* request = (const char *) packetBuffer;

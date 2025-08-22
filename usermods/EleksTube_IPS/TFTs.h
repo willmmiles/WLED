@@ -120,7 +120,7 @@ private:
     fs::File bmpFS;
 
     // Open requested file on SD card
-    bmpFS = WLED_FS.open(filename, "r");
+    bmpFS = .open(filename, "r");
 
     uint32_t seekOffset, headerSize, paletteSize = 0;
     int16_t row;

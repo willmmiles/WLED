@@ -8,9 +8,8 @@
 #ifndef Network_h
 #define Network_h
 
-class NetworkClass
+namespace NetworkInfo
 {
-public:
   IPAddress localIP();
   IPAddress subnetMask();
   IPAddress gatewayIP();
@@ -18,7 +17,5 @@ public:
   bool isConnected();
   bool isEthernet();
 };
-
-extern NetworkClass Network;
 
 #endif
