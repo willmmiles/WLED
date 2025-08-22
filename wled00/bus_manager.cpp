@@ -9,6 +9,14 @@
 #include "src/dependencies/network/Network.h" // for isConnected() (& WiFi)
 #include "driver/ledc.h"
 #include "soc/ledc_struct.h"
+  #if !(defined(CONFIG_IDF_TARGET_ESP32C3) || defined(CONFIG_IDF_TARGET_ESP32S2) || defined(CONFIG_IDF_TARGET_ESP32S3))
+    #define LEDC_MUTEX_LOCK()    do {} while (xSemaphoreTake(_ledc_sys_lock, portMAX_DELAY) != pdPASS)
+    #define LEDC_MUTEX_UNLOCK()  xSemaphoreGive(_ledc_sys_lock)
+    extern SemaphoreHandle_t _ledc_sys_lock;
+  #else
+    #define LEDC_MUTEX_LOCK()
+    #define LEDC_MUTEX_UNLOCK()
+  #endif
 #endif
 #ifdef ESP8266
 #include "core_esp8266_waveform.h"
@@ -453,8 +461,7 @@ BusPwm::BusPwm(const BusConfig &bc)
       pinMode(_pins[i], OUTPUT);
       #else
       unsigned channel = _ledcStart + i;
-      ledcSetup(channel, _frequency, _depth - (dithering*4)); // with dithering _frequency doesn't really matter as resolution is 8 bit
-      ledcAttachPin(_pins[i], channel);
+      ledcAttachChannel(_pins[i], _frequency, _depth - (dithering*4), channel); // with dithering _frequency doesn't really matter as resolution is 8 bit
       // LEDC timer reset credit @dedehai
       uint8_t group = (channel / 8), timer = ((channel / 2) % 4); // same fromula as in ledcSetup()
       ledc_timer_rst((ledc_mode_t)group, (ledc_timer_t)timer); // reset timer so all timers are almost in sync (for phase shift)
@@ -624,7 +631,7 @@ void BusPwm::deallocatePins() {
     #ifdef ESP8266
     digitalWrite(_pins[i], LOW); //turn off PWM interrupt
     #else
-    if (_ledcStart < WLED_MAX_ANALOG_CHANNELS) ledcDetachPin(_pins[i]);
+    if (_ledcStart < WLED_MAX_ANALOG_CHANNELS) ledcDetach(_pins[i]);
     #endif
   }
   #ifdef ARDUINO_ARCH_ESP32
@@ -745,7 +752,7 @@ size_t BusNetwork::getPins(uint8_t* pinArray) const {
 #ifdef ARDUINO_ARCH_ESP32
 void BusNetwork::resolveHostname() {
   static unsigned long nextResolve = 0;
-  if (Network.isConnected() && millis() > nextResolve && _hostname.length() > 0) {
+  if (NetworkInfo::isConnected() && millis() > nextResolve && _hostname.length() > 0) {
     nextResolve = millis() + 600000; // resolve only every 10 minutes
     IPAddress clnt;
     if (strlen(cmDNS) > 0) clnt = MDNS.queryHost(_hostname);

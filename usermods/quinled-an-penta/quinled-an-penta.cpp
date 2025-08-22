@@ -234,11 +234,11 @@ class QuinLEDAnPentaUsermod : public Usermod
 
     bool oledCheckForNetworkChanges()
     {
-      if (lastKnownNetworkConnected != Network.isConnected() || lastKnownIp != Network.localIP()
+      if (lastKnownNetworkConnected != NetworkInfo::isConnected() || lastKnownIp != NetworkInfo::localIP()
           || lastKnownWiFiConnected != WiFi.isConnected() || lastKnownSsid != WiFi.SSID()
           || lastKnownApActive != apActive || lastKnownApSsid != apSSID || lastKnownApPass != apPass || lastKnownApChannel != apChannel) {
-        lastKnownNetworkConnected = Network.isConnected();
-        lastKnownIp = Network.localIP();
+        lastKnownNetworkConnected = NetworkInfo::isConnected();
+        lastKnownIp = NetworkInfo::localIP();
         lastKnownWiFiConnected = WiFi.isConnected();
         lastKnownSsid = WiFi.SSID();
         lastKnownApActive = apActive;

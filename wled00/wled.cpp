@@ -110,7 +110,7 @@ void WLED::loop()
   {
     if (apActive) dnsServer.processNextRequest();
     #ifdef WLED_ENABLE_AOTA
-    if (Network.isConnected() && aOtaEnabled && !otaLock && correctPIN) ArduinoOTA.handle();
+    if (NetworkInfo::isConnected() && aOtaEnabled && !otaLock && correctPIN) ArduinoOTA.handle();
     #endif
     handleNightlight();
     yield();
@@ -312,7 +312,7 @@ void WLED::loop()
     lastWifiState = WiFi.status();
     DEBUG_PRINTF_P(PSTR("State time: %lu\n"),        wifiStateChangedTime);
     DEBUG_PRINTF_P(PSTR("NTP last sync: %lu\n"),     ntpLastSyncTime);
-    DEBUG_PRINTF_P(PSTR("Client IP: %u.%u.%u.%u\n"), Network.localIP()[0], Network.localIP()[1], Network.localIP()[2], Network.localIP()[3]);
+    DEBUG_PRINTF_P(PSTR("Client IP: %u.%u.%u.%u\n"), NetworkInfo::localIP()[0], NetworkInfo::localIP()[1], NetworkInfo::localIP()[2], NetworkInfo::localIP()[3]);
     if (loops > 0) { // avoid division by zero
       DEBUG_PRINTF_P(PSTR("Loops/sec: %u\n"),         loops / 30);
       DEBUG_PRINTF_P(PSTR("Loop time[ms]: %u/%lu\n"), avgLoopMillis/loops,    maxLoopMillis);
@@ -806,7 +806,7 @@ void WLED::initInterfaces()
   DEBUG_PRINTLN(F("Init STA interfaces"));
 
 #ifndef WLED_DISABLE_HUESYNC
-  IPAddress ipAddress = Network.localIP();
+  IPAddress ipAddress = NetworkInfo::localIP();
   if (hueIP[0] == 0) {
     hueIP[0] = ipAddress[0];
     hueIP[1] = ipAddress[1];
@@ -892,7 +892,7 @@ void WLED::handleConnection()
     if (stac != stacO) {
       stacO = stac;
       DEBUG_PRINTF_P(PSTR("Connected AP clients: %d\n"), (int)stac);
-      if (!Network.isConnected() && wifiConfigured) {        // trying to connect, but not connected
+      if (!NetworkInfo::isConnected() && wifiConfigured) {        // trying to connect, but not connected
         if (stac)
           WiFi.disconnect();        // disable search so that AP can work
         else
@@ -901,7 +901,7 @@ void WLED::handleConnection()
     }
   }
 
-  if (!Network.isConnected()) {
+  if (!NetworkInfo::isConnected()) {
     if (interfacesInited) {
       if (scanDone && multiWiFi.size() > 1) {
         DEBUG_PRINTLN(F("WiFi scan initiated on disconnect."));
@@ -945,7 +945,7 @@ void WLED::handleConnection()
   } else if (!interfacesInited) { //newly connected
     DEBUG_PRINTLN();
     DEBUG_PRINT(F("Connected! IP address: "));
-    DEBUG_PRINTLN(Network.localIP());
+    DEBUG_PRINTLN(NetworkInfo::localIP());
     #ifdef ARDUINO_ARCH_ESP32
     esp_wifi_set_storage(WIFI_STORAGE_RAM); // disable further updates of NVM credentials to prevent wear on flash (same as WiFi.persistent(false) but updates immediately, arduino wifi deficiency workaround)
     #endif
@@ -970,7 +970,7 @@ void WLED::handleConnection()
 }
 
 // If status LED pin is allocated for other uses, does nothing
-// else blink at 1Hz when Network.isConnected() is false (no WiFi, ?? no Ethernet ??)
+// else blink at 1Hz when NetworkInfo::isConnected() is false (no WiFi, ?? no Ethernet ??)
 // else blink at 2Hz when MQTT is enabled but not connected
 // else turn the status LED off
 #if defined(STATUSLED)
@@ -984,7 +984,7 @@ void WLED::handleStatusLED()
   }
   #endif
 
-  if (Network.isConnected()) {
+  if (NetworkInfo::isConnected()) {
     c = RGBW32(0,255,0,0);
     ledStatusType = 2;
   } else if (WLED_MQTT_CONNECTED) {
