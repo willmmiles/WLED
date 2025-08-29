@@ -716,7 +716,7 @@ void *realloc_malloc(void *ptr, size_t size) {
 // checks if the ESP reboots multiple times due to a crash or watchdog timeout
 // if a bootloop is detected: restore settings from backup, then reset settings, then switch boot image (and repeat)
 
-#define BOOTLOOP_INTERVAL_MILLIS 5000  // time limit between crashes: 5 seconds
+#define BOOTLOOP_INTERVAL_MILLIS 120000  // time limit between crashes: 120 seconds (2 minutes)
 #define BOOTLOOP_THRESHOLD       5     // number of consecutive crashes to trigger bootloop detection
 #define BOOTLOOP_ACTION_RESTORE  0     // default action: restore config from /bkp.cfg.json
 #define BOOTLOOP_ACTION_RESET    1     // if restore does not work, reset config (rename /cfg.json to /rst.cfg.json)
