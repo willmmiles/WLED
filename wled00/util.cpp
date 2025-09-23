@@ -6,6 +6,8 @@
 #elif ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(4, 4, 0)
 #include "esp32/rtc.h"      // for bootloop detection
 #include <Update.h>
+#elif ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(3, 3, 0)
+#include <soc/rtc.h>
 #endif
 
 
