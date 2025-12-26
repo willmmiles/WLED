@@ -216,4 +216,7 @@ class GyroSurge : public Usermod {
     }
 };
 
+static GyroSurge gyrosurge;
+REGISTER_USERMOD(gyrosurge);
+
 const char GyroSurge::_name[] PROGMEM = "GyroSurge";
