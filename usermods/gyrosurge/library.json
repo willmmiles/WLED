@@ -1,8 +1,7 @@
 {
-  "name": "mpu6050_imu",
+  "name": "gyrosurge",
   "build": { "libArchive": false},
   "dependencies": {
-    "electroniccats/MPU6050":"1.0.1",
     "bolderflight/Bolder Flight Systems Eigen":"^3.0.0"
   }
 }
