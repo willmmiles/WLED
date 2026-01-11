@@ -245,7 +245,7 @@
 #endif
 
 // RMT driver selection
-#if !defined(WLED_USE_SHARED_RMT)  && !defined(__riscv)
+#if !defined(WLED_USE_SHARED_RMT)
 #include <NeoEsp32RmtHIMethod.h>
 #define NeoEsp32RmtMethod(x) NeoEsp32RmtHIN ## x ## Method
 #else
