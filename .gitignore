@@ -30,3 +30,8 @@ wled-update.sh
 /wled00/wled00.ino.cpp
 /wled00/html_*.h
 /wled00/js_*.h
+
+# Ignore esp-idf generated files.
+# This is not recommended practice, but seems to work as "use the upstream defaults" for now
+dependencies.lock
+sdkconfig.*
