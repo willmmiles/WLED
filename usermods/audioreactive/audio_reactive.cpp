@@ -224,8 +224,8 @@ void FFTcode(void * parameter)
   if (vImag == nullptr) vImag = (float*) calloc(samplesFFT, sizeof(float));
   if ((vReal == nullptr) || (vImag == nullptr)) {
     // something went wrong
-    if (vReal) free(vReal); vReal = nullptr;
-    if (vImag) free(vImag); vImag = nullptr;
+    if (vReal) { free(vReal); vReal = nullptr; }
+    if (vImag) { free(vImag); vImag = nullptr; }
     return;
   }
   // Create FFT object with weighing factor storage
@@ -1232,7 +1232,7 @@ class AudioReactive : public Usermod {
         #endif
 
         case 254: // dummy "network receive only" mode
-          if (audioSource) delete audioSource; audioSource = nullptr;
+          if (audioSource) { delete audioSource; audioSource = nullptr; }
           disableSoundProcessing = true;
           audioSyncEnabled = 2; // force udp sound receive mode
           enabled = true;
@@ -1241,7 +1241,7 @@ class AudioReactive : public Usermod {
         case 255: // 255 = -1 = no audio source
           // falls through to default
         default:
-          if (audioSource) delete audioSource; audioSource = nullptr;
+          if (audioSource) {delete audioSource; audioSource = nullptr; }
           disableSoundProcessing = true;
           enabled = false;
         break;
