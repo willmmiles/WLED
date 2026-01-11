@@ -187,8 +187,14 @@ void sendDataWs(AsyncWebSocketClient * client)
 
 bool sendLiveLedsWs(uint32_t wsClient)
 {
-  AsyncWebSocketClient * wsc = ws.client(wsClient);
-  if (!wsc || wsc->queueLength() > 0) return false; //only send if queue free
+  static AsyncWebSocketSharedBuffer wsBuf;
+
+  std::shared_ptr<AsyncWebSocketClient> wsc = ws.client(wsClient);
+  if (!wsc) {
+    wsBuf.clear();  // release buffer
+    return false;
+  }
+  if (wsBuf.use_count() > 1) return false; //only send if we aren't still sending
 
   size_t used = strip.getLengthTotal();
 #ifdef ESP8266
@@ -210,7 +216,7 @@ bool sendLiveLedsWs(uint32_t wsClient)
 #endif
   size_t bufSize = pos + (used/n)*3;
 
-  AsyncWebSocketBuffer wsBuf(bufSize);
+  if (wsBuf.size() != bufSize) wsBuf = decltype(wsBuf)(bufSize);  // reallocate
   if (!wsBuf) return false; //out of memory
   uint8_t* buffer = reinterpret_cast<uint8_t*>(wsBuf.data());
   if (!buffer) return false; //out of memory
@@ -240,7 +246,8 @@ bool sendLiveLedsWs(uint32_t wsClient)
     buffer[pos++] = bri ? qadd8(w, b) : 0; //B
   }
 
-  wsc->binary(std::move(wsBuf));
+  // Send the message with a reference to our buffer
+  wsc->message(new AsyncWebSocketMultiMessage(wsBuf, WS_BINARY));
   return true;
 }
 
