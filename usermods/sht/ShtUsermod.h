@@ -69,3 +69,5 @@ class ShtUsermod : public Usermod
 
     uint16_t getId() { return USERMOD_ID_SHT; }
 };
+
+extern ShtUsermod sht_mod;

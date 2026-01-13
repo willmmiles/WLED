@@ -44,12 +44,6 @@ class PWMFanUsermod : public Usermod {
     #endif
     bool lockFan = false;
 
-    #ifdef USERMOD_DALLASTEMPERATURE
-    UsermodTemperature* tempUM;
-    #elif defined(USERMOD_SHT)
-    ShtUsermod* tempUM;
-    #endif
-
     // configurable parameters
     int8_t  tachoPin          = TACHO_PIN;
     int8_t  pwmPin            = PWM_PIN;
@@ -158,11 +152,11 @@ class PWMFanUsermod : public Usermod {
     }
 
     float getActualTemperature(void) {
-      #if defined(USERMOD_DALLASTEMPERATURE) || defined(USERMOD_SHT)
-      if (tempUM != nullptr)
-        return tempUM->getTemperatureC();
+      #if defined(USERMOD_DALLASTEMPERATURE)
+      return temperature_mod.getTemperatureC();
+      #elif defined(USERMOD_SHT)
+      return sht_mod.getTemperatureC();
       #endif
-      return -127.0f;
     }
 
     void setFanPWMbasedOnTemperature(void) {
@@ -193,12 +187,6 @@ class PWMFanUsermod : public Usermod {
     // gets called once at boot. Do all initialization that doesn't depend on
     // network here
     void setup() override {
-      #ifdef USERMOD_DALLASTEMPERATURE   
-      // This Usermod requires Temperature usermod
-      tempUM = (UsermodTemperature*) UsermodManager::lookup(USERMOD_ID_TEMPERATURE);
-      #elif defined(USERMOD_SHT)
-      tempUM = (ShtUsermod*) UsermodManager::lookup(USERMOD_ID_SHT);
-      #endif
       initTacho();
       initPWMfan();
       updateFanSpeed((minPWMValuePct * 255) / 100); // inital fan speed

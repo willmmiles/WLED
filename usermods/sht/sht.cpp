@@ -411,5 +411,5 @@ const char* ShtUsermod::getUnitString() {
   return unitOfTemp ? "°F" : "°C";
 }
 
-static ShtUsermod sht;
-REGISTER_USERMOD(sht);
+ShtUsermod sht_mod;
+REGISTER_USERMOD(sht_mod);

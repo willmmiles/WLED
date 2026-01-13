@@ -354,8 +354,6 @@ const char *UsermodTemperature::getTemperatureUnit() {
   return degC ? "°C" : "°F";
 }
 
-UsermodTemperature* UsermodTemperature::_instance = nullptr;
-
 // strings to reduce flash memory usage (used more than twice)
 const char UsermodTemperature::_name[]         PROGMEM = "Temperature";
 const char UsermodTemperature::_enabled[]      PROGMEM = "enabled";
@@ -372,12 +370,12 @@ const char UsermodTemperature::_data_fx[]      PROGMEM = "Temperature@Min,Max;;!
 static uint16_t mode_temperature() {
   float low  = roundf(mapf((float)SEGMENT.speed, 0.f, 255.f, -150.f, 150.f));    // default: 15°C, range: -15°C to 15°C
   float high = roundf(mapf((float)SEGMENT.intensity, 0.f, 255.f, 300.f, 600.f));  // default: 30°C, range 30°C to 60°C
-  float temp = constrain(UsermodTemperature::getInstance()->getTemperatureC()*10.f, low, high);   // get a little better resolution (*10)
+  float temp = constrain(temperature_mod.getTemperatureC()*10.f, low, high);   // get a little better resolution (*10)
   unsigned i = map(roundf(temp), (unsigned)low, (unsigned)high, 0, 248);
   SEGMENT.fill(SEGMENT.color_from_palette(i, false, false, 255));
   return FRAMETIME;
 }
 
 
-static UsermodTemperature temperature;
-REGISTER_USERMOD(temperature);
+UsermodTemperature temperature_mod;
+REGISTER_USERMOD(temperature_mod);
