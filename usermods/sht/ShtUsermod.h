@@ -69,3 +69,8 @@ class ShtUsermod : public Usermod
 
     uint16_t getId() { return USERMOD_ID_SHT; }
 };
+
+// External API
+namespace Temperature {
+    float getTemperatureC();
+}

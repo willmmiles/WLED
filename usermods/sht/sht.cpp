@@ -413,3 +413,9 @@ const char* ShtUsermod::getUnitString() {
 
 static ShtUsermod sht;
 REGISTER_USERMOD(sht);
+
+
+/**
+ * External API
+ */
+float Temperature::getTemperatureC() { return sht.getTemperatureC(); }

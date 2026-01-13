@@ -1,13 +1,9 @@
 #include "wled.h"
 
-#if defined(USERMOD_DALLASTEMPERATURE) 
-#include "UsermodTemperature.h"
-#elif defined(USERMOD_SHT)
-#include "ShtUsermod.h"
-#else
-#error The "PWM fan" usermod requires "Dallas Temeprature" or "SHT" usermod to function properly.
-#endif
-
+// Function reference to read temperature; some other usermod must provide this
+namespace Temperature {
+  float getTemperatureC();
+}
 
 
 // PWM & tacho code curtesy of @KlausMu
@@ -43,12 +39,6 @@ class PWMFanUsermod : public Usermod {
     uint8_t pwmChannel = 255;
     #endif
     bool lockFan = false;
-
-    #ifdef USERMOD_DALLASTEMPERATURE
-    UsermodTemperature* tempUM;
-    #elif defined(USERMOD_SHT)
-    ShtUsermod* tempUM;
-    #endif
 
     // configurable parameters
     int8_t  tachoPin          = TACHO_PIN;
@@ -157,16 +147,8 @@ class PWMFanUsermod : public Usermod {
       #endif
     }
 
-    float getActualTemperature(void) {
-      #if defined(USERMOD_DALLASTEMPERATURE) || defined(USERMOD_SHT)
-      if (tempUM != nullptr)
-        return tempUM->getTemperatureC();
-      #endif
-      return -127.0f;
-    }
-
     void setFanPWMbasedOnTemperature(void) {
-      float temp = getActualTemperature();
+      float temp = Temperature::getTemperatureC();
       // dividing minPercent and maxPercent into equal pwmvalue sizes
       int pwmStepSize = ((maxPWMValuePct - minPWMValuePct) * _pwmMaxValue) / (_pwmMaxStepCount*100);
       int pwmStep = calculatePwmStep(temp - targetTemperature);
@@ -193,12 +175,6 @@ class PWMFanUsermod : public Usermod {
     // gets called once at boot. Do all initialization that doesn't depend on
     // network here
     void setup() override {
-      #ifdef USERMOD_DALLASTEMPERATURE   
-      // This Usermod requires Temperature usermod
-      tempUM = (UsermodTemperature*) UsermodManager::lookup(USERMOD_ID_TEMPERATURE);
-      #elif defined(USERMOD_SHT)
-      tempUM = (ShtUsermod*) UsermodManager::lookup(USERMOD_ID_SHT);
-      #endif
       initTacho();
       initPWMfan();
       updateFanSpeed((minPWMValuePct * 255) / 100); // inital fan speed

@@ -72,12 +72,9 @@ class UsermodTemperature : public Usermod {
     void publishHomeAssistantAutodiscovery();
 #endif
 
-    static UsermodTemperature* _instance; // to overcome nonstatic getTemperatureC() method and avoid UsermodManager::lookup(USERMOD_ID_TEMPERATURE);
-
   public:
 
-    UsermodTemperature() { _instance = this; }
-    static UsermodTemperature *getInstance() { return UsermodTemperature::_instance; }
+    UsermodTemperature() {  }
 
     /*
      * API calls te enable data exchange between WLED modules
@@ -108,3 +105,8 @@ class UsermodTemperature : public Usermod {
     void appendConfigData() override;
 };
 
+
+// External API
+namespace Temperature {
+    float getTemperatureC();
+}
