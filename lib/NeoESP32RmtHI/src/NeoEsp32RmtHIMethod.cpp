@@ -388,6 +388,12 @@ esp_err_t NeoEsp32RmtHiMethodDriver::Install(rmt_channel_t channel, uint32_t rmt
         // If we need the additional assembly bridge, we pass it as the "arg" to the IDF so it gets linked in       
         err = esp_intr_alloc(ETS_RMT_INTR_SOURCE, INT_LEVEL_FLAG | ESP_INTR_FLAG_IRAM, HI_IRQ_HANDLER, (void*) HI_IRQ_HANDLER_ARG, &isrHandle);
         //err = ESP_ERR_NOT_FINISHED;
+
+        #ifdef __riscv
+        // Boost the priority after attachment
+        esprv_intc_int_set_priority(esp_intr_get_intno(isrHandle), 5);
+        #endif
+
 #else
         // Broken IDF API does not allow us to reserve the interrupt; do it manually
         static volatile const void*  __attribute__((used)) pleaseLinkAssembly = (void*) ld_include_hli_vectors_rmt;
