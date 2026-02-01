@@ -16,50 +16,88 @@ public:
   //       with the IDF V4 bug external error handling is required anyway or dns can just stay stuck
   enum class result { Idle, Busy, Success, Error };
 
-  // non-blocking query function to start DNS lookup
-  result query(const char* hostname) {
-    if (_status == result::Busy) return result::Busy; // in progress, waiting for callback
-
-    _status = result::Busy;
-    err_t err = dns_gethostbyname(hostname, &_raw_addr, _dns_callback, this);
-    if (err == ERR_OK) {
-      _status = result::Success; // result already in cache
-    } else if (err != ERR_INPROGRESS) {
-      _status = result::Error;
-      _errorcount++;
-    }
-    return _status;
-  }
-
-  // get the IP once Success is returned
-  const IPAddress getIP() {
-    if (_status != result::Success) return IPAddress(0,0,0,0);
-    #ifdef ARDUINO_ARCH_ESP32
-      return IPAddress(_raw_addr.u_addr.ip4.addr);
-    #else
-      return IPAddress(_raw_addr.addr);
-    #endif
-  }
-
-  void renew() { _status = result::Idle; } // reset status to allow re-query
-  void reset() { _status = result::Idle; _errorcount = 0; } // reset status and error count
-  const result status() { return _status; }
-  const uint16_t getErrorCount() { return _errorcount; }
-
-  private:
-  ip_addr_t _raw_addr;
-  std::atomic<result> _status { result::Idle };
-  uint16_t _errorcount = 0;
+private:
+  struct state_t {
+    ip_addr_t raw_addr;
+    std::atomic<result> status { result::Idle };
+    uint16_t errorcount = 0;
+  };
+  std::shared_ptr<state_t> _state;
 
   // callback for dns_gethostbyname(), called when lookup is complete or timed out
   static void _dns_callback(const char *name, const ip_addr_t *ipaddr, void *arg) {
-    AsyncDNS* instance = reinterpret_cast<AsyncDNS*>(arg);
+    std::shared_ptr<state_t>* state_ptr = reinterpret_cast<std::shared_ptr<state_t>*>(arg);
+    state_t& state = **state_ptr;
+
     if (ipaddr) {
-      instance->_raw_addr = *ipaddr;
-      instance->_status = result::Success;
+      state.raw_addr = *ipaddr;
+      state.status = result::Success;
     } else {
-      instance->_status = result::Error; // note: if query timed out (~5s), DNS lookup is broken until WiFi connection is reset (IDF V4 bug)
-      instance->_errorcount++;
+      state.status = result::Error; // note: if query timed out (~5s), DNS lookup is broken until WiFi connection is reset (IDF V4 bug)
+      state.errorcount++;
+    }
+
+    delete state_ptr;
+  }
+
+public:
+  AsyncDNS() : _state(std::make_shared<state_t>()) {};
+  AsyncDNS(const AsyncDNS&) = delete; // noncopyable
+  AsyncDNS& operator=(const AsyncDNS&) = delete; // noncopyable
+
+  // non-blocking query function to start DNS lookup
+  result query(const char* hostname) {
+    if (_state->status == result::Busy) return result::Busy; // in progress, waiting for callback
+
+    std::shared_ptr<state_t>* callback_context = new std::shared_ptr<state_t>(_state);
+    if (!callback_context) {
+      _state->status = result::Error;
+      _state->errorcount++;
+      return result::Error;
+    }
+
+    _state->status = result::Busy;
+    err_t err = dns_gethostbyname(hostname, &_state->raw_addr, _dns_callback, callback_context);
+    if (err == ERR_OK) {
+      _state->status = result::Success; // result already in cache
+    } else if (err != ERR_INPROGRESS) {
+      _state->status = result::Error;
+      _state->errorcount++;
+    }
+    return _state->status;
+  }
+
+  // get the IP once Success is returned
+  IPAddress getIP() const {
+    if (_state->status != result::Success) return IPAddress(0,0,0,0);
+    #ifdef ARDUINO_ARCH_ESP32
+      return IPAddress(_state->raw_addr.u_addr.ip4.addr);
+    #else
+      return IPAddress(_state->raw_addr.addr);
+    #endif
+  }
+
+  void renew() {  // reset status to allow re-query
+    if (_state->status == result::Busy) {
+      // Abandon old state, but keep error count
+      uint16_t ec = _state->errorcount;
+      _state = std::make_shared<state_t>();
+      _state->errorcount = ec;
+    } else {
+      _state->status = result::Idle;
     }
   }
+
+  void reset() { // reset status and error count
+    if (_state->status == result::Busy) {
+      // Abandon old state
+      _state = std::make_shared<state_t>();
+    } else {
+      _state->status = result::Idle;
+      _state->errorcount = 0;
+    }
+  }
+    
+  result status() const { return _state->status; }
+  uint16_t getErrorCount() const { return _state->errorcount; }
 };
