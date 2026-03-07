@@ -49,6 +49,12 @@
 #include <WiFiUdp.h>
 #include "../network/Network.h"
 
+#if defined(ARDUINO_ARCH_ESP32) && (ESP_IDF_VERSION_MAJOR >= 5)
+static inline void clear_udp_unread(WiFiUDP& udp) { udp.clear(); };
+#else
+static inline void clear_udp_unread(WiFiUDP& udp) { udp.flush(); };
+#endif
+
 #ifdef ESPALEXA_DEBUG
  #pragma message "Espalexa 2.7.1 debug mode"
  #define EA_DEBUG(x)  Serial.print (x)
@@ -379,7 +385,7 @@ public:
     espalexaUdp.read(packetBuffer, packetSize);
     packetBuffer[packetSize] = 0;
   
-    espalexaUdp.clear();
+    clear_udp_unread(espalexaUdp);
     if (!discoverable) return; //do not reply to M-SEARCH if not discoverable
   
     const char* request = (const char *) packetBuffer;
