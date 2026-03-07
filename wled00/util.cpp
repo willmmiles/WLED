@@ -7,12 +7,19 @@
 #else
 #include <Update.h>
 #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(4, 4, 0)
-  #include "esp32/rtc.h"    // for bootloop detection
+  #include "esp32/rtc.h"    // for bootloop detection  
 #elif ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(3, 3, 0)
   #include "soc/rtc.h"
 #endif
-#include "mbedtls/sha1.h"   // for SHA1 on ESP32
-#include "esp_efuse.h"
+#include "esp_chip_info.h"
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
+  #include <esp_mac.h>      // V5 requirement
+  #include <SHA1Builder.h>
+  #define ESP_CHIP_REVISION revision  
+#else
+  #include "mbedtls/sha1.h"   // for SHA1 on ESP32
+  #define ESP_CHIP_REVISION full_revision
+#endif
 #endif
 
 
@@ -1142,17 +1149,23 @@ uint8_t perlin8(uint16_t x, uint16_t y, uint16_t z) {
 String computeSHA1(const String& input) {
   #ifdef ESP8266
     return sha1(input); // ESP8266 has built-in sha1() function
+  #else    
+  unsigned char shaResult[20]; // SHA1 produces 20 bytes
+  #if ESP_IDF_VERSION_MAJOR >= 5
+    SHA1Builder sha1;
+    sha1.begin();
+    sha1.add((const uint8_t*)input.c_str(), input.length());
+    sha1.calculate();
+    sha1.getBytes(shaResult);
   #else
-    // ESP32: Compute SHA1 hash using mbedtls
-    unsigned char shaResult[20]; // SHA1 produces 20 bytes
+    // Old ESP32 platform: Compute SHA1 hash using mbedtls
     mbedtls_sha1_context ctx;
-
     mbedtls_sha1_init(&ctx);
-    mbedtls_sha1_starts_ret(&ctx);
-    mbedtls_sha1_update_ret(&ctx, (const unsigned char*)input.c_str(), input.length());
-    mbedtls_sha1_finish_ret(&ctx, shaResult);
+    mbedtls_sha1_starts(&ctx);
+    mbedtls_sha1_update(&ctx, (const unsigned char*)input.c_str(), input.length());
+    mbedtls_sha1_finish(&ctx, shaResult);
     mbedtls_sha1_free(&ctx);
-
+  #endif
     // Convert to hexadecimal string
     char hexString[41];
     for (int i = 0; i < 20; i++) {
@@ -1172,7 +1185,7 @@ String generateDeviceFingerprint() {
   esp_chip_info(&chip_info);
   esp_efuse_mac_get_default((uint8_t*)fp);
   fp[1] ^= ESP.getFlashChipSize();
-  fp[0] ^= chip_info.full_revision | (chip_info.model << 16);
+  fp[0] ^= chip_info.ESP_CHIP_REVISION | (chip_info.model << 16);
   // mix in ADC calibration data:
   esp_adc_cal_characteristics_t ch;
   #if SOC_ADC_MAX_BITWIDTH == 13 // S2 has 13 bit ADC
