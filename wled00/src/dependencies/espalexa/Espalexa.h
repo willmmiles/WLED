@@ -49,12 +49,6 @@
 #include <WiFiUdp.h>
 #include "../network/Network.h"
 
-#if defined(ARDUINO_ARCH_ESP32) && (ESP_IDF_VERSION_MAJOR >= 5)
-static inline void clear_udp_unread(WiFiUDP& udp) { udp.clear(); };
-#else
-static inline void clear_udp_unread(WiFiUDP& udp) { udp.flush(); };
-#endif
-
 #ifdef ESPALEXA_DEBUG
  #pragma message "Espalexa 2.7.1 debug mode"
  #define EA_DEBUG(x)  Serial.print (x)

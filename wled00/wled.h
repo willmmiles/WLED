@@ -132,6 +132,12 @@
 #include "src/dependencies/timezone/Timezone.h"
 #include "src/dependencies/toki/Toki.h"
 
+#if defined(ARDUINO_ARCH_ESP32) && (ESP_IDF_VERSION_MAJOR >= 5)
+static inline void clear_udp_unread(WiFiUDP& udp) { udp.clear(); };
+#else
+static inline void clear_udp_unread(WiFiUDP& udp) { udp.flush(); };
+#endif
+
 #ifndef WLED_DISABLE_ALEXA
   #define ESPALEXA_ASYNC
   #define ESPALEXA_NO_SUBPAGE

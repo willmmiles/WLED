@@ -1160,10 +1160,6 @@ class AudioReactive : public Usermod {
 
       // Reset I2S peripheral for good measure
       i2s_driver_uninstall(I2S_NUM_0);   // E (696) I2S: i2s_driver_uninstall(2006): I2S port 0 has not installed
-      #if !defined(CONFIG_IDF_TARGET_ESP32C3)
-        delay(100);
-        periph_module_reset(PERIPH_I2S0_MODULE);   // not possible on -C3
-      #endif
       delay(100);         // Give that poor microphone some time to setup.
 
       useBandPassFilter = false;

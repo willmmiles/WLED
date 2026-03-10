@@ -599,7 +599,9 @@ class I2SAdcSource : public I2SSource {
         DEBUGSR_PRINTF("Incompatible GPIO used for analog audio input: %d\n", _audioPin);
         return;
       } else {
+#if ESP_IDF_VERSION < ESP_IDF_VERSION_VAL(4, 0, 0)        
         adc_gpio_init(ADC_UNIT_1, adc_channel_t(channel));
+#endif        
         _myADCchannel = channel;
       }
 
