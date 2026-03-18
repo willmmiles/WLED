@@ -6,6 +6,7 @@
 
 #include <Arduino.h>
 #include <atomic>
+#include <memory>
 #include <lwip/dns.h>
 #include <lwip/err.h>
 
@@ -13,9 +14,7 @@
 class AsyncDNS {
 
   // C++14 shim
-  #if __cplusplus >= 201402L
-  using std::make_unique;
-  #else
+#if __cplusplus < 201402L
   // Really simple C++11 shim for non-array case; implementation from cppreference.com
   template<class T, class... Args>
   static std::unique_ptr<T>
@@ -23,7 +22,7 @@ class AsyncDNS {
   {
       return std::unique_ptr<T>(new T(std::forward<Args>(args)...));
   }
-  #endif
+#endif
 
   public:
   // note: passing the IP as a pointer to query() is not implemented because it is not thread-safe without mutexes
@@ -31,10 +30,14 @@ class AsyncDNS {
   enum class result { Idle, Busy, Success, Error };
 
   // non-blocking query function to start DNS lookup
-  static std::shared_ptr<AsyncDNS> query(const char* hostname, std::shared_ptr<AsyncDNS> current = {}) {
+  static std::shared_ptr<AsyncDNS> query(const char* hostname, std::shared_ptr<AsyncDNS> current = {}) {    
     if (!current || (current->_status == result::Busy)) {
       current.reset(new AsyncDNS());
     }
+
+#if __cplusplus >= 201402L
+    using std::make_unique;
+#endif
 
     std::unique_ptr<std::shared_ptr<AsyncDNS>> callback_state = make_unique<std::shared_ptr<AsyncDNS> >(current);
     if (!callback_state) return {};
@@ -46,6 +49,7 @@ class AsyncDNS {
     } else if (err == ERR_INPROGRESS) {
       callback_state.release(); // belongs to the callback now
     } else {
+      Serial.printf("DNS fail: %d\n", err);
       current->_status = result::Error;
       current->_errorcount++;
     }
