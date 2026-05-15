@@ -194,9 +194,20 @@ void handlePresets()
     changePreset = true;
   } else {
     if (!fdo["seg"].isNull() || !fdo["on"].isNull() || !fdo["bri"].isNull() || !fdo["nl"].isNull() || !fdo["ps"].isNull() || !fdo[F("playlist")].isNull()) changePreset = true;
-    if (!(tmpMode == CALL_MODE_INIT || (tmpMode == CALL_MODE_BUTTON_PRESET && fdo["ps"].is<const char *>() && strchr(fdo["ps"].as<const char *>(),'~') != strrchr(fdo["ps"].as<const char *>(),'~'))))
-      fdo.remove("ps"); // remove load request for presets to prevent recursive crash (if not called by boot preset or button which contains preset cycling string "1~5~")
     deserializeState(fdo, CALL_MODE_NO_NOTIFY, tmpPreset); // may change presetToApply by calling applyPreset()
+
+    // Avoid indefinite preset recursion    
+    constexpr unsigned PRESET_RECURSION_LIMIT = 5;    
+    static unsigned presetRecursionDepth = 0;
+    if (presetToApply != 0) {
+      if (++presetRecursionDepth > PRESET_RECURSION_LIMIT) {
+        DEBUG_PRINTF_P(PSTR("Preset recursion limit: %u\n"), (unsigned)presetToApply);
+        presetToApply = 0;
+        presetRecursionDepth = 0; // all done
+      }
+    } else {
+      presetRecursionDepth = 0;
+    }
   }
   if (!errorFlag && tmpPreset < 255 && changePreset) currentPreset = tmpPreset;
 
