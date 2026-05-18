@@ -1,7 +1,7 @@
 {
-  "name:": "TTGO-T-Display",
+  "name": "TTGO-T-Display",
   "dependencies": {
-    "TFT_eSPI" : "https://github.com/Bodmer/TFT_eSPI.git#5793878"
+    "TFT_eSPI" : "https://github.com/Bodmer/TFT_eSPI.git#16e37595040eac69cd628e4bffb56fc30cad6299"
   },
   "build": {
     "extraScript": "set_build_flags.py",
