@@ -47,6 +47,7 @@
 class TTGO_T_DisplayMod : public Usermod {
 
   // Member variables  
+  bool enabled = true;
   TFT_eSPI tft; // Invoke custom library
   // needRedraw marks if redraw is required to prevent often redrawing.
   bool needRedraw = true;
@@ -70,7 +71,39 @@ TTGO_T_DisplayMod() : Usermod()
 
 //gets called once at boot. Do all initialization that doesn't depend on network here
 void setup() override {
-    DEBUG_PRINTLN("Start");
+    // Reserve pins
+    if (
+#ifdef TFT_MISO
+        !PinManager::allocatePin(TFT_MISO, true, (PinOwner) getId()) ||
+#endif
+
+#ifdef TFT_MOSI
+        !PinManager::allocatePin(TFT_MOSI, true, (PinOwner) getId()) ||
+#endif
+#ifdef TFT_SCLK
+        !PinManager::allocatePin(TFT_SCLK, true, (PinOwner) getId()) ||
+#endif
+#ifdef TFT_CS
+        !PinManager::allocatePin(TFT_CS, true, (PinOwner) getId()) ||
+#endif
+#ifdef TFT_DC
+        !PinManager::allocatePin(TFT_DC, true, (PinOwner) getId()) ||
+#endif
+#ifdef TFT_RST
+        !PinManager::allocatePin(TFT_RST, true, (PinOwner) getId()) ||
+#endif
+#ifdef TFT_BL
+        !PinManager::allocatePin(TFT_BL, true, (PinOwner) getId()) ||
+#endif
+#ifdef TOUCH_CS
+        !PinManager::allocatePin(TOUCH_CS, true, (PinOwner) getId()) ||
+#endif
+    0) {
+      DEBUG_PRINTLN("TFT: Failed to allocate pins!");
+      enabled = false;
+      return;
+    }
+
     tft.init();
     tft.setRotation(3);  //Rotation here is set up for the text to be readable with the port on the left. Use 1 to flip.
     tft.fillScreen(TFT_BLACK);
@@ -82,7 +115,7 @@ void setup() override {
     tft.setTextSize(3);
     //tft.setTextSize(1);
     tft.print("Loading...");
-    DEBUG_PRINTLN("Loading...");
+    DEBUG_PRINTLN("TFT Loading...");
 
     if (TFT_BL > 0) { // TFT_BL has been set in the TFT_eSPI library in the User Setup file TTGO_T_Display.h
          pinMode(TFT_BL, OUTPUT); // Set backlight pin to output mode
@@ -94,6 +127,7 @@ void setup() override {
 
 
 void loop() override {
+  if (!enabled) return;
 
   // Check if we time interval for redrawing passes.
   if (millis() - lastUpdate_mod < USER_LOOP_REFRESH_RATE_MS) {
