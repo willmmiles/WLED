@@ -40,7 +40,7 @@ if display_setup_path is None:
 
 def add_display_setup(tgt_env):
     tgt_env.Append(CPPDEFINES=[("USER_SETUP_LOADED", "1")])
-    tgt_env.Append(CCFLAGS=f"-include {display_setup_path}")
+    tgt_env.Append(CCFLAGS=[f"-include{display_setup_path}"])
 
 # Add it for this library and the TFT_eSPI dependency
 add_display_setup(env)
