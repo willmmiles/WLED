@@ -149,8 +149,8 @@ class  Usermod_MAX17048 : public Usermod {
 
           publishMqtt("batteryVoltage", String(lastBattVoltage, VoltageDecimals).c_str());
           publishMqtt("batteryPercent", String(lastBattPercent, PercentDecimals).c_str());
-          DEBUG_PRINTLN(F("Battery Voltage: ") + String(lastBattVoltage, VoltageDecimals) + F("V"));
-          DEBUG_PRINTLN(F("Battery Percent: ") + String(lastBattPercent, PercentDecimals) + F("%"));
+          DEBUG_PRINTLN("Battery Voltage: " + String(lastBattVoltage, VoltageDecimals) + F("V"));
+          DEBUG_PRINTLN("Battery Percent: " + String(lastBattPercent, PercentDecimals) + F("%"));
         }
     }
 
