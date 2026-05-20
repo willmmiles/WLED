@@ -48,9 +48,9 @@ void closeFile() {
 //find() that reads and buffers data from file stream in 256-byte blocks.
 //Significantly faster, f.find(key) can take SECONDS for multi-kB files
 static bool bufferedFind(const char *target, bool fromStart = true) {
+  uint32_t s = millis();
   #ifdef WLED_DEBUG_FS
     WLOG_D("fs", "Find %s", target);
-    uint32_t s = millis();
   #endif
 
   if (!f || !f.size()) return false;
@@ -83,10 +83,9 @@ static bool bufferedFind(const char *target, bool fromStart = true) {
 
 //find empty spots in file stream in 256-byte blocks.
 static bool bufferedFindSpace(size_t targetLen, bool fromStart = true) {
-
+  uint32_t s = millis();
   #ifdef WLED_DEBUG_FS
     WLOG_D("fs", "Find %d spaces", targetLen);
-    uint32_t s = millis();
   #endif
 
   if (knownLargestSpace < targetLen) {
@@ -131,9 +130,9 @@ static bool bufferedFindSpace(size_t targetLen, bool fromStart = true) {
 
 //find the closing bracket corresponding to the opening bracket at the file pos when calling this function
 static bool bufferedFindObjectEnd() {
+  uint32_t s = millis();
   #ifdef WLED_DEBUG_FS
     WLOG_D("fs", "Find obj end");
-    uint32_t s = millis();
   #endif
 
   if (!f || !f.size()) return false;
@@ -178,9 +177,9 @@ static void writeSpace(size_t l)
 
 static bool appendObjectToFile(const char* key, const JsonDocument* content, uint32_t s, uint32_t contentLen = 0)
 {
+  uint32_t s1 = millis();
   #ifdef WLED_DEBUG_FS
     WLOG_D("fs", "Append");
-    uint32_t s1 = millis();
   #endif
   uint32_t pos = 0;
   if (!f) return false;
@@ -265,11 +264,10 @@ bool writeObjectToFileUsingId(const char* file, uint16_t id, const JsonDocument*
 
 bool writeObjectToFile(const char* file, const char* key, const JsonDocument* content)
 {
-  uint32_t s = 0; //timing
+  uint32_t s = millis();
   #ifdef WLED_DEBUG_FS
     WLOG_D("fs", "Write to %s with key %s >>>", file, (key==nullptr)?"nullptr":key);
     serializeJson(*content, Serial); Serial.println();
-    s = millis();
   #endif
 
   if (doCloseFile) closeFile(); // This prevents the loss of file data that is still cached in the File object.
@@ -339,9 +337,9 @@ bool readObjectFromFileUsingId(const char* file, uint16_t id, JsonDocument* dest
 bool readObjectFromFile(const char* file, const char* key, JsonDocument* dest, const JsonDocument* filter)
 {
   if (doCloseFile) closeFile();
+  uint32_t s = millis();
   #ifdef WLED_DEBUG_FS
     WLOG_D("fs", "Read from %s with key %s >>>", file, (key==nullptr)?"nullptr":key);
-    uint32_t s = millis();
   #endif
   char fileName[129]; strncpy_P(fileName, file, 128); fileName[128] = 0; //use PROGMEM safe copy as FS.open() does not
   f = WLED_FS.open(fileName, "r");

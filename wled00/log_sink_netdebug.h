@@ -5,20 +5,21 @@
  * Mirrors the behaviour of the original NetworkDebugPrinter but receives
  * pre-formatted lines from the logging dispatch layer.
  *
- * Globals accessed (defined in wled.h):
- *   extern bool netDebugEnabled;
- *   extern char netDebugPrintHost[33];
- *   extern int  netDebugPrintPort;
- *
- * This header must be included AFTER wled.h so those globals are visible.
- * In practice it is only ever included from log.cpp which includes wled.h first.
- *
  * The instance is only created and registered in log.cpp when WLED_DEBUG_HOST
- * is defined.
+ * is defined; the class body always compiles so we declare the globals as
+ * extern here rather than relying on wled.h's WLED_DEBUG_HOST guard.
+ * When WLED_DEBUG_HOST is not set the method is dead code eliminated by
+ * --gc-sections since no instance is ever constructed.
  */
 
 #include "log.h"
 #include <WiFiUdp.h>
+
+// Defined in wled.h under #ifdef WLED_DEBUG_HOST; externs allow this header
+// to compile regardless, with the linker dropping the unreferenced method.
+extern bool netDebugEnabled;
+extern char netDebugPrintHost[33];
+extern int  netDebugPrintPort;
 
 namespace wled {
 
