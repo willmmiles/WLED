@@ -974,77 +974,59 @@ WLED_GLOBAL JsonDocument *pDoc _INIT(&gDoc);
 #endif
 WLED_GLOBAL volatile uint8_t jsonBufferLock _INIT(0);
 
-// PSRAM-backed log ring buffer.
-// On BOARD_HAS_PSRAM builds the DEBUG_* macros always write to the ring
-// buffer so logs are retrievable via /json/log without serial access or a
-// WLED_DEBUG build.  WLED_DEBUG additionally routes output to Serial/NetDebug.
-// Allocated at runtime only when psramFound() succeeds; writes before init()
-// or on devices without physical PSRAM are silently dropped.
-#ifdef BOARD_HAS_PSRAM
-  #include "log_buffer.h"
-  WLED_GLOBAL LogBuffer wledLogBuffer;
-  WLED_GLOBAL LogPrint  wledLog _INIT(LogPrint(wledLogBuffer));
-#endif
+// ── Structured logging framework ──────────────────────────────────────────────
+// WLOG_I / WLOG_D / WLOG_W / WLOG_E / WLOG_V are the primary logging calls.
+// DEBUG_* shims below preserve backward compatibility for external usermods.
+#include "log.h"
+#include "log_buffer_usermod.h"
 
-// enable additional debug output
+// NetDebug host/port globals (used by NetDebugLogSink in log_sink_netdebug.h)
 #if defined(WLED_DEBUG_HOST)
-  #include "net_debug.h"
   // On the host side, use netcat to receive the log statements: nc -l 7868 -u
   // use -D WLED_DEBUG_HOST='"192.168.xxx.xxx"' or FQDN within quotes
-  #define DEBUGOUT NetDebug
   WLED_GLOBAL bool netDebugEnabled _INIT(true);
   WLED_GLOBAL char netDebugPrintHost[33] _INIT(WLED_DEBUG_HOST);
   #ifndef WLED_DEBUG_PORT
     #define WLED_DEBUG_PORT 7868
   #endif
   WLED_GLOBAL int netDebugPrintPort _INIT(WLED_DEBUG_PORT);
-#else
-  #define DEBUGOUT Serial
 #endif
 
-#if defined(BOARD_HAS_PSRAM) && defined(WLED_DEBUG)
-  // PSRAM + serial debug: ring buffer AND Serial/NetDebug
+// ── Backward-compatible debug shims ──────────────────────────────────────────
+// These delegate to the new WLOG_D / WLOG_I calls so external usermods that
+// still use DEBUG_* continue to work.  All are no-ops when WLED_DEBUG is not
+// defined (preserving the existing guarantee that release builds are silent on
+// serial, which shares the port with light-control protocols).
+//
+// NOTE: DEBUG_PRINTF_P passes fmt directly (it is already a PROGMEM pointer
+// from the call site's PSTR() wrapper); WLOG_D would double-wrap it.
+// The other variants wrap with PSTR() since they receive plain string literals.
+#ifdef WLED_DEBUG
   #ifndef ESP8266
-  #include <rom/rtc.h>
+    #include <rom/rtc.h>
   #endif
-  #define DEBUG_PRINT(x)       do { DEBUGOUT.print(x);    wledLog.print(x);    } while(0)
-  #define DEBUG_PRINTLN(x)     do { DEBUGOUT.println(x);  wledLog.println(x);  } while(0)
-  #define DEBUG_PRINTF(x...)   do { DEBUGOUT.printf(x);   wledLog.printf(x);   } while(0)
-  #define DEBUG_PRINTF_P(x...) do { DEBUGOUT.printf_P(x); wledLog.printf_P(x); } while(0)
-#elif defined(BOARD_HAS_PSRAM)
-  // PSRAM only: ring buffer, no serial output
-  #define DEBUG_PRINT(x)       wledLog.print(x)
-  #define DEBUG_PRINTLN(x)     wledLog.println(x)
-  #define DEBUG_PRINTF(x...)   wledLog.printf(x)
-  #define DEBUG_PRINTF_P(x...) wledLog.printf_P(x)
-#elif defined(WLED_DEBUG)
-  // Serial debug only: original behaviour
-  #ifndef ESP8266
-  #include <rom/rtc.h>
-  #endif
-  #define DEBUG_PRINT(x)       DEBUGOUT.print(x)
-  #define DEBUG_PRINTLN(x)     DEBUGOUT.println(x)
-  #define DEBUG_PRINTF(x...)   DEBUGOUT.printf(x)
-  #define DEBUG_PRINTF_P(x...) DEBUGOUT.printf_P(x)
+  #define DEBUG_PRINT(x)         do { String _s_(x); ::wled::log_write(::wled::LogLevel::Debug, PSTR("WLED"), PSTR("%s"), _s_.c_str()); } while(0)
+  #define DEBUG_PRINTLN(...)      do { String _s_(__VA_ARGS__); ::wled::log_write(::wled::LogLevel::Debug, PSTR("WLED"), PSTR("%s"), _s_.c_str()); } while(0)
+  #define DEBUG_PRINTF(fmt, ...)  ::wled::log_write(::wled::LogLevel::Debug, PSTR("WLED"), PSTR(fmt), ##__VA_ARGS__)
+  #define DEBUG_PRINTF_P(fmt, ...) ::wled::log_write(::wled::LogLevel::Debug, PSTR("WLED"), fmt, ##__VA_ARGS__)
 #else
-  // No PSRAM, no debug: no-ops
-  #define DEBUG_PRINT(x)
-  #define DEBUG_PRINTLN(x)
-  #define DEBUG_PRINTF(x...)
-  #define DEBUG_PRINTF_P(x...)
+  #define DEBUG_PRINT(x)          ((void)0)
+  #define DEBUG_PRINTLN(...)       ((void)0)
+  #define DEBUG_PRINTF(...)        ((void)0)
+  #define DEBUG_PRINTF_P(...)      ((void)0)
 #endif
 
 #ifdef WLED_DEBUG_FS
-  #define DEBUGFS_PRINT(x) DEBUGOUT.print(x)
-  #define DEBUGFS_PRINTLN(x) DEBUGOUT.println(x)
-  #define DEBUGFS_PRINTF(x...) DEBUGOUT.printf(x)
+  #define DEBUGFS_PRINT(x)        do { String _s_(x); ::wled::log_write(::wled::LogLevel::Debug, PSTR("fs"), PSTR("%s"), _s_.c_str()); } while(0)
+  #define DEBUGFS_PRINTLN(x)      do { String _s_(x); ::wled::log_write(::wled::LogLevel::Debug, PSTR("fs"), PSTR("%s"), _s_.c_str()); } while(0)
+  #define DEBUGFS_PRINTF(fmt, ...) ::wled::log_write(::wled::LogLevel::Debug, PSTR("fs"), PSTR(fmt), ##__VA_ARGS__)
 #else
-  #define DEBUGFS_PRINT(x)
-  #define DEBUGFS_PRINTLN(x)
-  #define DEBUGFS_PRINTF(x...)
+  #define DEBUGFS_PRINT(x)        ((void)0)
+  #define DEBUGFS_PRINTLN(x)      ((void)0)
+  #define DEBUGFS_PRINTF(...)     ((void)0)
 #endif
 
-// debug macro variable definitions
+// debug macro variable definitions (timing helpers used in loop())
 #ifdef WLED_DEBUG
   WLED_GLOBAL unsigned long debugTime _INIT(0);
   WLED_GLOBAL int lastWifiState _INIT(3);

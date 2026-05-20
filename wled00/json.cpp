@@ -514,11 +514,11 @@ bool deserializeState(JsonObject root, byte callMode, byte presetId)
     currentPreset = root[F("pd")] | currentPreset;
     if (root["win"].isNull()) presetCycCurr = currentPreset; // otherwise presetCycCurr was set in handleSet() [set.cpp]
     presetToRestore = currentPreset; // stateUpdated() will clear the preset, so we need to restore it after
-    DEBUG_PRINTF_P(PSTR("Preset direct: %d\n"), currentPreset);
+    WLOG_D("json", "Preset direct: %d", currentPreset);
   } else if (!root["ps"].isNull()) {
     // we have "ps" call (i.e. from button or external API call) or "pd" that includes "ps" (i.e. from UI call)
     if (root["win"].isNull() && getVal(root["ps"], presetCycCurr, 1, 250) && presetCycCurr > 0 && presetCycCurr < 251 && presetCycCurr != currentPreset) {
-      DEBUG_PRINTF_P(PSTR("Preset select: %d\n"), presetCycCurr);
+      WLOG_D("json", "Preset select: %d", presetCycCurr);
       // b) preset ID only or preset that does not change state (use embedded cycling limits if they exist in getVal())
       applyPreset(presetCycCurr, callMode); // async load from file system (only preset ID was specified)
       return stateResponse;
@@ -1375,39 +1375,35 @@ void serveJson(AsyncWebServerRequest* request)
       //lDoc["m"] = lDoc.memoryUsage(); // JSON buffer usage, for remote debugging
   }
 
-  DEBUG_PRINTF_P(PSTR("JSON buffer size: %u for request: %d\n"), lDoc.memoryUsage(), subJson);
+  WLOG_D("json", "JSON buffer size: %u for request: %d", lDoc.memoryUsage(), subJson);
 
   [[maybe_unused]] size_t len = response->setLength();
-  DEBUG_PRINTF_P(PSTR("JSON content length: %u\n"), len);
+  WLOG_D("json", "JSON content length: %u", len);
 
   request->send(response);
 }
 
-// Serve the PSRAM log ring buffer as plain text over HTTP.
-// Available only on BOARD_HAS_PSRAM builds; returns 501 otherwise.
+// Serve the in-memory log ring buffer as plain text over HTTP.
+// Returns 503 if the LogBufferUsermod is not present or not yet allocated.
 void serveLog(AsyncWebServerRequest* request)
 {
-#ifdef BOARD_HAS_PSRAM
-  if (!wledLogBuffer.available()) {
-    // PSRAM detected at compile time but not found / not initialised at runtime
-    request->send(503, FPSTR(CONTENT_TYPE_PLAIN), F("Log buffer unavailable (no PSRAM detected)"));
+  auto* lbm = LogBufferUsermod::instance();
+  if (!lbm || !lbm->isAvailable()) {
+    request->send(503, FPSTR(CONTENT_TYPE_PLAIN), F("Log buffer unavailable"));
     return;
   }
 
-  // Check for ?clear query parameter to wipe the buffer
+  // ?clear wipes the buffer
   if (request->hasParam(F("clear"))) {
-    wledLogBuffer.clear();
+    lbm->clear();
     request->send(200, FPSTR(CONTENT_TYPE_PLAIN), F("Log buffer cleared."));
     return;
   }
 
   AsyncResponseStream* response = request->beginResponseStream(FPSTR(CONTENT_TYPE_PLAIN));
   response->addHeader(F("Cache-Control"), F("no-store"));
-  wledLogBuffer.printTo(*response);
+  lbm->streamTo(*response);
   request->send(response);
-#else
-  serveJsonError(request, 501, ERR_NOT_IMPL);
-#endif
 }
 
 
