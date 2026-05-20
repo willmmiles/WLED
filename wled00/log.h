@@ -29,6 +29,8 @@
 #include <stdarg.h>
 #include "dynarray.h"
 
+class Print; // forward-declare Arduino's Print base class
+
 // ── Compile-time level constants (match esp_log_level_t values) ──────────────
 #define WLED_LOG_LEVEL_NONE     0
 #define WLED_LOG_LEVEL_ERROR    1
@@ -108,6 +110,29 @@ void log_write_raw(LogLevel level, const char* tag,
 // Call setup() on every registered sink.  Must be called once, early in boot,
 // before any WLOG_* calls.
 void log_setup();
+
+/*
+ * ILogBuffer — optional interface for a log sink that can replay its contents.
+ *
+ * A usermod that implements an in-memory ring buffer should inherit from this
+ * and call ILogBuffer::_register(this) in its constructor.  Core code (e.g.
+ * the /log HTTP endpoint) uses ILogBuffer::get() to access it without needing
+ * to include the usermod header directly.
+ */
+class ILogBuffer {
+public:
+  virtual void   streamTo(Print& out) const = 0;
+  virtual void   clear() = 0;
+  virtual bool   isAvailable() const = 0;
+
+  static ILogBuffer* get() { return s_instance; }
+
+protected:
+  static void _register(ILogBuffer* b) { s_instance = b; }
+
+private:
+  static ILogBuffer* s_instance;
+};
 
 } // namespace wled
 

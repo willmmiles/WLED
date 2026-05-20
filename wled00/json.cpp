@@ -1384,25 +1384,25 @@ void serveJson(AsyncWebServerRequest* request)
 }
 
 // Serve the in-memory log ring buffer as plain text over HTTP.
-// Returns 503 if the LogBufferUsermod is not present or not yet allocated.
+// Returns 503 if no ILogBuffer is registered or its buffer is not yet allocated.
 void serveLog(AsyncWebServerRequest* request)
 {
-  auto* lbm = LogBufferUsermod::instance();
-  if (!lbm || !lbm->isAvailable()) {
+  wled::ILogBuffer* lbuf = wled::ILogBuffer::get();
+  if (!lbuf || !lbuf->isAvailable()) {
     request->send(503, FPSTR(CONTENT_TYPE_PLAIN), F("Log buffer unavailable"));
     return;
   }
 
   // ?clear wipes the buffer
   if (request->hasParam(F("clear"))) {
-    lbm->clear();
+    lbuf->clear();
     request->send(200, FPSTR(CONTENT_TYPE_PLAIN), F("Log buffer cleared."));
     return;
   }
 
   AsyncResponseStream* response = request->beginResponseStream(FPSTR(CONTENT_TYPE_PLAIN));
   response->addHeader(F("Cache-Control"), F("no-store"));
-  lbm->streamTo(*response);
+  lbuf->streamTo(*response);
   request->send(response);
 }
 

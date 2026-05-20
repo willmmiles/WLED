@@ -15,6 +15,9 @@
 // linker sections and are discovered at runtime via pointer arithmetic.
 DECLARE_DYNARRAY(wled::LogSink*, log_sinks);
 
+// Out-of-line definition for ILogBuffer's singleton pointer.
+wled::ILogBuffer* wled::ILogBuffer::s_instance = nullptr;
+
 // ── Platform spinlock ─────────────────────────────────────────────────────────
 // Held for the duration of sink dispatch.  Sinks must not block.
 #ifdef ESP8266

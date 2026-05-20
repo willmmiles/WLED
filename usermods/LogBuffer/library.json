@@ -1,0 +1,4 @@
+{
+  "name": "LogBuffer",
+  "build": { "libArchive": false }
+}

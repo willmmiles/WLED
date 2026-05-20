@@ -978,7 +978,6 @@ WLED_GLOBAL volatile uint8_t jsonBufferLock _INIT(0);
 // WLOG_I / WLOG_D / WLOG_W / WLOG_E / WLOG_V are the primary logging calls.
 // DEBUG_* shims below preserve backward compatibility for external usermods.
 #include "log.h"
-#include "log_buffer_usermod.h"
 
 // NetDebug host/port globals (used by NetDebugLogSink in log_sink_netdebug.h)
 #if defined(WLED_DEBUG_HOST)
