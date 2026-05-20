@@ -2,11 +2,10 @@
 /*
  * log_sink_netdebug.h — NetDebugLogSink: routes log output to a UDP host.
  *
- * Only compiled when WLED_DEBUG_HOST is defined.  Mirrors the behaviour of the
- * original NetworkDebugPrinter but receives pre-formatted lines from the new
- * logging dispatch layer instead of being called directly.
+ * Mirrors the behaviour of the original NetworkDebugPrinter but receives
+ * pre-formatted lines from the logging dispatch layer.
  *
- * Globals accessed (defined in wled.h when WLED_DEBUG_HOST is set):
+ * Globals accessed (defined in wled.h):
  *   extern bool netDebugEnabled;
  *   extern char netDebugPrintHost[33];
  *   extern int  netDebugPrintPort;
@@ -14,10 +13,9 @@
  * This header must be included AFTER wled.h so those globals are visible.
  * In practice it is only ever included from log.cpp which includes wled.h first.
  *
- * A static instance is created and registered in log.cpp.
+ * The instance is only created and registered in log.cpp when WLED_DEBUG_HOST
+ * is defined.
  */
-
-#ifdef WLED_DEBUG_HOST
 
 #include "log.h"
 #include <WiFiUdp.h>
@@ -26,12 +24,8 @@ namespace wled {
 
 class NetDebugLogSink : public LogSink {
 public:
-  bool isEnabled() const override {
-    return netDebugEnabled && WLED_CONNECTED;
-  }
-
   void write(LogLevel level, const char* tag, const char* msg, size_t len) override {
-    if (!WLED_CONNECTED) return;
+    if (!netDebugEnabled || !WLED_CONNECTED) return;
 
     // Resolve host on first write or after reset
     if (!_hostResolved) {
@@ -66,5 +60,3 @@ private:
 };
 
 } // namespace wled
-
-#endif // WLED_DEBUG_HOST

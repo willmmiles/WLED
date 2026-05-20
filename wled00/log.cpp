@@ -44,12 +44,8 @@ void wled::log_write_raw(LogLevel level, const char* tag,
                           const char* msg, size_t len)
 {
   LogGuard guard;
-  for (auto s = DYNARRAY_BEGIN(log_sinks); s < DYNARRAY_END(log_sinks); ++s) {
-    wled::LogSink* sink = *s;
-    if (!sink->isEnabled()) continue;
-    if (static_cast<uint8_t>(level) < static_cast<uint8_t>(sink->minLevel())) continue;
-    sink->write(level, tag, msg, len);
-  }
+  for (auto s = DYNARRAY_BEGIN(log_sinks); s < DYNARRAY_END(log_sinks); ++s)
+    (*s)->write(level, tag, msg, len);
 }
 
 void wled::log_write_v(LogLevel level, const char* tag_P,

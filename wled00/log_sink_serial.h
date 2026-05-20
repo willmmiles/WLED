@@ -2,14 +2,10 @@
 /*
  * log_sink_serial.h — SerialLogSink: routes log output to the hardware serial port.
  *
- * Only compiled when WLED_DEBUG is defined.  The serial port doubles as a
- * light-control protocol interface (Adalight, Improv, etc.) and must not
- * receive arbitrary output in release builds.
- *
- * A static instance is created and registered in log.cpp.
+ * The serial port doubles as a light-control protocol interface (Adalight, Improv,
+ * etc.) and must not receive arbitrary output in release builds.  The instance is
+ * therefore only created and registered in log.cpp when WLED_DEBUG is defined.
  */
-
-#ifdef WLED_DEBUG
 
 #include "log.h"
 #include <Arduino.h>
@@ -33,5 +29,3 @@ public:
 };
 
 } // namespace wled
-
-#endif // WLED_DEBUG

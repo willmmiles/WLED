@@ -58,11 +58,10 @@ public:
   // ── wled::LogSink ─────────────────────────────────────────────────────────
   void setup() override { _allocate(_desiredCapacity); }
 
-  bool isEnabled() const override { return _buf != nullptr; }
-
   void write(wled::LogLevel level, const char* tag,
              const char* msg, size_t len) override
   {
+    if (!_buf) return;
     // Format: "D tag: message\n"
     static const char lvl[] = "NEWIDV";
     const uint8_t idx = static_cast<uint8_t>(level);

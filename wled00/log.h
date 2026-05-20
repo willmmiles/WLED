@@ -72,6 +72,7 @@ enum class LogLevel : uint8_t {
  *   • Must not call any WLOG_* macro (would deadlock the spinlock).
  *   • 'tag' and 'msg' are in RAM (the dispatch layer copied from PROGMEM).
  *   • Append '\n' to output if msg does not already end with one.
+ *   • Filtering (by level, connection state, etc.) is the sink's responsibility.
  */
 class LogSink {
 public:
@@ -87,13 +88,6 @@ public:
   //   len    — strlen(msg).
   virtual void write(LogLevel level, const char* tag,
                      const char* msg, size_t len) = 0;
-
-  // Return false to skip this sink for the current message.
-  virtual bool isEnabled() const { return true; }
-
-  // Per-sink minimum level filter (independent of the compile-time gate).
-  // Return LogLevel::None to accept every message that passes the global gate.
-  virtual LogLevel minLevel() const { return LogLevel::None; }
 };
 
 // ── Dispatch functions ────────────────────────────────────────────────────────
