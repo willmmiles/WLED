@@ -166,7 +166,7 @@ void getWLEDhostname(char* hostname, size_t maxLen, bool preferMDNS) {
   } else {
     prepareHostname(hostname, maxLen); // use legacy hostname based on "server description" - already sanitized
   }
-  DEBUG_PRINTF_P(PSTR("getWLEDHostname: '%s'\n"), hostname);
+  WLOG_D("util", "getWLEDHostname: '%s'", hostname);
 }
 
 /* Legacy hostname construction:
@@ -251,7 +251,7 @@ size_t utf8_strlen(const char *s)
 bool requestJSONBufferLock(uint8_t moduleID)
 {
   if (pDoc == nullptr) {
-    DEBUG_PRINTLN(F("ERROR: JSON buffer not allocated!"));
+    WLOG_E("util", "ERROR: JSON buffer not allocated!");
     return false;
   }
 
@@ -272,7 +272,7 @@ bool requestJSONBufferLock(uint8_t moduleID)
 #endif  
   // If the lock is still held - by us, or by another task
   if (jsonBufferLock) {
-    DEBUG_PRINTF_P(PSTR("ERROR: Locking JSON buffer (%d) failed! (still locked by %d)\n"), moduleID, jsonBufferLock);
+    WLOG_E("util", "ERROR: Locking JSON buffer (%d) failed! (still locked by %d)", moduleID, jsonBufferLock);
 #ifdef ARDUINO_ARCH_ESP32
     xSemaphoreGiveRecursive(jsonBufferLockMutex);
 #endif
@@ -280,7 +280,7 @@ bool requestJSONBufferLock(uint8_t moduleID)
   }
 
   jsonBufferLock = moduleID ? moduleID : 255;
-  DEBUG_PRINTF_P(PSTR("JSON buffer locked. (%d)\n"), jsonBufferLock);
+  WLOG_D("util", "JSON buffer locked. (%d)", jsonBufferLock);
   pDoc->clear();
   return true;
 }
@@ -288,7 +288,7 @@ bool requestJSONBufferLock(uint8_t moduleID)
 
 void releaseJSONBufferLock()
 {
-  DEBUG_PRINTF_P(PSTR("JSON buffer released. (%d)\n"), jsonBufferLock);
+  WLOG_D("util", "JSON buffer released. (%d)", jsonBufferLock);
   jsonBufferLock = 0;
 #ifdef ARDUINO_ARCH_ESP32
   xSemaphoreGiveRecursive(jsonBufferLockMutex);
@@ -1031,12 +1031,12 @@ static bool detectBootLoop() {
 
     case ResetReason::Crash:
     {
-      DEBUG_PRINTLN(F("crash detected!"));
+      WLOG_E("util", "crash detected!");
       uint32_t rebootinterval = rtctime - bl_last_boottime;
       if (rebootinterval < BOOTLOOP_INTERVAL_MILLIS) {
         bl_crashcounter++;
         if (bl_crashcounter >= BOOTLOOP_THRESHOLD) {
-          DEBUG_PRINTLN(F("!BOOTLOOP DETECTED!"));
+          WLOG_E("util", "!BOOTLOOP DETECTED!");
           bl_crashcounter = 0;  
           if(bl_actiontracker > BOOTLOOP_ACTION_DUMP) bl_actiontracker = BOOTLOOP_ACTION_RESTORE; // reset action tracker if out of bounds
           result = true;
@@ -1051,7 +1051,7 @@ static bool detectBootLoop() {
 
     case ResetReason::Brownout:
       // crash due to brownout can't be detected unless using flash memory to store bootloop variables
-      DEBUG_PRINTLN(F("brownout detected"));
+      WLOG_W("util", "brownout detected");
       //restoreConfig(); // TODO: blindly restoring config if brownout detected is a bad idea, need a better way (if at all)
       break;
   }
@@ -1062,7 +1062,7 @@ static bool detectBootLoop() {
 }
 
 void handleBootLoop() {
-  DEBUG_PRINTF_P(PSTR("checking for bootloop: time %d, counter %d, action %d\n"), bl_last_boottime, bl_crashcounter, bl_actiontracker);
+  WLOG_D("util", "checking for bootloop: time %d, counter %d, action %d", bl_last_boottime, bl_crashcounter, bl_actiontracker);
   if (!detectBootLoop()) return; // no bootloop detected
 
   switch(bl_actiontracker) {
@@ -1077,7 +1077,7 @@ void handleBootLoop() {
     case BOOTLOOP_ACTION_OTA:
 #ifndef ESP8266
       if(Update.canRollBack()) {
-        DEBUG_PRINTLN(F("Swapping boot partition..."));
+        WLOG_I("util", "Swapping boot partition...");
         Update.rollBack(); // swap boot partition
       }
       ++bl_actiontracker;

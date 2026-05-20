@@ -41,7 +41,7 @@ int fileSizeCallback(void) {
 
 bool openGif(const char *filename) {  // side-effect: updates "file"
   file = WLED_FS.open(filename, "r");
-  DEBUG_PRINTF_P(PSTR("opening GIF file %s\n"), filename);
+  WLOG_D("img", "opening GIF file %s", filename);
 
   if (!file) return false;
   return true;
@@ -134,13 +134,13 @@ byte renderImageToSegment(Segment &seg) {
     size_t fnameLen = strlen(lastFilename);
     if ((fnameLen < 4) || strcmp(lastFilename + fnameLen - 4, ".gif") != 0) { // empty segment name, name too short, or name not ending in .gif
       gifDecodeFailed = true;
-      DEBUG_PRINTF_P(PSTR("GIF decoder unsupported file: %s\n"), lastFilename);
+      WLOG_E("img", "GIF decoder unsupported file: %s", lastFilename);
       return IMAGE_ERROR_UNSUPPORTED_FORMAT;
     }
     if (file) file.close();
     if (!openGif(lastFilename)) {
       gifDecodeFailed = true;
-      DEBUG_PRINTF_P(PSTR("GIF file not found: %s\n"), lastFilename);
+      WLOG_E("img", "GIF file not found: %s", lastFilename);
       return IMAGE_ERROR_FILE_MISSING;
     }
     lastCoordinate = -1;
@@ -160,26 +160,26 @@ byte renderImageToSegment(Segment &seg) {
     } catch (...) {  // if we arrive here, the decoder has thrown an OOM exception
       gifDecodeFailed = true;
       errorFlag = ERR_NORAM_PX;
-      DEBUG_PRINTLN(F("\nGIF decoder out of memory. Please try a smaller image file.\n"));
+      WLOG_E("img", "GIF decoder out of memory. Please try a smaller image file.");
       return IMAGE_ERROR_DECODER_ALLOC;
       // decoder cleanup (hi @coderabbitai): No additonal cleanup necessary - decoder.alloc() ultimately uses "new AnimatedGIF". 
       // If new throws, no pointer is assigned, previous decoder state (if any) has already been deleted inside alloc(), so calling decoder.dealloc() here is unnecessary.
     }
 #endif
-    DEBUG_PRINTLN(F("Starting decoding"));
+    WLOG_D("img", "Starting decoding");
     int decoderError = decoder.startDecoding();
     if(decoderError < 0) {
-      DEBUG_PRINTF_P(PSTR("GIF Decoding error %d in startDecoding().\n"), decoderError);
+      WLOG_E("img", "GIF Decoding error %d in startDecoding().", decoderError);
       errorFlag = ERR_NORAM_PX;
       gifDecodeFailed = true;
       return IMAGE_ERROR_GIF_DECODE;
     }
-    DEBUG_PRINTLN(F("Decoding started"));
+    WLOG_D("img", "Decoding started");
     // after startDecoding, we can get GIF size, update static variables and callbacks
     decoder.getSize(&gifWidth, &gifHeight);
     if (gifWidth == 0 || gifHeight == 0) {  // bad gif size: prevent division by zero
       gifDecodeFailed = true;
-      DEBUG_PRINTF_P(PSTR("Invalid GIF dimensions: %dx%d\n"), gifWidth, gifHeight);
+      WLOG_E("img", "Invalid GIF dimensions: %dx%d", gifWidth, gifHeight);
       return IMAGE_ERROR_GIF_DECODE;
     }
     if (activeSeg->is2D()) {
@@ -213,7 +213,7 @@ byte renderImageToSegment(Segment &seg) {
 
   int result = decoder.decodeFrame(false);
   if (result < 0) {
-    DEBUG_PRINTF_P(PSTR("GIF Decoding error %d in decodeFrame().\n"), result);
+    WLOG_E("img", "GIF Decoding error %d in decodeFrame().", result);
     gifDecodeFailed = true;
     return IMAGE_ERROR_FRAME_DECODE;
   }
@@ -227,7 +227,7 @@ byte renderImageToSegment(Segment &seg) {
 }
 
 void endImagePlayback(Segment *seg) {
-  DEBUG_PRINTLN(F("Image playback end called"));
+  WLOG_D("img", "Image playback end called");
   if (!activeSeg || activeSeg != seg) return;
   if (file) file.close();
   decoder.dealloc();
@@ -235,7 +235,7 @@ void endImagePlayback(Segment *seg) {
   activeSeg = nullptr;
   strcpy(lastFilename, "/");  // reset filename
   gifWidth = gifHeight = 0;   // reset dimensions
-  DEBUG_PRINTLN(F("Image playback ended"));
+  WLOG_D("img", "Image playback ended");
 }
 
 #endif

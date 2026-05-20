@@ -213,7 +213,7 @@ bool deserializeConfig(JsonObject doc, bool fromFS) {
   }
   #endif
 
-  DEBUG_PRINTF_P(PSTR("Heap before buses: %d\n"), getFreeHeapSize());
+  WLOG_D("cfg", "Heap before buses: %d", getFreeHeapSize());
   JsonArray ins = hw_led["ins"];
   if (!ins.isNull()) {
     int s = 0;  // bus iterator
@@ -258,7 +258,7 @@ bool deserializeConfig(JsonObject doc, bool fromFS) {
     BusManager::removeAll();
     busConfigs.clear();
 
-    DEBUG_PRINTLN(F("No busses, init default"));
+    WLOG_I("cfg", "No busses, init default");
     constexpr unsigned defDataTypes[] = {LED_TYPES};
     constexpr unsigned defDataPins[] = {DATA_PINS};
     constexpr unsigned defCounts[] = {PIXEL_COUNTS};
@@ -289,13 +289,13 @@ bool deserializeConfig(JsonObject doc, bool fromFS) {
         // Pin should not be already allocated, read/only or defined for current bus
         while (PinManager::isPinAllocated(defPin[j]) || !PinManager::isPinOk(defPin[j],true)) {
           if (validPin) {
-            DEBUG_PRINTLN(F("Some of the provided pins cannot be used to configure this LED output."));
+            WLOG_W("cfg", "Some of the provided pins cannot be used to configure this LED output.");
             defPin[j] = 1; // start with GPIO1 and work upwards
             validPin = false;
           } else if (defPin[j] < WLED_NUM_PINS) {
             defPin[j]++;
           } else {
-            DEBUG_PRINTLN(F("No available pins left! Can't configure output."));
+            WLOG_E("cfg", "No available pins left! Can't configure output.");
             break;
           }
           // is the newly assigned pin already defined or used previously?
@@ -370,7 +370,7 @@ bool deserializeConfig(JsonObject doc, bool fromFS) {
         if ((type == BTN_TYPE_ANALOG) || (type == BTN_TYPE_ANALOG_INVERTED)) {
           if (digitalPinToAnalogChannel(pin) < 0) {
             // not an ADC analog pin
-            DEBUG_PRINTF_P(PSTR("PIN ALLOC error: GPIO%d for analog button #%d is not an analog pin!\n"), pin, s);
+            WLOG_E("cfg", "PIN ALLOC error: GPIO%d for analog button #%d is not an analog pin!", pin, s);
             PinManager::deallocatePin(pin, PinOwner::Button);
             pin = -1;
             continue;
@@ -380,7 +380,7 @@ bool deserializeConfig(JsonObject doc, bool fromFS) {
         } else if ((type == BTN_TYPE_TOUCH || type == BTN_TYPE_TOUCH_SWITCH)) {
           if (digitalPinToTouchChannel(pin) < 0) {
             // not a touch pin
-            DEBUG_PRINTF_P(PSTR("PIN ALLOC error: GPIO%d for touch button #%d is not a touch pin!\n"), pin, s);
+            WLOG_E("cfg", "PIN ALLOC error: GPIO%d for touch button #%d is not a touch pin!", pin, s);
             PinManager::deallocatePin(pin, PinOwner::Button);
             pin = -1;
             continue;
@@ -758,7 +758,7 @@ bool deserializeConfig(JsonObject doc, bool fromFS) {
   CJSON(e131ProxyUniverse, dmx[F("e131proxy")]);
   #endif
 
-  DEBUG_PRINTLN(F("Starting usermod config."));
+  WLOG_D("cfg", "Starting usermod config.");
   JsonObject usermods_settings = doc["um"];
   if (!usermods_settings.isNull()) {
     needsSave = !UsermodManager::readFromConfig(usermods_settings);
@@ -793,7 +793,7 @@ bool configBackupExists() {
 // if the cfg file doesn't exist, such as after a reset, do nothing
 void resetConfig() {
   if (WLED_FS.exists(s_cfg_json)) {
-    DEBUG_PRINTLN(F("Reset config"));
+    WLOG_I("cfg", "Reset config");
     char backupname[32];
     snprintf_P(backupname, sizeof(backupname), PSTR("/rst.%s"), &s_cfg_json[1]);
     WLED_FS.rename(s_cfg_json, backupname);
@@ -806,7 +806,7 @@ bool deserializeConfigFromFS() {
 
   if (!requestJSONBufferLock(JSON_LOCK_CFG_DES)) return false;
 
-  DEBUG_PRINTLN(F("Reading settings from /cfg.json..."));
+  WLOG_I("cfg", "Reading settings from /cfg.json...");
 
   success = readObjectFromFile(s_cfg_json, nullptr, pDoc);
 
@@ -823,7 +823,7 @@ void serializeConfigToFS() {
   serializeConfigSec();
   backupConfig(); // backup before writing new config
 
-  DEBUG_PRINTLN(F("Writing settings to /cfg.json..."));
+  WLOG_I("cfg", "Writing settings to /cfg.json...");
 
   if (!requestJSONBufferLock(JSON_LOCK_CFG_SER)) return;
 
@@ -973,10 +973,10 @@ void serializeConfig(JsonObject root) {
   JsonArray hw_led_ins = hw_led.createNestedArray("ins");
 
   for (size_t s = 0; s < BusManager::getNumBusses(); s++) {
-    DEBUG_PRINTF_P(PSTR("Cfg: Saving bus #%u\n"), s);
+    WLOG_D("cfg", "Cfg: Saving bus #%u", s);
     const Bus *bus = BusManager::getBus(s);
     if (!bus) break;  // Memory corruption, iterator invalid
-    DEBUG_PRINTF_P(PSTR("  (%d-%d, type:%d, CO:%d, rev:%d, skip:%d, AW:%d kHz:%d, mA:%d/%d)\n"),
+    WLOG_D("cfg", "  (%d-%d, type:%d, CO:%d, rev:%d, skip:%d, AW:%d kHz:%d, mA:%d/%d)",
       (int)bus->getStart(), (int)(bus->getStart()+bus->getLength()),
       (int)(bus->getType() & 0x7F),
       (int)bus->getColorOrder(),
@@ -1270,7 +1270,7 @@ static const char s_wsec_json[] PROGMEM = "/wsec.json";
 
 //settings in /wsec.json, not accessible via webserver, for passwords and tokens
 bool deserializeConfigSec() {
-  DEBUG_PRINTLN(F("Reading settings from /wsec.json..."));
+  WLOG_I("cfg", "Reading settings from /wsec.json...");
 
   if (!requestJSONBufferLock(JSON_LOCK_CFG_SEC_DES)) return false;
 
@@ -1324,7 +1324,7 @@ bool deserializeConfigSec() {
 }
 
 void serializeConfigSec() {
-  DEBUG_PRINTLN(F("Writing settings to /wsec.json..."));
+  WLOG_I("cfg", "Writing settings to /wsec.json...");
 
   if (!requestJSONBufferLock(JSON_LOCK_CFG_SEC_SER)) return;
 

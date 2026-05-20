@@ -52,7 +52,7 @@ static void onMqttConnect(bool sessionPresent)
 
   UsermodManager::onMqttConnect(sessionPresent);
 
-  DEBUG_PRINTLN(F("MQTT ready"));
+  WLOG_I("mqtt", "MQTT ready");
 
 #ifndef USERMOD_SMARTNEST
   snprintf_P(subuf, sizeof(subuf)-1, sTopicFormat, MQTT_MAX_TOPIC_LEN, mqttDeviceTopic, "status");
@@ -66,11 +66,11 @@ static void onMqttConnect(bool sessionPresent)
 static void onMqttMessage(char* topic, char* payload, AsyncMqttClientMessageProperties properties, size_t len, size_t index, size_t total) {
   static char *payloadStr;
 
-  DEBUG_PRINTF_P(PSTR("MQTT msg: %s\n"), topic);
+  WLOG_D("mqtt", "MQTT msg: %s", topic);
 
   // paranoia check to avoid npe if no payload
   if (payload==nullptr) {
-    DEBUG_PRINTLN(F("no payload -> leave"));
+    WLOG_W("mqtt", "no payload -> leave");
     return;
   }
 
@@ -86,10 +86,10 @@ static void onMqttMessage(char* topic, char* payload, AsyncMqttClientMessageProp
   if (index + len >= total) { // at end
     payloadStr[total] = '\0'; // terminate c style string
   } else {
-    DEBUG_PRINTLN(F("MQTT partial packet received."));
+    WLOG_D("mqtt", "MQTT partial packet received.");
     return; // process next packet
   }
-  DEBUG_PRINTLN(payloadStr);
+  WLOG_D("mqtt", "%s", payloadStr);
 
   size_t topicPrefixLen = strlen(mqttDeviceTopic);
   if (strncmp(topic, mqttDeviceTopic, topicPrefixLen) == 0) {
@@ -165,7 +165,7 @@ class bufferPrint : public Print {
 void publishMqtt()
 {
   if (!WLED_MQTT_CONNECTED) return;
-  DEBUG_PRINTLN(F("Publish MQTT"));
+  WLOG_D("mqtt", "Publish MQTT");
 
   #ifndef USERMOD_SMARTNEST
   char s[10];
@@ -207,7 +207,7 @@ bool initMqtt()
   }
   if (mqtt->connected()) return true;
 
-  DEBUG_PRINTLN(F("Reconnecting MQTT"));
+  WLOG_I("mqtt", "Reconnecting MQTT");
   IPAddress mqttIP;
   if (mqttIP.fromString(mqttServer)) //see if server is IP or domain
   {

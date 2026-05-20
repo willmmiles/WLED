@@ -74,7 +74,7 @@ Segment::Segment(const Segment &orig) {
       if (orig.name) { name = static_cast<char*>(allocate_buffer(strlen(orig.name)+1, BFRALLOC_PREFER_PSRAM)); if (name) strcpy(name, orig.name); }
       if (orig.data) { if (allocateData(orig._dataLen)) memcpy(data, orig.data, orig._dataLen); }
     } else {
-      DEBUGFX_PRINTLN(F("!!! Not enough RAM for pixel buffer !!!"));
+      WLOG_E("fx", "!!! Not enough RAM for pixel buffer !!!");
       errorFlag = ERR_NORAM_PX;
       stop = 0; // mark segment as inactive/invalid
     }
@@ -117,7 +117,7 @@ Segment& Segment::operator= (const Segment &orig) {
         if (orig.name) { name = static_cast<char*>(allocate_buffer(strlen(orig.name)+1, BFRALLOC_PREFER_PSRAM)); if (name) strcpy(name, orig.name); }
         if (orig.data) { if (allocateData(orig._dataLen)) memcpy(data, orig.data, orig._dataLen); }
       } else {
-        DEBUG_PRINTLN(F("!!! Not enough RAM for pixel buffer !!!"));
+        WLOG_E("fx", "!!! Not enough RAM for pixel buffer !!!");
         errorFlag = ERR_NORAM_PX;
         stop = 0; // mark segment as inactive/invalid
       }
@@ -164,7 +164,7 @@ bool Segment::allocateData(size_t len) {
   #ifndef BOARD_HAS_PSRAM
   if (Segment::getUsedSegmentData() + len - _dataLen > MAX_SEGMENT_DATA) {
     // not enough memory
-    DEBUG_PRINTF_P(PSTR("SegmentData limit reached: %d/%d\n"), len, Segment::getUsedSegmentData());
+    WLOG_E("fx", "SegmentData limit reached: %d/%d", len, Segment::getUsedSegmentData());
     errorFlag = ERR_NORAM;
     return false;
   }
@@ -184,7 +184,7 @@ bool Segment::allocateData(size_t len) {
     return true;
   }
   // allocation failed
-  DEBUG_PRINTLN(F("!!! Allocation failed. !!!"));
+  WLOG_E("fx", "!!! Allocation failed. !!!");
   errorFlag = ERR_NORAM;
   return false;
 }
@@ -195,7 +195,7 @@ void Segment::deallocateData() {
     //DEBUG_PRINTF_P(PSTR("---  Released data (%p): %d/%d -> %p\n"), this, _dataLen, Segment::getUsedSegmentData(), data);
     d_free(data);
   } else {
-    DEBUG_PRINTF_P(PSTR("---- Released data (%p): inconsistent UsedSegmentData (%d/%d), cowardly refusing to free nothing.\n"), this, _dataLen, Segment::getUsedSegmentData());
+    WLOG_W("fx", "---- Released data (%p): inconsistent UsedSegmentData (%d/%d), cowardly refusing to free nothing.", this, _dataLen, Segment::getUsedSegmentData());
   }
   data = nullptr;
   Segment::addUsedSegmentData(_dataLen <= Segment::getUsedSegmentData() ? -_dataLen : -Segment::getUsedSegmentData());
@@ -215,7 +215,7 @@ void Segment::resetIfRequired() {
   if (data && _dataLen > 0) {
     if (_dataLen > FAIR_DATA_PER_SEG) deallocateData(); // do not keep large allocations
     else memset(data, 0, _dataLen);  // can prevent heap fragmentation
-    DEBUG_PRINTF_P(PSTR("-- Segment %p reset, data cleared\n"), this);
+    WLOG_D("fx", "-- Segment %p reset, data cleared", this);
   }
   if (pixels) for (size_t i = 0; i < length(); i++) pixels[i] = BLACK; // clear pixel buffer
   step = 0; call = 0; aux0 = 0; aux1 = 0;
@@ -305,7 +305,7 @@ void Segment::startTransition(uint16_t dur, bool segmentCopy) {
       if (_t->_oldSegment) {
         _t->_oldSegment->palette = _t->_palette;          // restore original palette and colors (from start of transition)
         for (unsigned i = 0; i < NUM_COLORS; i++) _t->_oldSegment->colors[i] = _t->_colors[i];
-        DEBUGFX_PRINTF_P(PSTR("-- Updated transition with segment copy: S=%p T(%p) O[%p] OP[%p]\n"), this, _t, _t->_oldSegment, _t->_oldSegment->pixels);
+        WLOG_D("fx", "-- Updated transition with segment copy: S=%p T(%p) O[%p] OP[%p]", this, _t, _t->_oldSegment, _t->_oldSegment->pixels);
         if (!_t->_oldSegment->isActive()) stopTransition();
       }
     }
@@ -324,16 +324,16 @@ void Segment::startTransition(uint16_t dur, bool segmentCopy) {
     for (int i=0; i<NUM_COLORS; i++) _t->_colors[i] = colors[i];
     if (segmentCopy) _t->_oldSegment = new(std::nothrow) Segment(*this); // store/copy current segment settings
     if (_t->_oldSegment) {
-      DEBUGFX_PRINTF_P(PSTR("-- Started transition: S=%p T(%p) O[%p] OP[%p]\n"), this, _t, _t->_oldSegment, _t->_oldSegment->pixels);
+      WLOG_D("fx", "-- Started transition: S=%p T(%p) O[%p] OP[%p]", this, _t, _t->_oldSegment, _t->_oldSegment->pixels);
       if (!_t->_oldSegment->isActive()) stopTransition();
     } else {
-      DEBUGFX_PRINTF_P(PSTR("-- Started transition without old segment: S=%p T(%p)\n"), this, _t);
+      WLOG_D("fx", "-- Started transition without old segment: S=%p T(%p)", this, _t);
     }
   };
 }
 
 void Segment::stopTransition() {
-  DEBUG_PRINTF_P(PSTR("-- Stopping transition: S=%p T(%p) O[%p]\n"), this, _t, _t->_oldSegment);
+  WLOG_D("fx", "-- Stopping transition: S=%p T(%p) O[%p]", this, _t, _t->_oldSegment);
   delete _t;
   _t = nullptr;
 }
@@ -450,7 +450,7 @@ void Segment::setGeometry(uint16_t i1, uint16_t i2, uint8_t grp, uint8_t spc, ui
 
   unsigned oldLength = length();
 
-  DEBUGFX_PRINTF_P(PSTR("Segment geometry: %d,%d -> %d,%d [%d,%d]\n"), (int)i1, (int)i2, (int)i1Y, (int)i2Y, (int)grp, (int)spc);
+  WLOG_D("fx", "Segment geometry: %d,%d -> %d,%d [%d,%d]", (int)i1, (int)i2, (int)i1Y, (int)i2Y, (int)grp, (int)spc);
   markForReset();
   if (_t) stopTransition(); // we can't use transition if segment dimensions changed
   stateChanged = true;      // send UDP/WS broadcast
@@ -493,7 +493,7 @@ void Segment::setGeometry(uint16_t i1, uint16_t i2, uint8_t grp, uint8_t spc, ui
     p_free(pixels);
     pixels = static_cast<uint32_t*>(allocate_buffer(length() * sizeof(uint32_t), BFRALLOC_PREFER_PSRAM | BFRALLOC_NOBYTEACCESS));
     if (!pixels) {
-      DEBUGFX_PRINTLN(F("!!! Not enough RAM for pixel buffer !!!"));
+      WLOG_E("fx", "!!! Not enough RAM for pixel buffer !!!");
       #ifdef WLED_ENABLE_GIF
       endImagePlayback(this);
       #endif
@@ -1187,7 +1187,7 @@ void WS2812FX::finalizeInit() {
         i2sBusCount++;
     }
   }
-  DEBUG_PRINTF_P(PSTR("Digital buses: %u, I2S buses: %u\n"), digitalCount, i2sBusCount);
+  WLOG_I("fx", "Digital buses: %u, I2S buses: %u", digitalCount, i2sBusCount);
 
   // Determine parallel vs single I2S usage (used for memory calculation only)
   bool useParallelI2S = false;
@@ -1203,7 +1203,7 @@ void WS2812FX::finalizeInit() {
   #endif
   #endif
 
-  DEBUG_PRINTF_P(PSTR("Heap before buses: %d\n"), getFreeHeapSize());
+  WLOG_D("fx", "Heap before buses: %d", getFreeHeapSize());
   // create buses/outputs
   unsigned mem = 0; // memory estimation including DMA buffer for I2S and pixel buffers
   unsigned I2SdmaMem = 0;
@@ -1232,7 +1232,7 @@ void WS2812FX::finalizeInit() {
     }
     #endif
     if (mem + I2SdmaMem > MAX_LED_MEMORY + 1024) { // +1k to allow some margin to not drop buses that are allowed in UI (calculation here includes bus overhead)
-      DEBUG_PRINTF_P(PSTR("Bus %d with %d LEDS memory usage exceeds limit\n"), (int)bus.type, bus.count);
+      WLOG_W("fx", "Bus %d with %d LEDS memory usage exceeds limit", (int)bus.type, bus.count);
       errorFlag = ERR_NORAM; // alert UI  TODO: make this a distinct error: not enough memory for bus
       use_placeholder = true;
     }
@@ -1241,7 +1241,7 @@ void WS2812FX::finalizeInit() {
       if (Bus::isDigital(bus.type) && !Bus::is2Pin(bus.type) && BusManager::busses.back()->isPlaceholder()) digitalCount--; // remove placeholder from digital count
     }
   }
-  DEBUG_PRINTF_P(PSTR("Estimated buses + pixel-buffers size: %uB\n"), mem + I2SdmaMem);
+  WLOG_I("fx", "Estimated buses + pixel-buffers size: %uB", mem + I2SdmaMem);
   busConfigs.clear();
   busConfigs.shrink_to_fit();
 
@@ -1260,23 +1260,23 @@ void WS2812FX::finalizeInit() {
     bus->setBrightness(scaledBri(bri));
   }
   BusManager::initializeABL(); // init brightness limiter
-  DEBUG_PRINTF_P(PSTR("Heap after buses: %d\n"), ESP.getFreeHeap());
+  WLOG_D("fx", "Heap after buses: %d", ESP.getFreeHeap());
 
   Segment::maxWidth  = _length;
   Segment::maxHeight = 1;
 
   //segments are created in makeAutoSegments();
-  DEBUG_PRINTLN(F("Loading custom palettes"));
+  WLOG_I("fx", "Loading custom palettes");
   loadCustomPalettes(); // (re)load all custom palettes
-  DEBUG_PRINTLN(F("Loading custom ledmaps"));
+  WLOG_I("fx", "Loading custom ledmaps");
   deserializeMap();     // (re)load default ledmap (will also setUpMatrix() if ledmap does not exist)
 
   // allocate frame buffer after matrix has been set up (gaps!)
   p_free(_pixels); // using realloc on large buffers can cause additional fragmentation instead of reducing it
   // use PSRAM if available: there is no measurable perfomance impact between PSRAM and DRAM on S2/S3 with QSPI PSRAM for this buffer
   _pixels = static_cast<uint32_t*>(allocate_buffer(getLengthTotal() * sizeof(uint32_t), BFRALLOC_ENFORCE_PSRAM | BFRALLOC_NOBYTEACCESS | BFRALLOC_CLEAR));
-  DEBUG_PRINTF_P(PSTR("strip buffer size: %uB\n"), getLengthTotal() * sizeof(uint32_t));
-  DEBUG_PRINTF_P(PSTR("Heap after strip init: %uB\n"), getFreeHeapSize());
+  WLOG_D("fx", "strip buffer size: %uB", getLengthTotal() * sizeof(uint32_t));
+  WLOG_D("fx", "Heap after strip init: %uB", getFreeHeapSize());
 }
 
 void WS2812FX::service() {
@@ -1333,7 +1333,7 @@ void WS2812FX::service() {
   _currentSegment = &_segments[0]; // safe fallback to prevent stale pointer - SEGMENT/SEGENV should not be used outside of the service loop
 
   #ifdef WLED_DEBUG
-  if ((_targetFps != FPS_UNLIMITED) && (millis() - nowUp > _frametime)) DEBUG_PRINTF_P(PSTR("Slow effects %u/%d.\n"), (unsigned)(millis()-nowUp), (int)_frametime);
+  if ((_targetFps != FPS_UNLIMITED) && (millis() - nowUp > _frametime)) WLOG_W("fx", "Slow effects %u/%d.", (unsigned)(millis()-nowUp), (int)_frametime);
   #endif
   if (doShow && !_suspend) {
     yield();
@@ -1342,7 +1342,7 @@ void WS2812FX::service() {
     show();
   }
   #ifdef WLED_DEBUG
-  if ((_targetFps != FPS_UNLIMITED) && (millis() - nowUp > _frametime)) DEBUG_PRINTF_P(PSTR("Slow strip %u/%d.\n"), (unsigned)(millis()-nowUp), (int)_frametime);
+  if ((_targetFps != FPS_UNLIMITED) && (millis() - nowUp > _frametime)) WLOG_W("fx", "Slow strip %u/%d.", (unsigned)(millis()-nowUp), (int)_frametime);
   #endif
 
   if (!_suspend) _triggered = false; // avoid losing "trigger" events if suspend requested during effect service()
@@ -1697,7 +1697,7 @@ void WS2812FX::blendSegment(const Segment &topSegment) const {
 
 void WS2812FX::show() {
   if (!_pixels) {
-    DEBUGFX_PRINTLN(F("Error: no _pixels!"));
+    WLOG_E("fx", "Error: no _pixels!");
     errorFlag = ERR_NORAM;
     return; // no pixels allocated, nothing to show
   }
@@ -1794,7 +1794,7 @@ void WS2812FX::waitForIt() {
   unsigned long maxWait = 2*getFrameTime() + 100; // TODO: this needs a proper fix for timeout! see #4779
   while (isServicing() && (millis() - waitStart < maxWait)) delay(1); // safe even when millis() rolls over
   #ifdef WLED_DEBUG
-  if (millis()-waitStart >= maxWait) DEBUG_PRINTLN(F("Waited for strip to finish servicing."));
+  if (millis()-waitStart >= maxWait) WLOG_W("fx", "Waited for strip to finish servicing.");
   #endif
 };
 
@@ -1985,7 +1985,7 @@ void WS2812FX::makeAutoSegments(bool forceReset) {
     for (size_t i = 1; i < s; i++) {
       _segments.emplace_back(segStarts[i], segStops[i]);
     }
-    DEBUGFX_PRINTF_P(PSTR("%d auto segments created.\n"), _segments.size());
+    WLOG_I("fx", "%d auto segments created.", _segments.size());
 
   } else {
 
@@ -2059,11 +2059,11 @@ void WS2812FX::setRange(uint16_t i, uint16_t i2, uint32_t col) {
 void WS2812FX::printSize() {
   size_t size = 0;
   for (const Segment &seg : _segments) size += seg.getSize();
-  DEBUG_PRINTF_P(PSTR("Segments: %d -> %u/%dB\n"), _segments.size(), size, Segment::getUsedSegmentData());
-  for (const Segment &seg : _segments) DEBUG_PRINTF_P(PSTR("  Seg: %d,%d [A=%d, 2D=%d, RGB=%d, W=%d, CCT=%d]\n"), seg.width(), seg.height(), seg.isActive(), seg.is2D(), seg.hasRGB(), seg.hasWhite(), seg.isCCT());
-  DEBUG_PRINTF_P(PSTR("Modes: %d*%d=%uB\n"), sizeof(mode_ptr), _mode.size(), (_mode.capacity()*sizeof(mode_ptr)));
-  DEBUG_PRINTF_P(PSTR("Data: %d*%d=%uB\n"), sizeof(const char *), _modeData.size(), (_modeData.capacity()*sizeof(const char *)));
-  DEBUG_PRINTF_P(PSTR("Map: %d*%d=%uB\n"), sizeof(uint16_t), (int)customMappingSize, customMappingSize*sizeof(uint16_t));
+  WLOG_D("fx", "Segments: %d -> %u/%dB", _segments.size(), size, Segment::getUsedSegmentData());
+  for (const Segment &seg : _segments) WLOG_D("fx", "  Seg: %d,%d [A=%d, 2D=%d, RGB=%d, W=%d, CCT=%d]", seg.width(), seg.height(), seg.isActive(), seg.is2D(), seg.hasRGB(), seg.hasWhite(), seg.isCCT());
+  WLOG_D("fx", "Modes: %d*%d=%uB", sizeof(mode_ptr), _mode.size(), (_mode.capacity()*sizeof(mode_ptr)));
+  WLOG_D("fx", "Data: %d*%d=%uB", sizeof(const char *), _modeData.size(), (_modeData.capacity()*sizeof(const char *)));
+  WLOG_D("fx", "Map: %d*%d=%uB", sizeof(uint16_t), (int)customMappingSize, customMappingSize*sizeof(uint16_t));
 }
 #endif
 
@@ -2093,11 +2093,11 @@ bool WS2812FX::deserializeMap(unsigned n) {
   filter[F("width")]  = true;
   filter[F("height")] = true;
   if (!readObjectFromFile(fileName, nullptr, pDoc, &filter)) {
-    DEBUG_PRINTF_P(PSTR("ERROR Invalid ledmap in %s\n"), fileName);
+    WLOG_E("fx", "ERROR Invalid ledmap in %s", fileName);
     releaseJSONBufferLock();
     return false; // if file does not load properly then exit
   } else
-    DEBUG_PRINTF_P(PSTR("Reading LED map from %s\n"), fileName);
+    WLOG_I("fx", "Reading LED map from %s", fileName);
 
   JsonObject root = pDoc->as<JsonObject>();
   // if we are loading default ledmap (at boot) set matrix width and height from the ledmap (compatible with WLED MM ledmaps)
@@ -2105,14 +2105,14 @@ bool WS2812FX::deserializeMap(unsigned n) {
     Segment::maxWidth  = min(max(root[F("width")].as<int>(), 1), 255);
     Segment::maxHeight = min(max(root[F("height")].as<int>(), 1), 255);
     isMatrix = true;
-    DEBUG_PRINTF_P(PSTR("LED map width=%d, height=%d\n"), Segment::maxWidth, Segment::maxHeight);
+    WLOG_I("fx", "LED map width=%d, height=%d", Segment::maxWidth, Segment::maxHeight);
   }
 
   d_free(customMappingTable);
   customMappingTable = static_cast<uint16_t*>(d_malloc(sizeof(uint16_t)*getLengthTotal())); // prefer DRAM for speed
 
   if (customMappingTable) {
-    DEBUG_PRINTF_P(PSTR("ledmap allocated: %uB\n"), sizeof(uint16_t)*getLengthTotal());
+    WLOG_D("fx", "ledmap allocated: %uB", sizeof(uint16_t)*getLengthTotal());
     File f = WLED_FS.open(fileName, "r");
     f.find("\"map\":[");
     while (f.available()) { // f.position() < f.size() - 1
@@ -2138,12 +2138,12 @@ bool WS2812FX::deserializeMap(unsigned n) {
     f.close();
 
     #ifdef WLED_DEBUG
-    DEBUG_PRINT(F("Loaded ledmap:"));
+    WLOG_D("fx", "Loaded ledmap:");
     for (unsigned i=0; i<customMappingSize; i++) {
-      if (!(i%Segment::maxWidth)) DEBUG_PRINTLN();
-      DEBUG_PRINTF_P(PSTR("%4d,"), customMappingTable[i] < 0xFFFFU ? customMappingTable[i] : -1);
+      if (!(i%Segment::maxWidth)) WLOG_D("fx", "");
+      WLOG_D("fx", "%4d,", customMappingTable[i] < 0xFFFFU ? customMappingTable[i] : -1);
     }
-    DEBUG_PRINTLN();
+    WLOG_D("fx", "");
     #endif
 /*
     JsonArray map = root[F("map")];
@@ -2154,7 +2154,7 @@ bool WS2812FX::deserializeMap(unsigned n) {
     }
 */
   } else {
-    DEBUG_PRINTLN(F("ERROR LED map allocation error."));
+    WLOG_E("fx", "ERROR LED map allocation error.");
   }
 
   releaseJSONBufferLock();

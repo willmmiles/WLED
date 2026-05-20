@@ -35,11 +35,13 @@ static File f; // don't export to other cpp files
 //wrapper to find out how long closing takes
 void closeFile() {
   #ifdef WLED_DEBUG_FS
-    DEBUGFS_PRINT(F("Close -> "));
     uint32_t s = millis();
+    WLOG_D("fs", "Close ->");
   #endif
   f.close(); // "if (f)" check is aleady done inside f.close(), and f cannot be nullptr -> no need for double checking before closing the file handle.
-  DEBUGFS_PRINTF("took %lu ms\n", millis() - s);
+  #ifdef WLED_DEBUG_FS
+  WLOG_D("fs", "took %lu ms", millis() - s);
+  #endif
   doCloseFile = false;
 }
 
@@ -47,8 +49,7 @@ void closeFile() {
 //Significantly faster, f.find(key) can take SECONDS for multi-kB files
 static bool bufferedFind(const char *target, bool fromStart = true) {
   #ifdef WLED_DEBUG_FS
-    DEBUGFS_PRINT("Find ");
-    DEBUGFS_PRINTLN(target);
+    WLOG_D("fs", "Find %s", target);
     uint32_t s = millis();
   #endif
 
@@ -69,14 +70,14 @@ static bool bufferedFind(const char *target, bool fromStart = true) {
       if(buf[count] == target[index]) {
         if(++index >= targetLen) { // return true if all chars in the target match
           f.seek((f.position() - bufsize) + count +1);
-          DEBUGFS_PRINTF("Found at pos %d, took %lu ms", f.position(), millis() - s);
+          WLOG_D("fs", "Found at pos %d, took %lu ms", f.position(), millis() - s);
           return true;
         }
       }
       count++;
     }
   }
-  DEBUGFS_PRINTF("No match, took %lu ms\n", millis() - s);
+  WLOG_D("fs", "No match, took %lu ms", millis() - s);
   return false;
 }
 
@@ -84,13 +85,12 @@ static bool bufferedFind(const char *target, bool fromStart = true) {
 static bool bufferedFindSpace(size_t targetLen, bool fromStart = true) {
 
   #ifdef WLED_DEBUG_FS
-    DEBUGFS_PRINTF("Find %d spaces\n", targetLen);
+    WLOG_D("fs", "Find %d spaces", targetLen);
     uint32_t s = millis();
   #endif
 
   if (knownLargestSpace < targetLen) {
-    DEBUGFS_PRINT(F("No match, KLS "));
-    DEBUGFS_PRINTLN(knownLargestSpace);
+    WLOG_D("fs", "No match, KLS %zu", knownLargestSpace);
     return false;
   }
 
@@ -111,7 +111,7 @@ static bool bufferedFindSpace(size_t targetLen, bool fromStart = true) {
             f.seek((f.position() - bufsize) + count +1 - targetLen);
             knownLargestSpace = MAX_SPACE; //there may be larger spaces after, so we don't know
           }
-          DEBUGFS_PRINTF("Found at pos %d, took %lu ms", f.position(), millis() - s);
+          WLOG_D("fs", "Found at pos %d, took %lu ms", f.position(), millis() - s);
           return true;
         }
       } else {
@@ -125,14 +125,14 @@ static bool bufferedFindSpace(size_t targetLen, bool fromStart = true) {
       count++;
     }
   }
-  DEBUGFS_PRINTF("No match, took %lu ms\n", millis() - s);
+  WLOG_D("fs", "No match, took %lu ms", millis() - s);
   return false;
 }
 
 //find the closing bracket corresponding to the opening bracket at the file pos when calling this function
 static bool bufferedFindObjectEnd() {
   #ifdef WLED_DEBUG_FS
-    DEBUGFS_PRINTLN(F("Find obj end"));
+    WLOG_D("fs", "Find obj end");
     uint32_t s = millis();
   #endif
 
@@ -151,13 +151,13 @@ static bool bufferedFindObjectEnd() {
       if (buf[count] == '}') objDepth--;
       if (objDepth == 0) {
         f.seek((f.position() - bufsize) + count +1);
-        DEBUGFS_PRINTF("} at pos %d, took %lu ms", f.position(), millis() - s);
+        WLOG_D("fs", "} at pos %d, took %lu ms", f.position(), millis() - s);
         return true;
       }
       count++;
     }
   }
-  DEBUGFS_PRINTF("No match, took %lu ms\n", millis() - s);
+  WLOG_D("fs", "No match, took %lu ms", millis() - s);
   return false;
 }
 
@@ -179,7 +179,7 @@ static void writeSpace(size_t l)
 static bool appendObjectToFile(const char* key, const JsonDocument* content, uint32_t s, uint32_t contentLen = 0)
 {
   #ifdef WLED_DEBUG_FS
-    DEBUGFS_PRINTLN(F("Append"));
+    WLOG_D("fs", "Append");
     uint32_t s1 = millis();
   #endif
   uint32_t pos = 0;
@@ -199,12 +199,12 @@ static bool appendObjectToFile(const char* key, const JsonDocument* content, uin
 
   //if there is enough empty space in file, insert there instead of appending
   if (!contentLen) contentLen = measureJson(*content);
-  DEBUGFS_PRINTF("CLen %d\n", contentLen);
+  WLOG_D("fs", "CLen %d", contentLen);
   if (bufferedFindSpace(contentLen + strlen(key) + 1)) {
     if (f.position() > 2) f.write(','); //add comma if not first object
     f.print(key);
     serializeJson(*content, f);
-    DEBUGFS_PRINTF("Inserted, took %lu ms (total %lu)", millis() - s1, millis() - s);
+    WLOG_D("fs", "Inserted, took %lu ms (total %lu)", millis() - s1, millis() - s);
     doCloseFile = true;
     return true;
   }
@@ -227,7 +227,7 @@ static bool appendObjectToFile(const char* key, const JsonDocument* content, uin
 
   if (pos == 0) //not found
   {
-    DEBUGFS_PRINTLN(F("not }"));
+    WLOG_D("fs", "not }");
     f.seek(0);
     while (bufferedFind("}",false)) //find last closing bracket in JSON if not last char
     {
@@ -235,7 +235,7 @@ static bool appendObjectToFile(const char* key, const JsonDocument* content, uin
     }
     if (pos > 0) pos--;
   }
-  DEBUGFS_PRINT("pos "); DEBUGFS_PRINTLN(pos);
+  WLOG_D("fs", "pos %u", pos);
   if (pos > 2)
   {
     f.seek(pos, SeekSet);
@@ -252,7 +252,7 @@ static bool appendObjectToFile(const char* key, const JsonDocument* content, uin
   f.write('}');
 
   doCloseFile = true;
-  DEBUGFS_PRINTF("Appended, took %lu ms (total %lu)", millis() - s1, millis() - s);
+  WLOG_D("fs", "Appended, took %lu ms (total %lu)", millis() - s1, millis() - s);
   return true;
 }
 
@@ -267,8 +267,8 @@ bool writeObjectToFile(const char* file, const char* key, const JsonDocument* co
 {
   uint32_t s = 0; //timing
   #ifdef WLED_DEBUG_FS
-    DEBUGFS_PRINTF("Write to %s with key %s >>>\n", file, (key==nullptr)?"nullptr":key);
-    serializeJson(*content, Serial); DEBUGFS_PRINTLN();
+    WLOG_D("fs", "Write to %s with key %s >>>", file, (key==nullptr)?"nullptr":key);
+    serializeJson(*content, Serial); Serial.println();
     s = millis();
   #endif
 
@@ -278,7 +278,7 @@ bool writeObjectToFile(const char* file, const char* key, const JsonDocument* co
   char fileName[129]; strncpy_P(fileName, file, 128); fileName[128] = 0; //use PROGMEM safe copy as FS.open() does not
   f = WLED_FS.open(fileName, WLED_FS.exists(fileName) ? "r+" : "w+");
   if (!f) {
-    DEBUGFS_PRINTLN(F("Failed to open!"));
+    WLOG_E("fs", "Failed to open!");
     return false;
   }
 
@@ -294,7 +294,7 @@ bool writeObjectToFile(const char* file, const char* key, const JsonDocument* co
   size_t pos2 = f.position();
 
   uint32_t oldLen = pos2 - pos;
-  DEBUGFS_PRINTF("Old obj len %d\n", oldLen);
+  WLOG_D("fs", "Old obj len %d", oldLen);
 
   //Three cases:
   //1. The new content is null, overwrite old obj with spaces
@@ -306,16 +306,16 @@ bool writeObjectToFile(const char* file, const char* key, const JsonDocument* co
   if (!content->isNull()) contentLen = measureJson(*content);
 
   if (contentLen && contentLen <= oldLen) { //replace and fill diff with spaces
-    DEBUGFS_PRINTLN(F("replace"));
+    WLOG_D("fs", "replace");
     f.seek(pos);
     serializeJson(*content, f);
     writeSpace(pos2 - f.position());
   } else if (contentLen && bufferedFindSpace(contentLen - oldLen, false)) { //enough leading spaces to replace
-    DEBUGFS_PRINTLN(F("replace (trailing)"));
+    WLOG_D("fs", "replace (trailing)");
     f.seek(pos);
     serializeJson(*content, f);
   } else {
-    DEBUGFS_PRINTLN(F("delete"));
+    WLOG_D("fs", "delete");
     pos -= strlen(key);
     if (pos > 3) pos--; //also delete leading comma if not first object
     f.seek(pos);
@@ -324,7 +324,7 @@ bool writeObjectToFile(const char* file, const char* key, const JsonDocument* co
   }
 
   doCloseFile = true;
-  DEBUGFS_PRINTF("Replaced/deleted, took %lu ms\n", millis() - s);
+  WLOG_D("fs", "Replaced/deleted, took %lu ms", millis() - s);
   return true;
 }
 
@@ -340,7 +340,7 @@ bool readObjectFromFile(const char* file, const char* key, JsonDocument* dest, c
 {
   if (doCloseFile) closeFile();
   #ifdef WLED_DEBUG_FS
-    DEBUGFS_PRINTF("Read from %s with key %s >>>\n", file, (key==nullptr)?"nullptr":key);
+    WLOG_D("fs", "Read from %s with key %s >>>", file, (key==nullptr)?"nullptr":key);
     uint32_t s = millis();
   #endif
   char fileName[129]; strncpy_P(fileName, file, 128); fileName[128] = 0; //use PROGMEM safe copy as FS.open() does not
@@ -351,7 +351,7 @@ bool readObjectFromFile(const char* file, const char* key, JsonDocument* dest, c
   {
     f.close();
     dest->clear();
-    DEBUGFS_PRINTLN(F("Obj not found."));
+    WLOG_D("fs", "Obj not found.");
     return false;
   }
 
@@ -359,7 +359,7 @@ bool readObjectFromFile(const char* file, const char* key, JsonDocument* dest, c
   else        deserializeJson(*dest, f);
 
   f.close();
-  DEBUGFS_PRINTF("Read, took %lu ms\n", millis() - s);
+  WLOG_D("fs", "Read, took %lu ms", millis() - s);
   return true;
 }
 
@@ -423,7 +423,7 @@ static const uint8_t *getPresetCache(size_t &size) {
 #endif
 
 bool handleFileRead(AsyncWebServerRequest* request, String path){
-  DEBUGFS_PRINT(F("WS FileRead: ")); DEBUGFS_PRINTLN(path);
+  WLOG_D("fs", "WS FileRead: %s", path.c_str());
   if(path.endsWith("/")) path += "index.htm";
   if(path.indexOf(F("sec")) > -1) return false;
   #ifdef BOARD_HAS_PSRAM
@@ -446,9 +446,9 @@ bool handleFileRead(AsyncWebServerRequest* request, String path){
 
 // copy a file, delete destination file if incomplete to prevent corrupted files
 bool copyFile(const char* src_path, const char* dst_path) {
-  DEBUG_PRINTF("copyFile from %s to %s\n", src_path, dst_path);
+  WLOG_D("fs", "copyFile from %s to %s", src_path, dst_path);
   if(!WLED_FS.exists(src_path)) {
-   DEBUG_PRINTLN(F("file not found"));
+   WLOG_E("fs", "file not found");
    return false;
   }
 
@@ -476,7 +476,7 @@ bool copyFile(const char* src_path, const char* dst_path) {
   if(src) src.close();
   if(dst) dst.close();
   if (!success) {
-    DEBUG_PRINTLN(F("copy failed"));
+    WLOG_E("fs", "copy failed");
     WLED_FS.remove(dst_path); // delete incomplete file
   }
   return success;
@@ -484,9 +484,9 @@ bool copyFile(const char* src_path, const char* dst_path) {
 
 // compare two files, return true if identical
 bool compareFiles(const char* path1, const char* path2) {
-  DEBUG_PRINTF("compareFile %s and %s\n", path1, path2);
+  WLOG_D("fs", "compareFile %s and %s", path1, path2);
   if (!WLED_FS.exists(path1) || !WLED_FS.exists(path2)) {
-    DEBUG_PRINTLN(F("file not found"));
+    WLOG_E("fs", "file not found");
     return false;
   }
 
@@ -522,42 +522,42 @@ bool compareFiles(const char* path1, const char* path2) {
 static const char s_backup_fmt[] PROGMEM = "/bkp.%s";
 
 bool backupFile(const char* filename) {
-  DEBUG_PRINTF("backup %s \n", filename);
+  WLOG_D("fs", "backup %s", filename);
   if (!validateJsonFile(filename)) {
-    DEBUG_PRINTLN(F("broken file"));
+    WLOG_E("fs", "broken file");
     return false;
   }
   char backupname[32];
   snprintf_P(backupname, sizeof(backupname), s_backup_fmt, filename + 1); // skip leading '/' in filename
 
   if (copyFile(filename, backupname)) {
-    DEBUG_PRINTLN(F("backup ok"));
+    WLOG_I("fs", "backup ok");
     return true;
   }
-  DEBUG_PRINTLN(F("backup failed"));
+  WLOG_E("fs", "backup failed");
   return false;
 }
 
 bool restoreFile(const char* filename) {
-  DEBUG_PRINTF("restore %s \n", filename);
+  WLOG_D("fs", "restore %s", filename);
   char backupname[32];
   snprintf_P(backupname, sizeof(backupname), s_backup_fmt, filename + 1); // skip leading '/' in filename
 
   if (!WLED_FS.exists(backupname)) {
-    DEBUG_PRINTLN(F("no backup found"));
+    WLOG_W("fs", "no backup found");
     return false;
   }
 
   if (!validateJsonFile(backupname)) {
-    DEBUG_PRINTLN(F("broken backup"));
+    WLOG_E("fs", "broken backup");
     return false;
   }
 
   if (copyFile(backupname, filename)) {
-    DEBUG_PRINTLN(F("restore ok"));
+    WLOG_I("fs", "restore ok");
     return true;
   }
-  DEBUG_PRINTLN(F("restore failed"));
+  WLOG_E("fs", "restore failed");
   return false;
 }
 
@@ -575,9 +575,9 @@ bool validateJsonFile(const char* filename) {
   bool result = deserializeJson(doc, file, DeserializationOption::Filter(filter)) == DeserializationError::Ok;
   file.close();
   if (!result) {
-    DEBUG_PRINTF_P(PSTR("Invalid JSON file %s\n"), filename);
+    WLOG_E("fs", "Invalid JSON file %s", filename);
   } else {
-    DEBUG_PRINTF_P(PSTR("Valid JSON file %s\n"), filename);
+    WLOG_D("fs", "Valid JSON file %s", filename);
   }
   return result;
 }

@@ -7,8 +7,7 @@
  */
 bool parseLx(int lxValue, byte* rgbw)
 {
-  DEBUG_PRINT(F("LX: Lox = "));
-  DEBUG_PRINTLN(lxValue);
+  WLOG_D("lx", "LX: Lox = %d", lxValue);
 
   bool ok = false;
   float lxRed = 0, lxGreen = 0, lxBlue = 0;
@@ -49,21 +48,19 @@ bool parseLx(int lxValue, byte* rgbw)
 void parseLxJson(int lxValue, byte segId, bool secondary)
 {
   if (secondary) {
-    DEBUG_PRINT(F("LY: Lox secondary = "));
+    WLOG_D("lx", "LY: Lox secondary = %d", lxValue);
   } else {
-    DEBUG_PRINT(F("LX: Lox primary = "));
+    WLOG_D("lx", "LX: Lox primary = %d", lxValue);
   }
-  DEBUG_PRINTLN(lxValue);
   byte rgbw[] = {0,0,0,0};
   if (parseLx(lxValue, rgbw)) {
     if (bri == 0) {
-      DEBUG_PRINTLN(F("LX: turn on"));
+      WLOG_D("lx", "LX: turn on");
       toggleOnOff();
     }
     bri = 255;
     nightlightActive = false; //always disable nightlight when toggling
-    DEBUG_PRINT(F("LX: segment "));
-    DEBUG_PRINTLN(segId);
+    WLOG_D("lx", "LX: segment %u", segId);
     strip.getSegment(segId).setColor(secondary, RGBW32(rgbw[0], rgbw[1], rgbw[2], rgbw[3])); // legacy values handled as well in json.cpp by stateUpdated()
   }
 }

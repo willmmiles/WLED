@@ -302,7 +302,7 @@ void loadCustomPalettes() {
           }
           customPalettes.push_back(targetPalette.loadDynamicGradientPalette(tcp));
         } else {
-          DEBUGFX_PRINTLN(F("Wrong palette format."));
+          WLOG_W("colors", "Wrong palette format.");
         }
       }
     } else {

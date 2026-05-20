@@ -38,7 +38,7 @@ void shufflePlaylist() {
     playlistEntries[currentIndex] = playlistEntries[randomIndex];
     playlistEntries[randomIndex] = temporaryValue;
   }
-  DEBUG_PRINTLN(F("Playlist shuffle."));
+  WLOG_D("playlist", "Playlist shuffle.");
 }
 
 
@@ -51,7 +51,7 @@ void unloadPlaylist() {
   playlistLen = 0;
   playlistOptions = 0;
   playlistEntryDur = 0;
-  DEBUG_PRINTLN(F("Playlist unloaded."));
+  WLOG_D("playlist", "Playlist unloaded.");
 }
 
 
@@ -143,7 +143,7 @@ int16_t loadPlaylist(JsonObject playlistObj, byte presetId) {
   }
 
   currentPlaylist = presetId;
-  DEBUG_PRINTLN(F("Playlist loaded."));
+  WLOG_D("playlist", "Playlist loaded.");
   return currentPlaylist;
 }
 

@@ -53,7 +53,7 @@ static void handleDDPPacket(e131_packet_t* p) {
   unsigned numLeds = stop - start; // stop >= start is guaranteed
   unsigned maxDataIndex = c + numLeds * ddpChannelsPerLed; // validate bounds before accessing data array
   if (maxDataIndex > dataLen) {
-    DEBUG_PRINTLN(F("DDP packet data bounds exceeded, rejecting."));
+    WLOG_W("e131", "DDP packet data bounds exceeded, rejecting.");
     return;
   }
 
@@ -130,7 +130,7 @@ void handleE131Packet(e131_packet_t* p, IPAddress clientIP, byte protocol){
 
   if (e131SkipOutOfSequence)
     if (seq < e131LastSequenceNumber[previousUniverses] && seq > 20 && e131LastSequenceNumber[previousUniverses] < 250){
-      DEBUG_PRINTF_P(PSTR("skipping E1.31 frame (last seq=%d, current seq=%d, universe=%d)\n"), e131LastSequenceNumber[previousUniverses], seq, uni);
+      WLOG_D("e131", "skipping E1.31 frame (last seq=%d, current seq=%d, universe=%d)", e131LastSequenceNumber[previousUniverses], seq, uni);
       return;
     }
   e131LastSequenceNumber[previousUniverses] = seq;
@@ -342,7 +342,7 @@ void handleDMXData(uint16_t uni, uint16_t dmxChannels, uint8_t* e131_data, uint8
         break;
       }
     default:
-      DEBUG_PRINTLN(F("unknown E1.31 DMX mode"));
+      WLOG_W("e131", "unknown E1.31 DMX mode");
       return;  // nothing to do
       break;
   }
@@ -398,7 +398,7 @@ static void handleArtnetPollReply(IPAddress ipAddress) {
         break;
       }
     default:
-      DEBUG_PRINTLN(F("unknown E1.31 DMX mode"));
+      WLOG_W("e131", "unknown E1.31 DMX mode");
       return;  // nothing to do
       break;
   }
