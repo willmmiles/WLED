@@ -11,7 +11,7 @@
  * Both must be string literals (not runtime variables).
  *
  * COMPILE-TIME LEVEL GATE
- *   Global minimum (build flag):  -D WLED_LOG_LEVEL=3   (0=none … 5=verbose)
+ *   Global minimum (build flag):  -D WLED_LOG_LEVEL=1   (0=none … 5=verbose)
  *   Per-file override (before #include "log.h"):
  *     #define WLED_LOCAL_LOG_LEVEL WLED_LOG_LEVEL_VERBOSE
  *
@@ -39,12 +39,13 @@ class Print; // forward-declare Arduino's Print base class
 #define WLED_LOG_LEVEL_DEBUG    4
 #define WLED_LOG_LEVEL_VERBOSE  5
 
-// Global default: DEBUG if WLED_DEBUG is set, else INFO.
+// Global default: DEBUG if WLED_DEBUG is set, else NONE.
+// Override at build time: -D WLED_LOG_LEVEL=3  (0=none … 5=verbose)
 #ifndef WLED_LOG_LEVEL
   #ifdef WLED_DEBUG
     #define WLED_LOG_LEVEL WLED_LOG_LEVEL_DEBUG
   #else
-    #define WLED_LOG_LEVEL WLED_LOG_LEVEL_INFO
+    #define WLED_LOG_LEVEL WLED_LOG_LEVEL_NONE
   #endif
 #endif
 
