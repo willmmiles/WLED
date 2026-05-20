@@ -51,18 +51,16 @@ public:
   // ── wled::ILogBuffer ───────────────────────────────────────────────────────
   bool isAvailable() const override { return _buf != nullptr; }
 
-  size_t streamTo(Print& out) const override {
+  void streamTo(Print& out) const override {
     _spinLock();
-    if (!_buf || _used == 0) { _spinUnlock(); return 0; }
+    if (!_buf || _used == 0) { _spinUnlock(); return; }
     if (_used < _capacity) {
       out.write(reinterpret_cast<const uint8_t*>(_buf), _used);
     } else {
       out.write(reinterpret_cast<const uint8_t*>(_buf + _head), _capacity - _head);
       out.write(reinterpret_cast<const uint8_t*>(_buf),          _head);
     }
-    const size_t n = (_used < _capacity) ? _used : _capacity;
     _spinUnlock();
-    return n;
   }
 
   void clear() override {
