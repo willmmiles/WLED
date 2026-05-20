@@ -20,8 +20,6 @@
 #include "html_cpal.h"
 #include "html_edit.h"
 
-#include "html_log.h"
-
 // forward declarations
 static void createEditHandler();
 
@@ -620,15 +618,6 @@ void initServer()
     }
   });
 
-  // Log viewer page — served on all builds; the data endpoint returns 503 if
-  // no ring buffer is available (no PSRAM and WLED_LOG_BUFFER_SIZE not set).
-  static const char _log_htm[] PROGMEM = "/log.htm";
-  server.on(_log_htm, HTTP_GET, [](AsyncWebServerRequest *request) {
-    handleStaticContent(request, FPSTR(_log_htm), 200, FPSTR(CONTENT_TYPE_HTML), PAGE_log, PAGE_log_length);
-  });
-  server.on(F("/log"), HTTP_GET, [](AsyncWebServerRequest *request) {
-    handleStaticContent(request, FPSTR(_log_htm), 200, FPSTR(CONTENT_TYPE_HTML), PAGE_log, PAGE_log_length);
-  });
 
 #ifndef WLED_DISABLE_2D
   #ifdef WLED_ENABLE_PIXART

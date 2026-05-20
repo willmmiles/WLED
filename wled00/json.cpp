@@ -1314,9 +1314,7 @@ void serveJson(AsyncWebServerRequest* request)
   else if (url.indexOf(F("net"))   > 0) subJson = json_target::networks;
   else if (url.indexOf(F("cfg"))   > 0) subJson = json_target::config;
   else if (url.indexOf(F("pins"))  > 0) subJson = json_target::pins;
-  #ifdef BOARD_HAS_PSRAM
-  else if (url.indexOf(F("log"))   > 0) { serveLog(request); return; }
-  #endif
+
   #ifdef WLED_ENABLE_JSONLIVE
   else if (url.indexOf("live")     > 0) {
     serveLiveLeds(request);
@@ -1380,29 +1378,6 @@ void serveJson(AsyncWebServerRequest* request)
   [[maybe_unused]] size_t len = response->setLength();
   WLOG_D("json", "JSON content length: %u", len);
 
-  request->send(response);
-}
-
-// Serve the in-memory log ring buffer as plain text over HTTP.
-// Returns 503 if no ILogBuffer is registered or its buffer is not yet allocated.
-void serveLog(AsyncWebServerRequest* request)
-{
-  wled::ILogBuffer* lbuf = wled::ILogBuffer::get();
-  if (!lbuf || !lbuf->isAvailable()) {
-    request->send(503, FPSTR(CONTENT_TYPE_PLAIN), F("Log buffer unavailable"));
-    return;
-  }
-
-  // ?clear wipes the buffer
-  if (request->hasParam(F("clear"))) {
-    lbuf->clear();
-    request->send(200, FPSTR(CONTENT_TYPE_PLAIN), F("Log buffer cleared."));
-    return;
-  }
-
-  AsyncResponseStream* response = request->beginResponseStream(FPSTR(CONTENT_TYPE_PLAIN));
-  response->addHeader(F("Cache-Control"), F("no-store"));
-  lbuf->streamTo(*response);
   request->send(response);
 }
 

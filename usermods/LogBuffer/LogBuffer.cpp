@@ -10,10 +10,17 @@
  *   Runtime: adjustable via the WLED settings page ("size_kb" field).
  *   The new size takes effect after the next reboot.
  *
+ * HTTP ENDPOINTS (registered in setup())
+ *   GET /log.htm   — serves the log viewer UI page
+ *   GET /log       — same as /log.htm (convenience alias)
+ *   GET /json/log  — streams the ring buffer as plain text
+ *   GET /json/log?clear — clears the buffer
+ *
  * Enable by adding "LogBuffer" to custom_usermods in your PlatformIO env.
  */
 
 #include "wled.h"
+#include "html_log.h"
 
 #ifndef WLED_LOG_BUFFER_SIZE
   #ifdef BOARD_HAS_PSRAM
@@ -29,7 +36,36 @@ public:
   ~LogBufferUsermod() { if (_buf) { free(_buf); _buf = nullptr; } }
 
   // ── wled::LogSink ──────────────────────────────────────────────────────────
-  void setup() override { _allocate(_desiredCapacity); }
+  void setup() override {
+    _allocate(_desiredCapacity);
+
+    // Register the log viewer UI and data endpoints.
+    static const char _log_htm[] PROGMEM = "/log.htm";
+    server.on(_log_htm, HTTP_GET, [](AsyncWebServerRequest *request) {
+      handleStaticContent(request, FPSTR(_log_htm), 200,
+                          FPSTR(CONTENT_TYPE_HTML), PAGE_log, PAGE_log_length);
+    });
+    server.on(F("/log"), HTTP_GET, [](AsyncWebServerRequest *request) {
+      handleStaticContent(request, FPSTR(_log_htm), 200,
+                          FPSTR(CONTENT_TYPE_HTML), PAGE_log, PAGE_log_length);
+    });
+    server.on(F("/json/log"), HTTP_GET, [this](AsyncWebServerRequest *request) {
+      if (!_buf) {
+        request->send(503, FPSTR(CONTENT_TYPE_PLAIN), F("Log buffer unavailable"));
+        return;
+      }
+      if (request->hasParam(F("clear"))) {
+        clear();
+        request->send(200, FPSTR(CONTENT_TYPE_PLAIN), F("Log buffer cleared."));
+        return;
+      }
+      AsyncResponseStream* response =
+          request->beginResponseStream(FPSTR(CONTENT_TYPE_PLAIN));
+      response->addHeader(F("Cache-Control"), F("no-store"));
+      streamTo(*response);
+      request->send(response);
+    });
+  }
 
   void write(wled::LogLevel level, const char* tag,
              const char* msg, size_t len) override
