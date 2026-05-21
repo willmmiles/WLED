@@ -43,7 +43,7 @@ void FontManager::getFontFileName(uint8_t fontNum, char* buffer, bool scanAll) {
   uint8_t i = 0;
   while (rootfile && i < MAX_FONTS) {
     String name = rootfile.name();
-    if (name.endsWith(F(".wbf"))) {
+    if (name.endsWith(".wbf")) {
       if (i == fontNum) {
         if (name.charAt(0) != '/') name = "/" + name; // need to add leading slash
         strncpy(buffer, name.c_str(), FONT_NAME_BUFFER_SIZE - 1);

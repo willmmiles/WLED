@@ -4,7 +4,7 @@ class klipper_percentage : public Usermod
 {
 private:
   unsigned long lastTime = 0;
-  String ip = F("0.0.0.0");
+  String ip = "0.0.0.0";
   WiFiClient wifiClient;
   char errorMessage[100] = "";
   int printPercent = 0;
@@ -22,26 +22,26 @@ private:
     client.setTimeout(10000);
     if (!client.connect(ip.c_str(), 80))
     {
-      strcat(errorMessage, PSTR("Connection failed"));
+      strcat(errorMessage, "Connection failed");
     }
     else
     {
       // Send HTTP request
-      client.println(F("GET /printer/objects/query?virtual_sdcard=progress HTTP/1.0"));
-      client.print(F("Host: ")); client.println(ip);
-      client.println(F("Connection: close"));
+      client.println("GET /printer/objects/query?virtual_sdcard=progress HTTP/1.0");
+      client.print("Host: "); client.println(ip);
+      client.println("Connection: close");
       if (client.println() == 0)
       {
-        strcat(errorMessage, PSTR("Failed to send request"));
+        strcat(errorMessage, "Failed to send request");
       }
       else
       {
         // Check HTTP status
         char status[32] = {0};
         client.readBytesUntil('\r', status, sizeof(status));
-        if (strcmp_P(status, PSTR("HTTP/1.1 200 OK")) != 0)
+        if (strcmp(status, "HTTP/1.1 200 OK") != 0)
         {
-          strcat(errorMessage, PSTR("Unexpected response: "));
+          strcat(errorMessage, "Unexpected response: ");
           strcat(errorMessage, status);
         }
         else
@@ -50,7 +50,7 @@ private:
           char endOfHeaders[] = "\r\n\r\n";
           if (!client.find(endOfHeaders))
           {
-            strcat(errorMessage, PSTR("Invalid response"));
+            strcat(errorMessage, "Invalid response");
           }
         }
       }
@@ -81,14 +81,14 @@ public:
             DeserializationError error = deserializeJson(klipperDoc, wifiClient);
             if (error)
             {
-              strcat(errorMessage, PSTR("deserializeJson() failed: "));
+              strcat(errorMessage, "deserializeJson() failed: ");
               strcat(errorMessage, error.c_str());
             }
-            printPercent = (int)(klipperDoc[F("result")][F("status")][F("virtual_sdcard")][F("progress")].as<float>() * 100);
+            printPercent = (int)(klipperDoc["result"]["status"]["virtual_sdcard"]["progress"].as<float>() * 100);
 
-            DEBUG_PRINT(F("Percent: "));
-            DEBUG_PRINTLN((int)(klipperDoc[F("result")][F("status")][F("virtual_sdcard")][F("progress")].as<float>() * 100));
-            DEBUG_PRINT(F("LEDs: "));
+            DEBUG_PRINT("Percent: ");
+            DEBUG_PRINTLN((int)(klipperDoc["result"]["status"]["virtual_sdcard"]["progress"].as<float>() * 100));
+            DEBUG_PRINT("LEDs: ");
             DEBUG_PRINTLN(direction == 2 ? (strip.getLengthTotal() / 2) * printPercent / 100 : strip.getLengthTotal() * printPercent / 100);
           }
           else
@@ -104,10 +104,10 @@ public:
 
   void addToConfig(JsonObject &root)
   {
-    JsonObject top = root.createNestedObject(F("Klipper Printing Percentage"));
-    top[F("Enabled")] = enabled;
-    top[F("Klipper IP")] = ip;
-    top[F("Direction")] = direction;
+    JsonObject top = root.createNestedObject("Klipper Printing Percentage");
+    top["Enabled"] = enabled;
+    top["Klipper IP"] = ip;
+    top["Direction"] = direction;
   }
 
   bool readFromConfig(JsonObject &root)
@@ -115,12 +115,12 @@ public:
     // default settings values could be set here (or below using the 3-argument getJsonValue()) instead of in the class definition or constructor
     // setting them inside readFromConfig() is slightly more robust, handling the rare but plausible use case of single value being missing after boot (e.g. if the cfg.json was manually edited and a value was removed)
 
-    JsonObject top = root[F("Klipper Printing Percentage")];
+    JsonObject top = root["Klipper Printing Percentage"];
 
     bool configComplete = !top.isNull();
-    configComplete &= getJsonValue(top[F("Klipper IP")], ip);
-    configComplete &= getJsonValue(top[F("Enabled")], enabled);
-    configComplete &= getJsonValue(top[F("Direction")], direction);
+    configComplete &= getJsonValue(top["Klipper IP"], ip);
+    configComplete &= getJsonValue(top["Enabled"], enabled);
+    configComplete &= getJsonValue(top["Direction"], direction);
     return configComplete;
   }
 
@@ -135,36 +135,36 @@ public:
     if (user.isNull())
       user = root.createNestedObject("u");
 
-    JsonArray infoArr = user.createNestedArray(FPSTR(_name));
-    String uiDomString = F("<button class=\"btn btn-xs\" onclick=\"requestJson({");
-    uiDomString += FPSTR(_name);
-    uiDomString += F(":{");
-    uiDomString += FPSTR(_enabled);
-    uiDomString += enabled ? F(":false}});\">") : F(":true}});\">");
-    uiDomString += F("<i class=\"icons");
-    uiDomString += enabled ? F(" on") : F(" off");
-    uiDomString += F("\">&#xe08f;</i>");
-    uiDomString += F("</button>");
+    JsonArray infoArr = user.createNestedArray(_name);
+    String uiDomString = "<button class=\"btn btn-xs\" onclick=\"requestJson({";
+    uiDomString += _name;
+    uiDomString += ":{";
+    uiDomString += _enabled;
+    uiDomString += enabled ? ":false}});\">" : ":true}});\">";
+    uiDomString += "<i class=\"icons";
+    uiDomString += enabled ? " on" : " off";
+    uiDomString += "\">&#xe08f;</i>";
+    uiDomString += "</button>";
     infoArr.add(uiDomString);
   }
 
   void addToJsonState(JsonObject &root)
   {
-    JsonObject usermod = root[FPSTR(_name)];
+    JsonObject usermod = root[_name];
     if (usermod.isNull())
     {
-      usermod = root.createNestedObject(FPSTR(_name));
+      usermod = root.createNestedObject(_name);
     }
     usermod["on"] = enabled;
   }
   void readFromJsonState(JsonObject &root)
   {
-    JsonObject usermod = root[FPSTR(_name)];
+    JsonObject usermod = root[_name];
     if (!usermod.isNull())
     {
-      if (usermod[FPSTR(_enabled)].is<bool>())
+      if (usermod[_enabled].is<bool>())
       {
-        enabled = usermod[FPSTR(_enabled)].as<bool>();
+        enabled = usermod[_enabled].as<bool>();
       }
     }
   }

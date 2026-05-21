@@ -192,7 +192,7 @@ class I2SSource : public AudioSource {
     }
 
     virtual void initialize(int8_t i2swsPin = I2S_PIN_NO_CHANGE, int8_t i2ssdPin = I2S_PIN_NO_CHANGE, int8_t i2sckPin = I2S_PIN_NO_CHANGE, int8_t mclkPin = I2S_PIN_NO_CHANGE) {
-      DEBUGSR_PRINTLN(F("I2SSource:: initialize()."));
+      DEBUGSR_PRINTLN("I2SSource:: initialize().");
       if (i2swsPin != I2S_PIN_NO_CHANGE && i2ssdPin != I2S_PIN_NO_CHANGE) {
         if (!PinManager::allocatePin(i2swsPin, true, PinOwner::UM_Audioreactive) ||
             !PinManager::allocatePin(i2ssdPin, false, PinOwner::UM_Audioreactive)) { // #206
@@ -279,9 +279,9 @@ class I2SSource : public AudioSource {
       DEBUGSR_PRINTF("AR: I2S#0 driver %s aPLL; fixed_mclk=%d.\n", _config.use_apll? "uses":"without", _config.fixed_mclk);
       DEBUGSR_PRINTF("AR: %d bits, Sample scaling factor = %6.4f\n",  _config.bits_per_sample, _sampleScale);
       if (_config.mode & I2S_MODE_PDM) {
-          DEBUGSR_PRINTLN(F("AR: I2S#0 driver installed in PDM MASTER mode."));
+          DEBUGSR_PRINTLN("AR: I2S#0 driver installed in PDM MASTER mode.");
       } else { 
-          DEBUGSR_PRINTLN(F("AR: I2S#0 driver installed in MASTER mode."));
+          DEBUGSR_PRINTLN("AR: I2S#0 driver installed in MASTER mode.");
       }
 
       err = i2s_set_pin(I2S_NUM_0, &_pinConfig);
@@ -432,7 +432,7 @@ public:
     };
 
     void initialize(int8_t i2swsPin, int8_t i2ssdPin, int8_t i2sckPin, int8_t mclkPin) {
-      DEBUGSR_PRINTLN(F("ES7243:: initialize();"));
+      DEBUGSR_PRINTLN("ES7243:: initialize();");
       if ((i2sckPin < 0) || (mclkPin < 0)) {
         DEBUGSR_PRINTF("\nAR: invalid I2S pin: SCK=%d, MCLK=%d\n", i2sckPin, mclkPin); 
         return;
@@ -548,7 +548,7 @@ class ES8388Source : public I2SSource {
     };
 
     void initialize(int8_t i2swsPin, int8_t i2ssdPin, int8_t i2sckPin, int8_t mclkPin) {
-      DEBUGSR_PRINTLN(F("ES8388Source:: initialize();"));
+      DEBUGSR_PRINTLN("ES8388Source:: initialize();");
       if ((i2sckPin < 0) || (mclkPin < 0)) {
         DEBUGSR_PRINTF("\nAR: invalid I2S pin: SCK=%d, MCLK=%d\n", i2sckPin, mclkPin); 
         return;
@@ -606,7 +606,7 @@ class I2SAdcSource : public I2SSource {
     AudioSourceType getType(void) {return(Type_I2SAdc);}
 
     void initialize(int8_t audioPin, int8_t = I2S_PIN_NO_CHANGE, int8_t = I2S_PIN_NO_CHANGE, int8_t = I2S_PIN_NO_CHANGE) {
-      DEBUGSR_PRINTLN(F("I2SAdcSource:: initialize()."));
+      DEBUGSR_PRINTLN("I2SAdcSource:: initialize().");
       _myADCchannel = 0x0F;
       if(!PinManager::allocatePin(audioPin, false, PinOwner::UM_Audioreactive)) {
          DEBUGSR_PRINTF("failed to allocate GPIO for audio analog input: %d\n", audioPin);
@@ -778,7 +778,7 @@ class SPH0654 : public I2SSource {
     {}
 
     void initialize(int8_t i2swsPin, int8_t i2ssdPin, int8_t i2sckPin, int8_t = I2S_PIN_NO_CHANGE) {
-      DEBUGSR_PRINTLN(F("SPH0654:: initialize();"));
+      DEBUGSR_PRINTLN("SPH0654:: initialize();");
       I2SSource::initialize(i2swsPin, i2ssdPin, i2sckPin);
 #if !defined(CONFIG_IDF_TARGET_ESP32S2) && !defined(CONFIG_IDF_TARGET_ESP32C3) && !defined(CONFIG_IDF_TARGET_ESP32S3)
 // these registers are only existing in "classic" ESP32

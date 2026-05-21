@@ -231,16 +231,16 @@ class RgbRotaryEncoderUsermod : public Usermod
 
     void addToConfig(JsonObject &root)
     {
-      JsonObject top = root.createNestedObject(FPSTR(_name)); // usermodname
+      JsonObject top = root.createNestedObject(_name); // usermodname
 
-      top[FPSTR(_enabled)] = enabled;
-      top[FPSTR(_ledIo)] = ledIo;
-      top[FPSTR(_eaIo)] = eaIo;
-      top[FPSTR(_ebIo)] = ebIo;
-      top[FPSTR(_ledMode)] = ledMode;
-      top[FPSTR(_ledBrightness)] = ledBrightness;
-      top[FPSTR(_stepsPerClick)] = stepsPerClick;
-      top[FPSTR(_incrementPerClick)] = incrementPerClick;
+      top[_enabled] = enabled;
+      top[_ledIo] = ledIo;
+      top[_eaIo] = eaIo;
+      top[_ebIo] = ebIo;
+      top[_ledMode] = ledMode;
+      top[_ledBrightness] = ledBrightness;
+      top[_stepsPerClick] = stepsPerClick;
+      top[_incrementPerClick] = incrementPerClick;
     }
 
     /**
@@ -250,7 +250,7 @@ class RgbRotaryEncoderUsermod : public Usermod
      */
     bool readFromConfig(JsonObject &root)
     {
-      JsonObject top = root[FPSTR(_name)];
+      JsonObject top = root[_name];
       if (top.isNull()) {
         DEBUG_PRINTF("[%s] No config found. (Using defaults.)\n", _name);
         return false;
@@ -265,14 +265,14 @@ class RgbRotaryEncoderUsermod : public Usermod
       byte oldIncrementPerClick = incrementPerClick;
       byte oldLedBrightness = ledBrightness;
 
-      getJsonValue(top[FPSTR(_enabled)], enabled);
-      getJsonValue(top[FPSTR(_ledIo)], ledIo);
-      getJsonValue(top[FPSTR(_eaIo)], eaIo);
-      getJsonValue(top[FPSTR(_ebIo)], ebIo);
-      getJsonValue(top[FPSTR(_stepsPerClick)], stepsPerClick);
-      getJsonValue(top[FPSTR(_incrementPerClick)], incrementPerClick);
-      ledMode = top[FPSTR(_ledMode)] > 0 && top[FPSTR(_ledMode)] < 4 ? top[FPSTR(_ledMode)] : ledMode;
-      ledBrightness = top[FPSTR(_ledBrightness)] > 0 && top[FPSTR(_ledBrightness)] <= 255 ? top[FPSTR(_ledBrightness)] : ledBrightness;
+      getJsonValue(top[_enabled], enabled);
+      getJsonValue(top[_ledIo], ledIo);
+      getJsonValue(top[_eaIo], eaIo);
+      getJsonValue(top[_ebIo], ebIo);
+      getJsonValue(top[_stepsPerClick], stepsPerClick);
+      getJsonValue(top[_incrementPerClick], incrementPerClick);
+      ledMode = top[_ledMode] > 0 && top[_ledMode] < 4 ? top[_ledMode] : ledMode;
+      ledBrightness = top[_ledBrightness] > 0 && top[_ledBrightness] <= 255 ? top[_ledBrightness] : ledBrightness;
 
       if (!initDone) {
         // First run: reading from cfg.json

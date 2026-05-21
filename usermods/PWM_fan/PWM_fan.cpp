@@ -86,7 +86,7 @@ class PWMFanUsermod : public Usermod {
       pinMode(tachoPin, INPUT);
       digitalWrite(tachoPin, HIGH);
       attachInterrupt(digitalPinToInterrupt(tachoPin), rpm_fan, FALLING);
-      DEBUG_PRINTLN(F("Tacho sucessfully initialized."));
+      DEBUG_PRINTLN("Tacho sucessfully initialized.");
     }
 
     void deinitTacho(void) {
@@ -134,7 +134,7 @@ class PWMFanUsermod : public Usermod {
       // attach the channel to the GPIO to be controlled
       ledcAttachPin(pwmPin, pwmChannel);
       #endif
-      DEBUG_PRINTLN(F("Fan PWM sucessfully initialized."));
+      DEBUG_PRINTLN("Fan PWM sucessfully initialized.");
     }
 
     void deinitPWMfan(void) {
@@ -177,7 +177,7 @@ class PWMFanUsermod : public Usermod {
 
     uint8_t calculatePwmStep(float diffTemp){
       if ((diffTemp == NAN) || (diffTemp <= -100.0)) {
-        DEBUG_PRINTLN(F("WARNING: no temperature value available. Cannot do temperature control. Will set PWM fan to 255."));
+        DEBUG_PRINTLN("WARNING: no temperature value available. Cannot do temperature control. Will set PWM fan to 255.");
         return _pwmMaxStepCount;
       }
       if(diffTemp <=0){
@@ -231,36 +231,36 @@ class PWMFanUsermod : public Usermod {
       JsonObject user = root["u"];
       if (user.isNull()) user = root.createNestedObject("u");
 
-      JsonArray infoArr = user.createNestedArray(FPSTR(_name));
-      String uiDomString = F("<button class=\"btn btn-xs\" onclick=\"requestJson({'");
-      uiDomString += FPSTR(_name);
-      uiDomString += F("':{'");
-      uiDomString += FPSTR(_enabled);
-      uiDomString += F("':");
+      JsonArray infoArr = user.createNestedArray(_name);
+      String uiDomString = "<button class=\"btn btn-xs\" onclick=\"requestJson({'";
+      uiDomString += _name;
+      uiDomString += "':{'";
+      uiDomString += _enabled;
+      uiDomString += "':";
       uiDomString += enabled ? "false" : "true";
-      uiDomString += F("}});\"><i class=\"icons ");
+      uiDomString += "}});\"><i class=\"icons ";
       uiDomString += enabled ? "on" : "off";
-      uiDomString += F("\">&#xe08f;</i></button>");
+      uiDomString += "\">&#xe08f;</i></button>";
       infoArr.add(uiDomString);
 
       if (enabled) {
-        JsonArray infoArr = user.createNestedArray(F("Manual"));
-        String uiDomString = F("<div class=\"slider\"><div class=\"sliderwrap il\"><input class=\"noslide\" onchange=\"requestJson({'");
-        uiDomString += FPSTR(_name);
-        uiDomString += F("':{'");
-        uiDomString += FPSTR(_speed);
-        uiDomString += F("':parseInt(this.value)}});\" oninput=\"updateTrail(this);\" max=100 min=0 type=\"range\" value=");
+        JsonArray infoArr = user.createNestedArray("Manual");
+        String uiDomString = "<div class=\"slider\"><div class=\"sliderwrap il\"><input class=\"noslide\" onchange=\"requestJson({'";
+        uiDomString += _name;
+        uiDomString += "':{'";
+        uiDomString += _speed;
+        uiDomString += "':parseInt(this.value)}});\" oninput=\"updateTrail(this);\" max=100 min=0 type=\"range\" value=";
         uiDomString += pwmValuePct;
-        uiDomString += F(" /><div class=\"sliderdisplay\"></div></div></div>"); //<output class=\"sliderbubble\"></output>
+        uiDomString += " /><div class=\"sliderdisplay\"></div></div></div>"; //<output class=\"sliderbubble\"></output>
         infoArr.add(uiDomString);
 
-        JsonArray data = user.createNestedArray(F("Speed"));
+        JsonArray data = user.createNestedArray("Speed");
         if (tachoPin >= 0) {
           data.add(last_rpm);
-          data.add(F("rpm"));
+          data.add("rpm");
         } else {
-          if (lockFan) data.add(F("locked"));
-          else         data.add(F("auto"));
+          if (lockFan) data.add("locked");
+          else         data.add("auto");
         }
       }
     }
@@ -278,19 +278,19 @@ class PWMFanUsermod : public Usermod {
      */
     void readFromJsonState(JsonObject& root) override {
       if (!initDone) return;  // prevent crash on boot applyPreset()
-      JsonObject usermod = root[FPSTR(_name)];
+      JsonObject usermod = root[_name];
       if (!usermod.isNull()) {
-        if (usermod[FPSTR(_enabled)].is<bool>()) {
-          enabled = usermod[FPSTR(_enabled)].as<bool>();
+        if (usermod[_enabled].is<bool>()) {
+          enabled = usermod[_enabled].as<bool>();
           if (!enabled) updateFanSpeed(0);
         }
-        if (enabled && !usermod[FPSTR(_speed)].isNull() && usermod[FPSTR(_speed)].is<int>()) {
-          pwmValuePct = usermod[FPSTR(_speed)].as<int>();
+        if (enabled && !usermod[_speed].isNull() && usermod[_speed].is<int>()) {
+          pwmValuePct = usermod[_speed].as<int>();
           updateFanSpeed((constrain(pwmValuePct,0,100) * 255) / 100);
           if (pwmValuePct) lockFan = true;
         }
-        if (enabled && !usermod[FPSTR(_lock)].isNull() && usermod[FPSTR(_lock)].is<bool>()) {
-          lockFan = usermod[FPSTR(_lock)].as<bool>();
+        if (enabled && !usermod[_lock].isNull() && usermod[_lock].is<bool>()) {
+          lockFan = usermod[_lock].as<bool>();
         }
       }
     }
@@ -310,16 +310,16 @@ class PWMFanUsermod : public Usermod {
      * I highly recommend checking out the basics of ArduinoJson serialization and deserialization in order to use custom settings!
      */
     void addToConfig(JsonObject& root) override {
-      JsonObject top = root.createNestedObject(FPSTR(_name)); // usermodname
-      top[FPSTR(_enabled)]        = enabled;
-      top[FPSTR(_pwmPin)]         = pwmPin;
-      top[FPSTR(_tachoPin)]       = tachoPin;
-      top[FPSTR(_tachoUpdateSec)] = tachoUpdateSec;
-      top[FPSTR(_temperature)]    = targetTemperature;
-      top[FPSTR(_minPWMValuePct)] = minPWMValuePct;
-      top[FPSTR(_maxPWMValuePct)] = maxPWMValuePct;
-      top[FPSTR(_IRQperRotation)] = numberOfInterrupsInOneSingleRotation;
-      DEBUG_PRINTLN(F("Autosave config saved."));
+      JsonObject top = root.createNestedObject(_name); // usermodname
+      top[_enabled]        = enabled;
+      top[_pwmPin]         = pwmPin;
+      top[_tachoPin]       = tachoPin;
+      top[_tachoUpdateSec] = tachoUpdateSec;
+      top[_temperature]    = targetTemperature;
+      top[_minPWMValuePct] = minPWMValuePct;
+      top[_maxPWMValuePct] = maxPWMValuePct;
+      top[_IRQperRotation] = numberOfInterrupsInOneSingleRotation;
+      DEBUG_PRINTLN("Autosave config saved.");
     }
 
     /*
@@ -336,36 +336,36 @@ class PWMFanUsermod : public Usermod {
       int8_t newTachoPin = tachoPin;
       int8_t newPwmPin   = pwmPin;
 
-      JsonObject top = root[FPSTR(_name)];
-      DEBUG_PRINT(FPSTR(_name));
+      JsonObject top = root[_name];
+      DEBUG_PRINT(_name);
       if (top.isNull()) {
-        DEBUG_PRINTLN(F(": No config found. (Using defaults.)"));
+        DEBUG_PRINTLN(": No config found. (Using defaults.)");
         return false;
       }
 
-      enabled           = top[FPSTR(_enabled)] | enabled;
-      newTachoPin       = top[FPSTR(_tachoPin)] | newTachoPin;
-      newPwmPin         = top[FPSTR(_pwmPin)] | newPwmPin;
-      tachoUpdateSec    = top[FPSTR(_tachoUpdateSec)] | tachoUpdateSec;
+      enabled           = top[_enabled] | enabled;
+      newTachoPin       = top[_tachoPin] | newTachoPin;
+      newPwmPin         = top[_pwmPin] | newPwmPin;
+      tachoUpdateSec    = top[_tachoUpdateSec] | tachoUpdateSec;
       tachoUpdateSec    = (uint8_t) max(1,(int)tachoUpdateSec); // bounds checking
-      targetTemperature = top[FPSTR(_temperature)] | targetTemperature;
-      minPWMValuePct    = top[FPSTR(_minPWMValuePct)] | minPWMValuePct;
+      targetTemperature = top[_temperature] | targetTemperature;
+      minPWMValuePct    = top[_minPWMValuePct] | minPWMValuePct;
       minPWMValuePct    = (uint8_t) min(100,max(0,(int)minPWMValuePct)); // bounds checking
-      maxPWMValuePct    = top[FPSTR(_maxPWMValuePct)] | maxPWMValuePct;
+      maxPWMValuePct    = top[_maxPWMValuePct] | maxPWMValuePct;
       maxPWMValuePct    = (uint8_t) min(100,max((int)minPWMValuePct,(int)maxPWMValuePct)); // bounds checking
-      numberOfInterrupsInOneSingleRotation = top[FPSTR(_IRQperRotation)] | numberOfInterrupsInOneSingleRotation;
+      numberOfInterrupsInOneSingleRotation = top[_IRQperRotation] | numberOfInterrupsInOneSingleRotation;
       numberOfInterrupsInOneSingleRotation = (uint8_t) max(1,(int)numberOfInterrupsInOneSingleRotation); // bounds checking
 
       if (!initDone) {
         // first run: reading from cfg.json
         tachoPin = newTachoPin;
         pwmPin   = newPwmPin;
-        DEBUG_PRINTLN(F(" config loaded."));
+        DEBUG_PRINTLN(" config loaded.");
       } else {
-        DEBUG_PRINTLN(F(" config (re)loaded."));
+        DEBUG_PRINTLN(" config (re)loaded.");
         // changing paramters from settings page
         if (tachoPin != newTachoPin || pwmPin != newPwmPin) {
-          DEBUG_PRINTLN(F("Re-init pins."));
+          DEBUG_PRINTLN("Re-init pins.");
           // deallocate pin and release interrupts
           deinitTacho();
           deinitPWMfan();
@@ -377,7 +377,7 @@ class PWMFanUsermod : public Usermod {
       }
 
       // use "return !top["newestParameter"].isNull();" when updating Usermod with new features
-      return !top[FPSTR(_IRQperRotation)].isNull();
+      return !top[_IRQperRotation].isNull();
   }
 
     /*

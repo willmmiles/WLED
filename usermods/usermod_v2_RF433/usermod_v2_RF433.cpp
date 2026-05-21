@@ -57,11 +57,11 @@ public:
       lastCommand = receivedCommand;
       lastTime = millis();
 
-      DEBUG_PRINT(F("RF433 Receive: "));
+      DEBUG_PRINT("RF433 Receive: ");
       DEBUG_PRINTLN(receivedCommand);
       
       if(!remoteJson433(receivedCommand))
-        DEBUG_PRINTLN(F("RF433: unknown button"));
+        DEBUG_PRINTLN("RF433: unknown button");
     }
   }
 
@@ -80,27 +80,27 @@ public:
 
   void addToConfig(JsonObject &root)
   {
-    JsonObject top = root.createNestedObject(FPSTR(_modName)); // usermodname
-    top[FPSTR(_modEnabled)] = modEnabled;
+    JsonObject top = root.createNestedObject(_modName); // usermodname
+    top[_modEnabled] = modEnabled;
     JsonArray pinArray = top.createNestedArray("pin");
     pinArray.add(receivePin);
 
-    DEBUG_PRINTLN(F(" config saved."));
+    DEBUG_PRINTLN(" config saved.");
   }
 
   bool readFromConfig(JsonObject &root)
   {
-    JsonObject top = root[FPSTR(_modName)];
+    JsonObject top = root[_modName];
     if (top.isNull())
     {
-      DEBUG_PRINT(FPSTR(_modName));
-      DEBUG_PRINTLN(F(": No config found. (Using defaults.)"));
+      DEBUG_PRINT(_modName);
+      DEBUG_PRINTLN(": No config found. (Using defaults.)");
       return false;
     }
-    getJsonValue(top[FPSTR(_modEnabled)], modEnabled);
+    getJsonValue(top[_modEnabled], modEnabled);
     getJsonValue(top["pin"][0], receivePin);
 
-    DEBUG_PRINTLN(F("config (re)loaded."));
+    DEBUG_PRINTLN("config (re)loaded.");
 
     // Redo init on update
     if(initDone)
@@ -126,13 +126,13 @@ public:
 
     if (!requestJSONBufferLock(JSON_LOCK_REMOTE)) return false;
 
-    sprintf_P(objKey, PSTR("\"%d\":"), button);
+    sprintf(objKey, "\"%d\":", button);
 
     unsigned long start = millis();
     while (strip.isUpdating() && millis()-start < RF433_BUSWAIT_TIMEOUT) yield(); // wait for strip to finish updating, accessing FS during sendout causes glitches
 
     // attempt to read command from remote.json
-    readObjectFromFile(PSTR("/remote433.json"), objKey, pDoc);
+    readObjectFromFile("/remote433.json", objKey, pDoc);
     JsonObject fdo = pDoc->as<JsonObject>();
     if (fdo.isNull()) {
       // the received button does not exist
@@ -148,9 +148,9 @@ public:
       // HTTP API command
       String apireq = "win"; apireq += '&';                        // reduce flash string usage
       if (!cmdStr.startsWith(apireq)) cmdStr = apireq + cmdStr;    // if no "win&" prefix
-      if (!irApplyToAllSelected && cmdStr.indexOf(F("SS="))<0) {
+      if (!irApplyToAllSelected && cmdStr.indexOf("SS=")<0) {
         char tmp[10];
-        sprintf_P(tmp, PSTR("&SS=%d"), strip.getMainSegmentId());
+        sprintf(tmp, "&SS=%d", strip.getMainSegmentId());
         cmdStr += tmp;
       }
       fdo.clear();                                                 // clear JSON buffer (it is no longer needed)
@@ -159,12 +159,12 @@ public:
       parsed = true;
     } else {
     // command is JSON object
-      if (jsonCmdObj[F("psave")].isNull())
+      if (jsonCmdObj["psave"].isNull())
         deserializeState(jsonCmdObj, CALL_MODE_BUTTON_PRESET);
       else {
-        uint8_t psave = jsonCmdObj[F("psave")].as<int>();
+        uint8_t psave = jsonCmdObj["psave"].as<int>();
         char pname[33];
-        sprintf_P(pname, PSTR("IR Preset %d"), psave);
+        sprintf(pname, "IR Preset %d", psave);
         fdo.clear();
         if (psave > 0 && psave < 251) savePreset(psave, pname, fdo);
       }

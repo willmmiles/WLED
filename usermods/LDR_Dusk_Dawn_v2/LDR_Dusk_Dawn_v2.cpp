@@ -87,7 +87,7 @@ class LDR_Dusk_Dawn_v2 : public Usermod {
     }
 
   void addToConfig(JsonObject& root) {
-      JsonObject top = root.createNestedObject(FPSTR(_name));
+      JsonObject top = root.createNestedObject(_name);
       top["Enabled"] = ldrEnabled;
       top["LDR Pin"] = ldrPin;
       top["Threshold Minutes"] = ldrThresholdMinutes;
@@ -98,7 +98,7 @@ class LDR_Dusk_Dawn_v2 : public Usermod {
 
   bool readFromConfig(JsonObject& root) {
       int8_t oldLdrPin = ldrPin;
-      JsonObject top = root[FPSTR(_name)];
+      JsonObject top = root[_name];
       bool configComplete = !top.isNull();
       configComplete &= getJsonValue(top["Enabled"], ldrEnabled);
       configComplete &= getJsonValue(top["LDR Pin"], ldrPin);
@@ -139,9 +139,9 @@ class LDR_Dusk_Dawn_v2 : public Usermod {
 
       //bool pinValid = ((ldrPin >= 0) && (digitalPinToAnalogChannel(ldrPin) >= 0));
       //if (PinManager::getPinOwner(ldrPin) != PinOwner::UM_LDR_DUSK_DAWN) pinValid = false;
-      //JsonArray LDR_valid = user.createNestedArray(F("LDR pin"));
+      //JsonArray LDR_valid = user.createNestedArray("LDR pin");
       //LDR_valid.add(ldrPin);
-      //LDR_valid.add(pinValid ? F(" OK"): F(" invalid"));
+      //LDR_valid.add(pinValid ? " OK": " invalid");
   }
 
   uint16_t getId() {

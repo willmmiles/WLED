@@ -105,7 +105,7 @@ class PixelsDiceTrayUsermod : public Usermod {
    * You can use it to initialize variables, sensors or similar.
    */
   void setup() override {
-    DEBUG_PRINTLN(F("DiceTray: init"));
+    DEBUG_PRINTLN("DiceTray: init");
 #if USING_TFT_DISPLAY
     SetSPIPinsFromMacros();
     PinManagerPinType spiPins[] = {
@@ -124,7 +124,7 @@ class PixelsDiceTrayUsermod : public Usermod {
     }
 
     if (!enabled) {
-      DEBUG_PRINTLN(F("DiceTray: TFT Display pin allocations failed."));
+      DEBUG_PRINTLN("DiceTray: TFT Display pin allocations failed.");
       return;
     }
 #endif
@@ -211,7 +211,7 @@ class PixelsDiceTrayUsermod : public Usermod {
             dice_update.connected_die_ids[i] = die_id;
             die_connected[i] = true;
             matched = true;
-            DEBUG_PRINTF_P(PSTR("DiceTray: %u (%s) connected.\n"), i,
+            DEBUG_PRINTF_P("DiceTray: %u (%s) connected.\n", i,
                            die_name.c_str());
             break;
           }
@@ -225,7 +225,7 @@ class PixelsDiceTrayUsermod : public Usermod {
               dice_update.connected_die_ids[i] = die_id;
               die_connected[i] = true;
               dice_settings.configured_die_names[i] = die_name;
-              DEBUG_PRINTF_P(PSTR("DiceTray: %u (%s) connected as wildcard.\n"),
+              DEBUG_PRINTF_P("DiceTray: %u (%s) connected as wildcard.\n",
                              i, die_name.c_str());
               break;
             }
@@ -242,7 +242,7 @@ class PixelsDiceTrayUsermod : public Usermod {
         if (dice_update.connected_die_ids[i] != 0) {
           dice_update.connected_die_ids[i] = 0;
           last_die_events[i] = pixels::RollEvent();
-          DEBUG_PRINTF_P(PSTR("DiceTray: %u disconnected.\n"), i);
+          DEBUG_PRINTF_P("DiceTray: %u disconnected.\n", i);
         }
 
         if (!dice_settings.configured_die_names[i].empty()) {
@@ -261,7 +261,7 @@ class PixelsDiceTrayUsermod : public Usermod {
         }
       }
       if (WLED_MQTT_CONNECTED) {
-        snprintf(mqtt_topic_buffer, sizeof(mqtt_topic_buffer), PSTR("%s/%s"),
+        snprintf(mqtt_topic_buffer, sizeof(mqtt_topic_buffer), "%s/%s",
                  mqttDeviceTopic, "dice/roll");
         const char* name = pixels::GetDieDescription(roll.first).name.c_str();
         snprintf(mqtt_data_buffer, sizeof(mqtt_data_buffer),
@@ -294,10 +294,10 @@ class PixelsDiceTrayUsermod : public Usermod {
 #endif
 
     if (pixels::IsScanning() && all_found) {
-      DEBUG_PRINTF_P(PSTR("DiceTray: All dice found. Stopping search.\n"));
+      DEBUG_PRINTF_P("DiceTray: All dice found. Stopping search.\n");
       pixels::StopScanning();
     } else if (!pixels::IsScanning() && !all_found) {
-      DEBUG_PRINTF_P(PSTR("DiceTray: Resuming dice search.\n"));
+      DEBUG_PRINTF_P("DiceTray: Resuming dice search.\n");
       pixels::ScanForDice(ble_scan_duration_sec, BLE_TIME_BETWEEN_SCANS_SEC);
     }
 #if USING_TFT_DISPLAY
@@ -317,7 +317,7 @@ class PixelsDiceTrayUsermod : public Usermod {
       user = root.createNestedObject("u");
 
     JsonArray lightArr = user.createNestedArray("DiceTray");  // name
-    lightArr.add(enabled ? F("installed") : F("disabled"));   // unit
+    lightArr.add(enabled ? "installed" : "disabled");   // unit
   }
 
   /*
@@ -337,7 +337,7 @@ class PixelsDiceTrayUsermod : public Usermod {
   void readFromJsonState(JsonObject& root) override {
     // userVar0 = root["user0"] | userVar0; //if "user0" key exists in JSON,
     // update, else keep old value if (root["bri"] == 255)
-    // Serial.println(F("Don't burn down your garage!"));
+    // Serial.println("Don't burn down your garage!");
   }
 
   /*
@@ -390,18 +390,18 @@ class PixelsDiceTrayUsermod : public Usermod {
         "connect to any die.<br>Leave Blank to disable.</i><br><i "
         "class=\"warn\">Saving will replace \"*\" with die names.</i>','');"));
 #if USING_TFT_DISPLAY
-    oappend(F("ddr=addDropdown('DiceTray','rotation');"));
-    oappend(F("addOption(ddr,'0 deg',0);"));
-    oappend(F("addOption(ddr,'90 deg',1);"));
-    oappend(F("addOption(ddr,'180 deg',2);"));
-    oappend(F("addOption(ddr,'270 deg',3);"));
+    oappend("ddr=addDropdown('DiceTray','rotation');");
+    oappend("addOption(ddr,'0 deg',0);");
+    oappend("addOption(ddr,'90 deg',1);");
+    oappend("addOption(ddr,'180 deg',2);");
+    oappend("addOption(ddr,'270 deg',3);");
     oappend(F(
         "addInfo('DiceTray:rotation',1,'<br><i class=\"warn\">DO NOT CHANGE "
         "SPI PINS.</i><br><i class=\"warn\">CHANGES ARE IGNORED.</i>','');"));
-    oappend(F("addInfo('TFT:pin[]',0,'','SPI CS');"));
-    oappend(F("addInfo('TFT:pin[]',1,'','SPI DC');"));
-    oappend(F("addInfo('TFT:pin[]',2,'','SPI RST');"));
-    oappend(F("addInfo('TFT:pin[]',3,'','SPI BL');"));
+    oappend("addInfo('TFT:pin[]',0,'','SPI CS');");
+    oappend("addInfo('TFT:pin[]',1,'','SPI DC');");
+    oappend("addInfo('TFT:pin[]',2,'','SPI RST');");
+    oappend("addInfo('TFT:pin[]',3,'','SPI BL');");
 #endif
   }
 
@@ -421,7 +421,7 @@ class PixelsDiceTrayUsermod : public Usermod {
     // {"DiceTray":{"rotation":0,"font_size":1}}
     JsonObject top = root["DiceTray"];
     if (top.isNull()) {
-      DEBUG_PRINTLN(F("DiceTray: No config found. (Using defaults.)"));
+      DEBUG_PRINTLN("DiceTray: No config found. (Using defaults.)");
       return false;
     }
 
@@ -430,7 +430,7 @@ class PixelsDiceTrayUsermod : public Usermod {
           top["die_0"], top["die_1"]};
       UpdateDieNames(new_die_names);
     } else {
-      DEBUG_PRINTLN(F("DiceTray: No die names found."));
+      DEBUG_PRINTLN("DiceTray: No die names found.");
     }
 
 #if USING_TFT_DISPLAY

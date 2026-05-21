@@ -78,9 +78,9 @@ void ShtUsermod::publishTemperatureAndHumidityViaMqtt() {
   if (!WLED_MQTT_CONNECTED) return;
   char buf[128];
 
-  snprintf_P(buf, 127, PSTR("%s/temperature"), mqttDeviceTopic);
+  snprintf(buf, 127, "%s/temperature", mqttDeviceTopic);
   mqtt->publish(buf, 0, false, String(getTemperature()).c_str());
-  snprintf_P(buf, 127, PSTR("%s/humidity"), mqttDeviceTopic);
+  snprintf(buf, 127, "%s/humidity", mqttDeviceTopic);
   mqtt->publish(buf, 0, false, String(getHumidity()).c_str());
 }
 
@@ -100,34 +100,34 @@ void ShtUsermod::publishHomeAssistantAutodiscovery() {
   size_t payload_size;
   StaticJsonDocument<1024> json;
 
-  snprintf_P(buf, 127, PSTR("%s Temperature"), serverDescription);
-  json[F("name")] = buf;
-  snprintf_P(buf, 127, PSTR("%s/temperature"), mqttDeviceTopic);
-  json[F("stat_t")] = buf;
-  json[F("dev_cla")] = F("temperature");
-  json[F("stat_cla")] = F("measurement");
-  snprintf_P(buf, 127, PSTR("%s-temperature"), escapedMac.c_str());
-  json[F("uniq_id")] = buf;
-  json[F("unit_of_meas")] = unitOfTemp ? F("°F") : F("°C");
+  snprintf(buf, 127, "%s Temperature", serverDescription);
+  json["name"] = buf;
+  snprintf(buf, 127, "%s/temperature", mqttDeviceTopic);
+  json["stat_t"] = buf;
+  json["dev_cla"] = "temperature";
+  json["stat_cla"] = "measurement";
+  snprintf(buf, 127, "%s-temperature", escapedMac.c_str());
+  json["uniq_id"] = buf;
+  json["unit_of_meas"] = unitOfTemp ? "°F" : "°C";
   appendDeviceToMqttDiscoveryMessage(json);
   payload_size = serializeJson(json, json_str);
-  snprintf_P(buf, 127, PSTR("homeassistant/sensor/%s/%s-temperature/config"), escapedMac.c_str(), escapedMac.c_str());
+  snprintf(buf, 127, "homeassistant/sensor/%s/%s-temperature/config", escapedMac.c_str(), escapedMac.c_str());
   mqtt->publish(buf, 0, true, json_str, payload_size);
 
   json.clear();
 
-  snprintf_P(buf, 127, PSTR("%s Humidity"), serverDescription);
-  json[F("name")] = buf;
-  snprintf_P(buf, 127, PSTR("%s/humidity"), mqttDeviceTopic);
-  json[F("stat_t")] = buf;
-  json[F("dev_cla")] = F("humidity");
-  json[F("stat_cla")] = F("measurement");
-  snprintf_P(buf, 127, PSTR("%s-humidity"), escapedMac.c_str());
-  json[F("uniq_id")] = buf;
-  json[F("unit_of_meas")] = F("%");
+  snprintf(buf, 127, "%s Humidity", serverDescription);
+  json["name"] = buf;
+  snprintf(buf, 127, "%s/humidity", mqttDeviceTopic);
+  json["stat_t"] = buf;
+  json["dev_cla"] = "humidity";
+  json["stat_cla"] = "measurement";
+  snprintf(buf, 127, "%s-humidity", escapedMac.c_str());
+  json["uniq_id"] = buf;
+  json["unit_of_meas"] = "%";
   appendDeviceToMqttDiscoveryMessage(json);
   payload_size = serializeJson(json, json_str);
-  snprintf_P(buf, 127, PSTR("homeassistant/sensor/%s/%s-humidity/config"), escapedMac.c_str(), escapedMac.c_str());
+  snprintf(buf, 127, "homeassistant/sensor/%s/%s-humidity/config", escapedMac.c_str(), escapedMac.c_str());
   mqtt->publish(buf, 0, true, json_str, payload_size);
 
   haMqttDiscoveryDone = true;
@@ -139,12 +139,12 @@ void ShtUsermod::publishHomeAssistantAutodiscovery() {
  * @return void
  */
 void ShtUsermod::appendDeviceToMqttDiscoveryMessage(JsonDocument& root) {
-  JsonObject device = root.createNestedObject(F("dev"));
-  device[F("ids")] = escapedMac.c_str();
-  device[F("name")] = serverDescription;
-  device[F("sw")] = versionString;
-  device[F("mdl")] = ESP.getChipModel();
-  device[F("mf")] = F("espressif");
+  JsonObject device = root.createNestedObject("dev");
+  device["ids"] = escapedMac.c_str();
+  device["name"] = serverDescription;
+  device["sw"] = versionString;
+  device["mdl"] = ESP.getChipModel();
+  device["mf"] = "espressif";
 }
 
 /**
@@ -242,22 +242,22 @@ void ShtUsermod::onMqttConnect(bool sessionPresent) {
  * @return void
  */
 void ShtUsermod::appendConfigData() {
-  oappend(F("dd=addDropdown('"));
+  oappend("dd=addDropdown('");
   oappend(_name);
-  oappend(F("','"));
+  oappend("','");
   oappend(_shtType);
-  oappend(F("');"));
-  oappend(F("addOption(dd,'SHT30',0);"));
-  oappend(F("addOption(dd,'SHT31',1);"));
-  oappend(F("addOption(dd,'SHT35',2);"));
-  oappend(F("addOption(dd,'SHT85',3);"));
-  oappend(F("dd=addDropdown('"));
+  oappend("');");
+  oappend("addOption(dd,'SHT30',0);");
+  oappend("addOption(dd,'SHT31',1);");
+  oappend("addOption(dd,'SHT35',2);");
+  oappend("addOption(dd,'SHT85',3);");
+  oappend("dd=addDropdown('");
   oappend(_name);
-  oappend(F("','"));
+  oappend("','");
   oappend(_unitOfTemp);
-  oappend(F("');"));
-  oappend(F("addOption(dd,'Celsius',0);"));
-  oappend(F("addOption(dd,'Fahrenheit',1);"));
+  oappend("');");
+  oappend("addOption(dd,'Celsius',0);");
+  oappend("addOption(dd,'Fahrenheit',1);");
 }
 
 /**
@@ -270,12 +270,12 @@ void ShtUsermod::appendConfigData() {
  */
 void ShtUsermod::addToConfig(JsonObject &root)
 {
-  JsonObject top = root.createNestedObject(FPSTR(_name)); // usermodname
+  JsonObject top = root.createNestedObject(_name); // usermodname
 
-  top[FPSTR(_enabled)] = enabled;
-  top[FPSTR(_shtType)] = shtType;
-  top[FPSTR(_unitOfTemp)] = unitOfTemp;
-  top[FPSTR(_haMqttDiscovery)] = haMqttDiscovery;
+  top[_enabled] = enabled;
+  top[_shtType] = shtType;
+  top[_unitOfTemp] = unitOfTemp;
+  top[_haMqttDiscovery] = haMqttDiscovery;
 }
 
 /**
@@ -292,7 +292,7 @@ void ShtUsermod::addToConfig(JsonObject &root)
  */
 bool ShtUsermod::readFromConfig(JsonObject &root)
 {
-  JsonObject top = root[FPSTR(_name)];
+  JsonObject top = root[_name];
   if (top.isNull()) {
     DEBUG_PRINTF("[%s] No config found. (Using defaults.)\n", _name);
     return false;
@@ -303,10 +303,10 @@ bool ShtUsermod::readFromConfig(JsonObject &root)
   byte oldUnitOfTemp = unitOfTemp;
   bool oldHaMqttDiscovery = haMqttDiscovery;
 
-  getJsonValue(top[FPSTR(_enabled)], enabled);
-  getJsonValue(top[FPSTR(_shtType)], shtType);
-  getJsonValue(top[FPSTR(_unitOfTemp)], unitOfTemp);
-  getJsonValue(top[FPSTR(_haMqttDiscovery)], haMqttDiscovery);
+  getJsonValue(top[_enabled], enabled);
+  getJsonValue(top[_shtType], shtType);
+  getJsonValue(top[_unitOfTemp], unitOfTemp);
+  getJsonValue(top[_haMqttDiscovery], haMqttDiscovery);
 
   // First run: reading from cfg.json, nothing to do here, will be all done in setup()
   if (!firstRunDone) {
@@ -358,39 +358,39 @@ void ShtUsermod::addToJsonInfo(JsonObject& root)
   JsonObject user = root["u"];
   if (user.isNull()) user = root.createNestedObject("u");
 
-  JsonArray jsonTemp = user.createNestedArray(F("Temperature"));
-  JsonArray jsonHumidity = user.createNestedArray(F("Humidity"));
+  JsonArray jsonTemp = user.createNestedArray("Temperature");
+  JsonArray jsonHumidity = user.createNestedArray("Humidity");
 
   if (shtLastTimeUpdated == 0 || !shtReadDataSuccess) {
     jsonTemp.add(0);
     jsonHumidity.add(0);
     if (shtLastTimeUpdated == 0) {
-      jsonTemp.add(F(" Not read yet"));
-      jsonHumidity.add(F(" Not read yet"));
+      jsonTemp.add(" Not read yet");
+      jsonHumidity.add(" Not read yet");
     } else {
-      jsonTemp.add(F(" Error"));
-      jsonHumidity.add(F(" Error"));
+      jsonTemp.add(" Error");
+      jsonHumidity.add(" Error");
     }
     return;
   }
 
   jsonHumidity.add(getHumidity());
-  jsonHumidity.add(F(" RH"));
+  jsonHumidity.add(" RH");
 
   jsonTemp.add(getTemperature());
   jsonTemp.add(getUnitString());
 
   // sensor object
-  JsonObject sensor = root[F("sensor")];
-  if (sensor.isNull()) sensor = root.createNestedObject(F("sensor"));
+  JsonObject sensor = root["sensor"];
+  if (sensor.isNull()) sensor = root.createNestedObject("sensor");
 
-  jsonTemp = sensor.createNestedArray(F("temp"));
+  jsonTemp = sensor.createNestedArray("temp");
   jsonTemp.add(getTemperature());
   jsonTemp.add(getUnitString());
 
-  jsonHumidity = sensor.createNestedArray(F("humidity"));
+  jsonHumidity = sensor.createNestedArray("humidity");
   jsonHumidity.add(getHumidity());
-  jsonHumidity.add(F(" RH"));
+  jsonHumidity.add(" RH");
 }
 
 /**

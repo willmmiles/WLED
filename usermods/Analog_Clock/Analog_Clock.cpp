@@ -201,45 +201,45 @@ public:
     void addToConfig(JsonObject& root) override {
         validateAndUpdate();
 
-        JsonObject top = root.createNestedObject(F("Analog Clock"));
-        top[F("Overlay Enabled")]               = enabled;
-        top[F("First LED (Main Ring)")]         = mainSegment.firstLed;
-        top[F("Last LED (Main Ring)")]          = mainSegment.lastLed;
-        top[F("Center/12h LED (Main Ring)")]    = mainSegment.centerLed;
-        top[F("Hour Marks Enabled")]            = hourMarksEnabled;
-        top[F("Hour Mark Color (RRGGBB)")]      = colorToHexString(hourMarkColor);
-        top[F("Hour Color (RRGGBB)")]           = colorToHexString(hourColor);
-        top[F("Minute Color (RRGGBB)")]         = colorToHexString(minuteColor);
-        top[F("Show Seconds")]                  = secondsEnabled;
-        top[F("First LED (Seconds Ring)")]      = secondsSegment.firstLed;
-        top[F("Last LED (Seconds Ring)")]       = secondsSegment.lastLed;
-        top[F("Center/12h LED (Seconds Ring)")] = secondsSegment.centerLed;
-        top[F("Second Color (RRGGBB)")]         = colorToHexString(secondColor);
-        top[F("Seconds Effect (0-1)")]          = secondsEffect;
-        top[F("Blend Colors")]                  = blendColors;
+        JsonObject top = root.createNestedObject("Analog Clock");
+        top["Overlay Enabled"]               = enabled;
+        top["First LED (Main Ring)"]         = mainSegment.firstLed;
+        top["Last LED (Main Ring)"]          = mainSegment.lastLed;
+        top["Center/12h LED (Main Ring)"]    = mainSegment.centerLed;
+        top["Hour Marks Enabled"]            = hourMarksEnabled;
+        top["Hour Mark Color (RRGGBB)"]      = colorToHexString(hourMarkColor);
+        top["Hour Color (RRGGBB)"]           = colorToHexString(hourColor);
+        top["Minute Color (RRGGBB)"]         = colorToHexString(minuteColor);
+        top["Show Seconds"]                  = secondsEnabled;
+        top["First LED (Seconds Ring)"]      = secondsSegment.firstLed;
+        top["Last LED (Seconds Ring)"]       = secondsSegment.lastLed;
+        top["Center/12h LED (Seconds Ring)"] = secondsSegment.centerLed;
+        top["Second Color (RRGGBB)"]         = colorToHexString(secondColor);
+        top["Seconds Effect (0-1)"]          = secondsEffect;
+        top["Blend Colors"]                  = blendColors;
     }
 
     bool readFromConfig(JsonObject& root) override {
-        JsonObject top = root[F("Analog Clock")];
+        JsonObject top = root["Analog Clock"];
 
         bool configComplete = !top.isNull();
 
         String color;
-        configComplete &= getJsonValue(top[F("Overlay Enabled")], enabled, false);
-        configComplete &= getJsonValue(top[F("First LED (Main Ring)")], mainSegment.firstLed, 0);
-        configComplete &= getJsonValue(top[F("Last LED (Main Ring)")], mainSegment.lastLed, 59);
-        configComplete &= getJsonValue(top[F("Center/12h LED (Main Ring)")], mainSegment.centerLed, 0);
-        configComplete &= getJsonValue(top[F("Hour Marks Enabled")], hourMarksEnabled, false);
-        configComplete &= getJsonValue(top[F("Hour Mark Color (RRGGBB)")], color, F("161616")) && hexStringToColor(color, hourMarkColor, 0x161616);
-        configComplete &= getJsonValue(top[F("Hour Color (RRGGBB)")], color, F("0000FF")) && hexStringToColor(color, hourColor, 0x0000FF);
-        configComplete &= getJsonValue(top[F("Minute Color (RRGGBB)")], color, F("00FF00")) && hexStringToColor(color, minuteColor, 0x00FF00);
-        configComplete &= getJsonValue(top[F("Show Seconds")], secondsEnabled, true);
-        configComplete &= getJsonValue(top[F("First LED (Seconds Ring)")], secondsSegment.firstLed, 0);
-        configComplete &= getJsonValue(top[F("Last LED (Seconds Ring)")], secondsSegment.lastLed, 59);
-        configComplete &= getJsonValue(top[F("Center/12h LED (Seconds Ring)")], secondsSegment.centerLed, 0);
-        configComplete &= getJsonValue(top[F("Second Color (RRGGBB)")], color, F("FF0000")) && hexStringToColor(color, secondColor, 0xFF0000);
-        configComplete &= getJsonValue(top[F("Seconds Effect (0-1)")], secondsEffect, 0);
-        configComplete &= getJsonValue(top[F("Blend Colors")], blendColors, true);
+        configComplete &= getJsonValue(top["Overlay Enabled"], enabled, false);
+        configComplete &= getJsonValue(top["First LED (Main Ring)"], mainSegment.firstLed, 0);
+        configComplete &= getJsonValue(top["Last LED (Main Ring)"], mainSegment.lastLed, 59);
+        configComplete &= getJsonValue(top["Center/12h LED (Main Ring)"], mainSegment.centerLed, 0);
+        configComplete &= getJsonValue(top["Hour Marks Enabled"], hourMarksEnabled, false);
+        configComplete &= getJsonValue(top["Hour Mark Color (RRGGBB)"], color, "161616") && hexStringToColor(color, hourMarkColor, 0x161616);
+        configComplete &= getJsonValue(top["Hour Color (RRGGBB)"], color, "0000FF") && hexStringToColor(color, hourColor, 0x0000FF);
+        configComplete &= getJsonValue(top["Minute Color (RRGGBB)"], color, "00FF00") && hexStringToColor(color, minuteColor, 0x00FF00);
+        configComplete &= getJsonValue(top["Show Seconds"], secondsEnabled, true);
+        configComplete &= getJsonValue(top["First LED (Seconds Ring)"], secondsSegment.firstLed, 0);
+        configComplete &= getJsonValue(top["Last LED (Seconds Ring)"], secondsSegment.lastLed, 59);
+        configComplete &= getJsonValue(top["Center/12h LED (Seconds Ring)"], secondsSegment.centerLed, 0);
+        configComplete &= getJsonValue(top["Second Color (RRGGBB)"], color, "FF0000") && hexStringToColor(color, secondColor, 0xFF0000);
+        configComplete &= getJsonValue(top["Seconds Effect (0-1)"], secondsEffect, 0);
+        configComplete &= getJsonValue(top["Blend Colors"], blendColors, true);
 
         if (initDone) {
             validateAndUpdate();

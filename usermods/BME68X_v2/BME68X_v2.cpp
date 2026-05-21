@@ -338,7 +338,7 @@
 	 /* Init Library*/
 	 iaqSensor.begin(settings.I2cadress, Wire); 									// BME68X_I2C_ADDR_LOW
 	 stringbuff = "BSEC library version " + String(iaqSensor.version.major) + "." + String(iaqSensor.version.minor) + "." + String(iaqSensor.version.major_bugfix) + "." + String(iaqSensor.version.minor_bugfix);
-	 DEBUG_PRINT(F(UMOD_NAME));
+	 DEBUG_PRINT(UMOD_NAME);
 	 DEBUG_PRINTLN(F(stringbuff.c_str()));
  
 	 /* Init Sensor*/
@@ -393,14 +393,14 @@
 				 if (settings.pubAcc) MQTT_publish(_nameIaqAc, 		ValuesPtr->iaqAccuracy, 			0);
 				 if (settings.decimals.iaq>-1) {
 					 if (settings.PublishIAQVerbal) {
-						 if 		(ValuesPtr->iaq <= 50) 	cvalues.iaqVerbal = F("Excellent");
-						 else if (ValuesPtr->iaq <= 100) cvalues.iaqVerbal = F("Good");
-						 else if (ValuesPtr->iaq <= 150) cvalues.iaqVerbal = F("Lightly polluted");
-						 else if (ValuesPtr->iaq <= 200) cvalues.iaqVerbal = F("Moderately polluted");
-						 else if (ValuesPtr->iaq <= 250) cvalues.iaqVerbal = F("Heavily polluted");
-						 else if (ValuesPtr->iaq <= 350)	cvalues.iaqVerbal = F("Severely polluted");
-						 else 							cvalues.iaqVerbal = F("Extremely polluted");
-						 snprintf_P(charbuffer, 127, PSTR("%s/%s"), mqttDeviceTopic, _nameIaqVerb);
+						 if 		(ValuesPtr->iaq <= 50) 	cvalues.iaqVerbal = "Excellent";
+						 else if (ValuesPtr->iaq <= 100) cvalues.iaqVerbal = "Good";
+						 else if (ValuesPtr->iaq <= 150) cvalues.iaqVerbal = "Lightly polluted";
+						 else if (ValuesPtr->iaq <= 200) cvalues.iaqVerbal = "Moderately polluted";
+						 else if (ValuesPtr->iaq <= 250) cvalues.iaqVerbal = "Heavily polluted";
+						 else if (ValuesPtr->iaq <= 350)	cvalues.iaqVerbal = "Severely polluted";
+						 else 							cvalues.iaqVerbal = "Extremely polluted";
+						 snprintf(charbuffer, 127, "%s/%s", mqttDeviceTopic, _nameIaqVerb);
 						 if (WLED_MQTT_CONNECTED) mqtt->publish(charbuffer, 0, false, cvalues.iaqVerbal.c_str());
 					 }
 				 }
@@ -410,14 +410,14 @@
 				 if (settings.pubAcc) MQTT_publish(_nameStaticIaqAc, 	ValuesPtr->staticIaqAccuracy, 	0);			
 				 if (settings.decimals.staticIaq>-1) {
 					 if (settings.PublishIAQVerbal) {
-						 if 		(ValuesPtr->staticIaq <= 50)  cvalues.staticIaqVerbal = F("Excellent");
-						 else if (ValuesPtr->staticIaq <= 100) cvalues.staticIaqVerbal = F("Good");
-						 else if (ValuesPtr->staticIaq <= 150) cvalues.staticIaqVerbal = F("Lightly polluted");
-						 else if (ValuesPtr->staticIaq <= 200) cvalues.staticIaqVerbal = F("Moderately polluted");
-						 else if (ValuesPtr->staticIaq <= 250) cvalues.staticIaqVerbal = F("Heavily polluted");
-						 else if (ValuesPtr->staticIaq <= 350) cvalues.staticIaqVerbal = F("Severely polluted");
-						 else 								  cvalues.staticIaqVerbal = F("Extremely polluted");
-						 snprintf_P(charbuffer, 127, PSTR("%s/%s"), mqttDeviceTopic, _nameStaticIaqVerb);
+						 if 		(ValuesPtr->staticIaq <= 50)  cvalues.staticIaqVerbal = "Excellent";
+						 else if (ValuesPtr->staticIaq <= 100) cvalues.staticIaqVerbal = "Good";
+						 else if (ValuesPtr->staticIaq <= 150) cvalues.staticIaqVerbal = "Lightly polluted";
+						 else if (ValuesPtr->staticIaq <= 200) cvalues.staticIaqVerbal = "Moderately polluted";
+						 else if (ValuesPtr->staticIaq <= 250) cvalues.staticIaqVerbal = "Heavily polluted";
+						 else if (ValuesPtr->staticIaq <= 350) cvalues.staticIaqVerbal = "Severely polluted";
+						 else 								  cvalues.staticIaqVerbal = "Extremely polluted";
+						 snprintf(charbuffer, 127, "%s/%s", mqttDeviceTopic, _nameStaticIaqVerb);
 						 if (WLED_MQTT_CONNECTED) mqtt->publish(charbuffer, 0, false, cvalues.staticIaqVerbal.c_str());
 					 }
 				 }			
@@ -508,7 +508,7 @@
  void UsermodBME68X::MQTT_publish(const char* topic, const float& value, const int8_t& dig) {
 	 if (dig<0) return;
 	 if (WLED_MQTT_CONNECTED) {
-		 snprintf_P(charbuffer, 127, PSTR("%s/%s"), mqttDeviceTopic, topic);
+		 snprintf(charbuffer, 127, "%s/%s", mqttDeviceTopic, topic);
 		 mqtt->publish(charbuffer, 0, false, String(value, dig).c_str());
 	 }
  }
@@ -578,8 +578,8 @@
  void UsermodBME68X::MQTT_PublishHASensor(const String& name, const String& deviceClass, const String& unitOfMeasurement, const int8_t& digs, const uint8_t& option) {
 	 DEBUG_PRINT(UMOD_DEBUG_NAME "\t" + name);
 	 
-	 snprintf_P(charbuffer, 127, PSTR("%s/%s"), mqttDeviceTopic, name.c_str());				// Current values will be posted here
-	 String basetopic = String(_hadtopic) + mqttClientID + F("/") + name + F("/config");   	// This is the place where Home Assinstant Discovery will check for new devices
+	 snprintf(charbuffer, 127, "%s/%s", mqttDeviceTopic, name.c_str());				// Current values will be posted here
+	 String basetopic = String(_hadtopic) + mqttClientID + "/" + name + "/config";   	// This is the place where Home Assinstant Discovery will check for new devices
  
 	 if (digs < 0) { // if digs are set to -1 -> entry deactivated
 		 /* Delete MQTT Entry */
@@ -591,27 +591,27 @@
 		 /* Create all the necessary HAD MQTT entrys - see: https://www.home-assistant.io/integrations/sensor.mqtt/#configuration-variables */
 		 DynamicJsonDocument jdoc(700); // json document
 																					 // See: https://www.home-assistant.io/integrations/mqtt/
-		 JsonObject avail = jdoc.createNestedObject(F("avty"));						// 'avty': 'availability'
-		 avail[F("topic")] = mqttDeviceTopic + String("/status"); // An MQTT topic subscribed to receive availability (online/offline) updates.
-		 avail[F("payload_available")] = "online";
-		 avail[F("payload_not_available")] = "offline";
-		 JsonObject device = jdoc.createNestedObject(F("device")); // Information about the device this sensor is a part of to tie it into the device registry. Only works when unique_id is set. At least one of identifiers or connections must be present to identify the device.
-		 device[F("name")] = serverDescription;
-		 device[F("identifiers")] = String(mqttClientID);
-		 device[F("manufacturer")] = F("WLED");
-		 device[F("model")] = UMOD_DEVICE;
-		 device[F("sw_version")] = versionString;
-		 device[F("hw_version")] = F(HARDWARE_VERSION);
+		 JsonObject avail = jdoc.createNestedObject("avty");						// 'avty': 'availability'
+		 avail["topic"] = mqttDeviceTopic + String("/status"); // An MQTT topic subscribed to receive availability (online/offline) updates.
+		 avail["payload_available"] = "online";
+		 avail["payload_not_available"] = "offline";
+		 JsonObject device = jdoc.createNestedObject("device"); // Information about the device this sensor is a part of to tie it into the device registry. Only works when unique_id is set. At least one of identifiers or connections must be present to identify the device.
+		 device["name"] = serverDescription;
+		 device["identifiers"] = String(mqttClientID);
+		 device["manufacturer"] = "WLED";
+		 device["model"] = UMOD_DEVICE;
+		 device["sw_version"] = versionString;
+		 device["hw_version"] = HARDWARE_VERSION;
  
-		 if (deviceClass != "") jdoc[F("device_class")] = deviceClass; 						// The type/class of the sensor to set the icon in the frontend. The device_class can be null
-		 if (option == 1) jdoc[F("entity_category")] = "diagnostic"; 						// Option 1: The category of the entity | When set, the entity category must be diagnostic for sensors.
-		 if (option == 2) jdoc[F("mode")] = "text";                             				// Option 2: Set text mode |
-		 jdoc[F("expire_after")] = 1800;           											// If set, it defines the number of seconds after the sensor’s state expires, if it’s not updated. After expiry, the sensor’s state becomes unavailable. Default the sensors state never expires.
-		 jdoc[F("name")] = name; 															// The name of the MQTT sensor. Without server/module/device name. The device name will be added by HomeAssinstant anyhow
-		 if (unitOfMeasurement != "") jdoc[F("state_class")] = "measurement";        		// NOTE: This entry is missing in some other usermods. But it is very important. Because only with this entry, you can use statistics (such as statistical graphs).
-		 jdoc[F("state_topic")] = charbuffer;                      							// The MQTT topic subscribed to receive sensor values. If device_class, state_class, unit_of_measurement or suggested_display_precision is set, and a numeric value is expected, an empty value '' will be ignored and will not update the state, a 'null' value will set the sensor to an unknown state. The device_class can be null.
-		 jdoc[F("unique_id")] = String(mqttClientID) + "-" + name; 							// An ID that uniquely identifies this sensor. If two sensors have the same unique ID, Home Assistant will raise an exception.
-		 if (unitOfMeasurement != "") jdoc[F("unit_of_measurement")] = unitOfMeasurement; 	// Defines the units of measurement of the sensor, if any. The unit_of_measurement can be null.
+		 if (deviceClass != "") jdoc["device_class"] = deviceClass; 						// The type/class of the sensor to set the icon in the frontend. The device_class can be null
+		 if (option == 1) jdoc["entity_category"] = "diagnostic"; 						// Option 1: The category of the entity | When set, the entity category must be diagnostic for sensors.
+		 if (option == 2) jdoc["mode"] = "text";                             				// Option 2: Set text mode |
+		 jdoc["expire_after"] = 1800;           											// If set, it defines the number of seconds after the sensor’s state expires, if it’s not updated. After expiry, the sensor’s state becomes unavailable. Default the sensors state never expires.
+		 jdoc["name"] = name; 															// The name of the MQTT sensor. Without server/module/device name. The device name will be added by HomeAssinstant anyhow
+		 if (unitOfMeasurement != "") jdoc["state_class"] = "measurement";        		// NOTE: This entry is missing in some other usermods. But it is very important. Because only with this entry, you can use statistics (such as statistical graphs).
+		 jdoc["state_topic"] = charbuffer;                      							// The MQTT topic subscribed to receive sensor values. If device_class, state_class, unit_of_measurement or suggested_display_precision is set, and a numeric value is expected, an empty value '' will be ignored and will not update the state, a 'null' value will set the sensor to an unknown state. The device_class can be null.
+		 jdoc["unique_id"] = String(mqttClientID) + "-" + name; 							// An ID that uniquely identifies this sensor. If two sensors have the same unique ID, Home Assistant will raise an exception.
+		 if (unitOfMeasurement != "") jdoc["unit_of_measurement"] = unitOfMeasurement; 	// Defines the units of measurement of the sensor, if any. The unit_of_measurement can be null.
  
 		 DEBUG_PRINTF(" (%d bytes)", jdoc.memoryUsage());
  
@@ -631,21 +631,21 @@
   */
  void UsermodBME68X::addToJsonInfo(JsonObject& root) {
 	 //DEBUG_PRINTLN(F(UMOD_DEBUG_NAME "Add to info event"));
-	 JsonObject user = root[F("u")];
+	 JsonObject user = root["u"];
  
 	 if (user.isNull())
-		 user = root.createNestedObject(F("u"));
+		 user = root.createNestedObject("u");
  
 	 if (!flags.InitSuccessful) {
 		 // Init was not seccessful - let the user know
-		 JsonArray temperature_json = user.createNestedArray(F("BME68X Sensor"));
-		 temperature_json.add(F("not found"));
-		 JsonArray humidity_json = user.createNestedArray(F("BMW68x Reason"));
+		 JsonArray temperature_json = user.createNestedArray("BME68X Sensor");
+		 temperature_json.add("not found");
+		 JsonArray humidity_json = user.createNestedArray("BMW68x Reason");
 		 humidity_json.add(InfoPageStatusLine);
 	 }
 	 else if (!settings.enabled) {
-		 JsonArray temperature_json = user.createNestedArray(F("BME68X Sensor"));
-		 temperature_json.add(F("disabled"));
+		 JsonArray temperature_json = user.createNestedArray("BME68X Sensor");
+		 temperature_json.add("disabled");
 	 }
 	 else {
 		 InfoHelper(user, _nameTemp, 		ValuesPtr->temperature, 		settings.decimals.temperature, 		tempScale.c_str());
@@ -717,37 +717,37 @@
  void UsermodBME68X::addToConfig(JsonObject& root) {
 	 DEBUG_PRINT(F(UMOD_DEBUG_NAME "Creating configuration pages content: "));
  
-	 JsonObject top = root.createNestedObject(FPSTR(UMOD_NAME));
+	 JsonObject top = root.createNestedObject(UMOD_NAME);
 	 /* general settings */
-	 top[FPSTR(_enabled)] = 						settings.enabled;
-	 top[FPSTR(_nameI2CAdr)] = 					settings.I2cadress;
-	 top[FPSTR(_nameInterval)] = 				settings.Interval;
-	 top[FPSTR(_namePublishChange)] =		 	settings.PublischChange;
-	 top[FPSTR(_namePubAc)] = 					settings.pubAcc;
-	 top[FPSTR(_namePubSenState)] = 				settings.publishSensorState;
-	 top[FPSTR(_nameTempScale)] = 				settings.tempScale;
-	 top[FPSTR(_nameTempOffset)] = 				settings.tempOffset;
-	 top[FPSTR(_nameHADisc)] = 					settings.HomeAssistantDiscovery;
-	 top[FPSTR(_namePauseOnActWL)] = 			settings.pauseOnActiveWled;
-	 top[FPSTR(_nameDelCalib)] = 				flags.DeleteCaibration;
+	 top[_enabled] = 						settings.enabled;
+	 top[_nameI2CAdr] = 					settings.I2cadress;
+	 top[_nameInterval] = 				settings.Interval;
+	 top[_namePublishChange] =		 	settings.PublischChange;
+	 top[_namePubAc] = 					settings.pubAcc;
+	 top[_namePubSenState] = 				settings.publishSensorState;
+	 top[_nameTempScale] = 				settings.tempScale;
+	 top[_nameTempOffset] = 				settings.tempOffset;
+	 top[_nameHADisc] = 					settings.HomeAssistantDiscovery;
+	 top[_namePauseOnActWL] = 			settings.pauseOnActiveWled;
+	 top[_nameDelCalib] = 				flags.DeleteCaibration;
  
 	 /* Digs */
 	 JsonObject sensors_json = top.createNestedObject("Sensors");
-	 sensors_json[FPSTR(_nameTemp)] = 			settings.decimals.temperature;
-	 sensors_json[FPSTR(_nameHum)] = 			settings.decimals.humidity;
-	 sensors_json[FPSTR(_namePress)] = 			settings.decimals.pressure;
-	 sensors_json[FPSTR(_nameGasRes)] = 			settings.decimals.gasResistance;
-	 sensors_json[FPSTR(_nameAHum)] = 			settings.decimals.absHumidity;
-	 sensors_json[FPSTR(_nameDrewP)] = 			settings.decimals.drewPoint;
-	 sensors_json[FPSTR(_nameIaq)] = 			settings.decimals.iaq;
-	 sensors_json[FPSTR(_nameIaqVerb)] = 		settings.PublishIAQVerbal;
-	 sensors_json[FPSTR(_nameStaticIaq)] = 		settings.decimals.staticIaq;
-	 sensors_json[FPSTR(_nameStaticIaqVerb)] = 	settings.PublishStaticIAQVerbal;
-	 sensors_json[FPSTR(_nameCo2)] = 			settings.decimals.co2;
-	 sensors_json[FPSTR(_nameVoc)] = 			settings.decimals.Voc;
-	 sensors_json[FPSTR(_nameGasPer)] =			settings.decimals.gasPerc;
+	 sensors_json[_nameTemp] = 			settings.decimals.temperature;
+	 sensors_json[_nameHum] = 			settings.decimals.humidity;
+	 sensors_json[_namePress] = 			settings.decimals.pressure;
+	 sensors_json[_nameGasRes] = 			settings.decimals.gasResistance;
+	 sensors_json[_nameAHum] = 			settings.decimals.absHumidity;
+	 sensors_json[_nameDrewP] = 			settings.decimals.drewPoint;
+	 sensors_json[_nameIaq] = 			settings.decimals.iaq;
+	 sensors_json[_nameIaqVerb] = 		settings.PublishIAQVerbal;
+	 sensors_json[_nameStaticIaq] = 		settings.decimals.staticIaq;
+	 sensors_json[_nameStaticIaqVerb] = 	settings.PublishStaticIAQVerbal;
+	 sensors_json[_nameCo2] = 			settings.decimals.co2;
+	 sensors_json[_nameVoc] = 			settings.decimals.Voc;
+	 sensors_json[_nameGasPer] =			settings.decimals.gasPerc;
  
-	 DEBUG_PRINTLN(F(GOGAB_OK));
+	 DEBUG_PRINTLN(GOGAB_OK);
  }
  
  /**
@@ -756,29 +756,29 @@
   * @see UsermodManager::appendConfigData()
   */
  void UsermodBME68X::appendConfigData() {
-	 // snprintf_P(charbuffer, 127, PSTR("addInfo('%s:%s',1,'read interval [seconds]');"), UMOD_NAME, _nameInterval); oappend(charbuffer);
-	 // snprintf_P(charbuffer, 127, PSTR("addInfo('%s:%s',1,'only if value changes');"), UMOD_NAME, _namePublishChange); oappend(charbuffer);
-	 // snprintf_P(charbuffer, 127, PSTR("addInfo('%s:%s',1,'maximum age of a message in seconds');"), UMOD_NAME, _nameMaxAge); oappend(charbuffer);
-	 // snprintf_P(charbuffer, 127, PSTR("addInfo('%s:%s',1,'Gas related values are only published after the gas sensor has been calibrated');"), UMOD_NAME, _namePubAfterCalib); oappend(charbuffer);
-	 // snprintf_P(charbuffer, 127, PSTR("addInfo('%s:%s',1,'*) Set to minus to deactivate (all sensors)');"), UMOD_NAME, _nameTemp); oappend(charbuffer);
+	 // snprintf(charbuffer, 127, "addInfo('%s:%s',1,'read interval [seconds]');", UMOD_NAME, _nameInterval); oappend(charbuffer);
+	 // snprintf(charbuffer, 127, "addInfo('%s:%s',1,'only if value changes');", UMOD_NAME, _namePublishChange); oappend(charbuffer);
+	 // snprintf(charbuffer, 127, "addInfo('%s:%s',1,'maximum age of a message in seconds');", UMOD_NAME, _nameMaxAge); oappend(charbuffer);
+	 // snprintf(charbuffer, 127, "addInfo('%s:%s',1,'Gas related values are only published after the gas sensor has been calibrated');", UMOD_NAME, _namePubAfterCalib); oappend(charbuffer);
+	 // snprintf(charbuffer, 127, "addInfo('%s:%s',1,'*) Set to minus to deactivate (all sensors)');", UMOD_NAME, _nameTemp); oappend(charbuffer);
  
 	 /* Dropdown for Celsius/Fahrenheit*/
-	 oappend(F("dd=addDropdown('"));
+	 oappend("dd=addDropdown('");
 	 oappend(UMOD_NAME);
-	 oappend(F("','"));
+	 oappend("','");
 	 oappend(_nameTempScale);
-	 oappend(F("');"));
-	 oappend(F("addOption(dd,'Celsius',0);"));
-	 oappend(F("addOption(dd,'Fahrenheit',1);"));
+	 oappend("');");
+	 oappend("addOption(dd,'Celsius',0);");
+	 oappend("addOption(dd,'Fahrenheit',1);");
  
 	 /* i²C Address*/
-	 oappend(F("dd=addDropdown('"));
+	 oappend("dd=addDropdown('");
 	 oappend(UMOD_NAME);
-	 oappend(F("','"));
+	 oappend("','");
 	 oappend(_nameI2CAdr);
-	 oappend(F("');"));
-	 oappend(F("addOption(dd,'0x76',0x76);"));
-	 oappend(F("addOption(dd,'0x77',0x77);"));
+	 oappend("');");
+	 oappend("addOption(dd,'0x76',0x76);");
+	 oappend("addOption(dd,'0x77',0x77);");
  }
  
  /**
@@ -797,55 +797,55 @@
  bool UsermodBME68X::readFromConfig(JsonObject& root) {
 	 DEBUG_PRINT(F(UMOD_DEBUG_NAME "Reading configuration: "));
  
-	 JsonObject top = root[FPSTR(UMOD_NAME)];
+	 JsonObject top = root[UMOD_NAME];
 	 bool configComplete = !top.isNull();
  
 	 /* general settings */ 																							/* DEFAULTS */
-	 configComplete &= getJsonValue(top[FPSTR(_enabled)], 						settings.enabled, 							1		);		// Usermod enabled per default
-	 configComplete &= getJsonValue(top[FPSTR(_nameI2CAdr)], 					settings.I2cadress, 						0x77	);		// Defalut IC2 adress set to 0x77 (some modules are set to 0x76)
-	 configComplete &= getJsonValue(top[FPSTR(_nameInterval)], 					settings.Interval, 							1		);		// Executed every second
-	 configComplete &= getJsonValue(top[FPSTR(_namePublishChange)], 				settings.PublischChange, 					false	);		// Publish changed values only
-	 configComplete &= getJsonValue(top[FPSTR(_nameTempScale)], 					settings.tempScale, 						0		);		// Temp sale set to Celsius (1=Fahrenheit)
-	 configComplete &= getJsonValue(top[FPSTR(_nameTempOffset)], 				settings.tempOffset, 						0		);		// Temp offset is set to 0 (Celsius)
-	 configComplete &= getJsonValue(top[FPSTR(_namePubSenState)], 				settings.publishSensorState, 				1		);		// Publish the sensor states
-	 configComplete &= getJsonValue(top[FPSTR(_namePubAc)], 						settings.pubAcc, 							1		);		// Publish accuracy values 
-	 configComplete &= getJsonValue(top[FPSTR(_nameHADisc)], 					settings.HomeAssistantDiscovery, 			true	);		// Activate HomeAssistant Discovery (this Module will be shown as MQTT device in HA)
-	 configComplete &= getJsonValue(top[FPSTR(_namePauseOnActWL)],				settings.pauseOnActiveWled,					false	);		// Pause on active WLED not activated per default
-	 configComplete &= getJsonValue(top[FPSTR(_nameDelCalib)], 					flags.DeleteCaibration, 					false	);		// IF checked the calibration file will be delete when the save button is pressed
+	 configComplete &= getJsonValue(top[_enabled], 						settings.enabled, 							1		);		// Usermod enabled per default
+	 configComplete &= getJsonValue(top[_nameI2CAdr], 					settings.I2cadress, 						0x77	);		// Defalut IC2 adress set to 0x77 (some modules are set to 0x76)
+	 configComplete &= getJsonValue(top[_nameInterval], 					settings.Interval, 							1		);		// Executed every second
+	 configComplete &= getJsonValue(top[_namePublishChange], 				settings.PublischChange, 					false	);		// Publish changed values only
+	 configComplete &= getJsonValue(top[_nameTempScale], 					settings.tempScale, 						0		);		// Temp sale set to Celsius (1=Fahrenheit)
+	 configComplete &= getJsonValue(top[_nameTempOffset], 				settings.tempOffset, 						0		);		// Temp offset is set to 0 (Celsius)
+	 configComplete &= getJsonValue(top[_namePubSenState], 				settings.publishSensorState, 				1		);		// Publish the sensor states
+	 configComplete &= getJsonValue(top[_namePubAc], 						settings.pubAcc, 							1		);		// Publish accuracy values 
+	 configComplete &= getJsonValue(top[_nameHADisc], 					settings.HomeAssistantDiscovery, 			true	);		// Activate HomeAssistant Discovery (this Module will be shown as MQTT device in HA)
+	 configComplete &= getJsonValue(top[_namePauseOnActWL],				settings.pauseOnActiveWled,					false	);		// Pause on active WLED not activated per default
+	 configComplete &= getJsonValue(top[_nameDelCalib], 					flags.DeleteCaibration, 					false	);		// IF checked the calibration file will be delete when the save button is pressed
  
 	 /* Decimal places */																							/* no of digs / -1 means deactivated */
-	 configComplete &= getJsonValue(top["Sensors"][FPSTR(_nameTemp)], 			settings.decimals.temperature, 				1		);		// One decimal places
-	 configComplete &= getJsonValue(top["Sensors"][FPSTR(_nameHum)], 			settings.decimals.humidity, 				1		);
-	 configComplete &= getJsonValue(top["Sensors"][FPSTR(_namePress)], 			settings.decimals.pressure, 				0		);		// Zero decimal places
-	 configComplete &= getJsonValue(top["Sensors"][FPSTR(_nameGasRes)], 			settings.decimals.gasResistance,			-1		);		// deavtivated
-	 configComplete &= getJsonValue(top["Sensors"][FPSTR(_nameDrewP)], 			settings.decimals.drewPoint, 				1		);
-	 configComplete &= getJsonValue(top["Sensors"][FPSTR(_nameAHum)], 			settings.decimals.absHumidity, 				1		);
-	 configComplete &= getJsonValue(top["Sensors"][FPSTR(_nameIaq)], 			settings.decimals.iaq, 						0		);		// Index for Air Quality Number is active
-	 configComplete &= getJsonValue(top["Sensors"][FPSTR(_nameIaqVerb)], 		settings.PublishIAQVerbal, 					-1		); 		// deactivated - Index for Air Quality (IAQ) verbal classification
-	 configComplete &= getJsonValue(top["Sensors"][FPSTR(_nameStaticIaq)], 		settings.decimals.staticIaq, 				0		);		// activated - Static IAQ is better than IAQ for devices that are not moved
-	 configComplete &= getJsonValue(top["Sensors"][FPSTR(_nameStaticIaqVerb)], 	settings.PublishStaticIAQVerbal,			0		);		// activated
-	 configComplete &= getJsonValue(top["Sensors"][FPSTR(_nameCo2)], 			settings.decimals.co2, 						0		);
-	 configComplete &= getJsonValue(top["Sensors"][FPSTR(_nameVoc)], 			settings.decimals.Voc, 						0		);
-	 configComplete &= getJsonValue(top["Sensors"][FPSTR(_nameGasPer)], 			settings.decimals.gasPerc, 					0		);
+	 configComplete &= getJsonValue(top["Sensors"][_nameTemp], 			settings.decimals.temperature, 				1		);		// One decimal places
+	 configComplete &= getJsonValue(top["Sensors"][_nameHum], 			settings.decimals.humidity, 				1		);
+	 configComplete &= getJsonValue(top["Sensors"][_namePress], 			settings.decimals.pressure, 				0		);		// Zero decimal places
+	 configComplete &= getJsonValue(top["Sensors"][_nameGasRes], 			settings.decimals.gasResistance,			-1		);		// deavtivated
+	 configComplete &= getJsonValue(top["Sensors"][_nameDrewP], 			settings.decimals.drewPoint, 				1		);
+	 configComplete &= getJsonValue(top["Sensors"][_nameAHum], 			settings.decimals.absHumidity, 				1		);
+	 configComplete &= getJsonValue(top["Sensors"][_nameIaq], 			settings.decimals.iaq, 						0		);		// Index for Air Quality Number is active
+	 configComplete &= getJsonValue(top["Sensors"][_nameIaqVerb], 		settings.PublishIAQVerbal, 					-1		); 		// deactivated - Index for Air Quality (IAQ) verbal classification
+	 configComplete &= getJsonValue(top["Sensors"][_nameStaticIaq], 		settings.decimals.staticIaq, 				0		);		// activated - Static IAQ is better than IAQ for devices that are not moved
+	 configComplete &= getJsonValue(top["Sensors"][_nameStaticIaqVerb], 	settings.PublishStaticIAQVerbal,			0		);		// activated
+	 configComplete &= getJsonValue(top["Sensors"][_nameCo2], 			settings.decimals.co2, 						0		);
+	 configComplete &= getJsonValue(top["Sensors"][_nameVoc], 			settings.decimals.Voc, 						0		);
+	 configComplete &= getJsonValue(top["Sensors"][_nameGasPer], 			settings.decimals.gasPerc, 					0		);
  
-	 DEBUG_PRINTLN(F(GOGAB_OK));	
+	 DEBUG_PRINTLN(GOGAB_OK);	
  
 	 /* Set the selected temperature unit */
 	 if (settings.tempScale) {
-		 tempScale = F(_unitFahrenheit);
+		 tempScale = _unitFahrenheit;
 	 }
 	 else {
-		 tempScale = F(_unitCelsius);
+		 tempScale = _unitCelsius;
 	 }
  
 	 if (flags.DeleteCaibration) {
 		 DEBUG_PRINT(F(UMOD_DEBUG_NAME "Deleting Calibration File"));
 		 flags.DeleteCaibration = false;
 		 if (WLED_FS.remove(CALIB_FILE_NAME)) {
-			 DEBUG_PRINTLN(F(GOGAB_OK));
+			 DEBUG_PRINTLN(GOGAB_OK);
 		 }
 		 else {
-			 DEBUG_PRINTLN(F(GOGAB_FAIL));
+			 DEBUG_PRINTLN(GOGAB_FAIL);
 		 }
 	 }
  
@@ -1046,7 +1046,7 @@
 			 }
 		 }
 		 else {
-			 InfoPageStatusLine += F("OK");
+			 InfoPageStatusLine += "OK";
 			 DEBUG_PRINTLN(GOGAB_OK);
 		 }
 	 }
@@ -1099,12 +1099,12 @@
 		 time(&curr_time);
 		 curr_tm = localtime(&curr_time);
  
-		 snprintf_P(charbuffer, 127, PSTR("%s/%s"), mqttDeviceTopic, UMOD_NAME "/Calib Last Run");
+		 snprintf(charbuffer, 127, "%s/%s", mqttDeviceTopic, UMOD_NAME "/Calib Last Run");
 		 strftime(contbuffer, 30, "%d %B %Y - %T", curr_tm);
 		 if (WLED_MQTT_CONNECTED) mqtt->publish(charbuffer, 0, false, contbuffer);
  
 		 snprintf(contbuffer, 30, "%d", stateUpdateCounter);
-		 snprintf_P(charbuffer, 127, PSTR("%s/%s"), mqttDeviceTopic, UMOD_NAME "/Calib Count");
+		 snprintf(charbuffer, 127, "%s/%s", mqttDeviceTopic, UMOD_NAME "/Calib Count");
 		 if (WLED_MQTT_CONNECTED) mqtt->publish(charbuffer, 0, false, contbuffer);
 	 }
  }

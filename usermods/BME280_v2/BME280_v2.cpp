@@ -79,7 +79,7 @@ private:
       sensorTemperature = _temperature;
       sensorHumidity = _humidity;
       sensorPressure = _pressure;
-      tempScale = F("°C");
+      tempScale = "°C";
       if (sensorType == 1)
       {
         sensorHeatIndex = EnvironmentCalculations::HeatIndex(_temperature, _humidity, envTempUnit);
@@ -95,7 +95,7 @@ private:
       sensorTemperature = _temperature;
       sensorHumidity = _humidity;
       sensorPressure = _pressure;
-      tempScale = F("°F");
+      tempScale = "°F";
       if (sensorType == 1)
       {
         sensorHeatIndex = EnvironmentCalculations::HeatIndex(_temperature, _humidity, envTempUnit);
@@ -112,43 +112,43 @@ private:
     char mqttPressureTopic[128];
     char mqttHeatIndexTopic[128];
     char mqttDewPointTopic[128];
-    snprintf_P(mqttTemperatureTopic, 127, PSTR("%s/temperature"), mqttDeviceTopic);
-    snprintf_P(mqttPressureTopic, 127, PSTR("%s/pressure"), mqttDeviceTopic);
-    snprintf_P(mqttHumidityTopic, 127, PSTR("%s/humidity"), mqttDeviceTopic);
-    snprintf_P(mqttHeatIndexTopic, 127, PSTR("%s/heat_index"), mqttDeviceTopic);
-    snprintf_P(mqttDewPointTopic, 127, PSTR("%s/dew_point"), mqttDeviceTopic);
+    snprintf(mqttTemperatureTopic, 127, "%s/temperature", mqttDeviceTopic);
+    snprintf(mqttPressureTopic, 127, "%s/pressure", mqttDeviceTopic);
+    snprintf(mqttHumidityTopic, 127, "%s/humidity", mqttDeviceTopic);
+    snprintf(mqttHeatIndexTopic, 127, "%s/heat_index", mqttDeviceTopic);
+    snprintf(mqttDewPointTopic, 127, "%s/dew_point", mqttDeviceTopic);
 
     if (HomeAssistantDiscovery) {
-      _createMqttSensor(F("Temperature"), mqttTemperatureTopic, "temperature", tempScale);
-      _createMqttSensor(F("Pressure"), mqttPressureTopic, "pressure", F("hPa"));
-      _createMqttSensor(F("Humidity"), mqttHumidityTopic, "humidity", F("%"));
-      _createMqttSensor(F("HeatIndex"), mqttHeatIndexTopic, "temperature", tempScale);
-      _createMqttSensor(F("DewPoint"), mqttDewPointTopic, "temperature", tempScale);
+      _createMqttSensor("Temperature", mqttTemperatureTopic, "temperature", tempScale);
+      _createMqttSensor("Pressure", mqttPressureTopic, "pressure", "hPa");
+      _createMqttSensor("Humidity", mqttHumidityTopic, "humidity", "%");
+      _createMqttSensor("HeatIndex", mqttHeatIndexTopic, "temperature", tempScale);
+      _createMqttSensor("DewPoint", mqttDewPointTopic, "temperature", tempScale);
     }
   }
 
   // Create an MQTT Sensor for Home Assistant Discovery purposes, this includes a pointer to the topic that is published to in the Loop.
   void _createMqttSensor(const String &name, const String &topic, const String &deviceClass, const String &unitOfMeasurement)
   {
-    String t = String(F("homeassistant/sensor/")) + mqttClientID + F("/") + name + F("/config");
+    String t = String("homeassistant/sensor/") + mqttClientID + "/" + name + "/config";
     
     StaticJsonDocument<600> doc;
     
-    doc[F("name")] = String(serverDescription) + " " + name;
-    doc[F("state_topic")] = topic;
-    doc[F("unique_id")] = String(mqttClientID) + name;
+    doc["name"] = String(serverDescription) + " " + name;
+    doc["state_topic"] = topic;
+    doc["unique_id"] = String(mqttClientID) + name;
     if (unitOfMeasurement != "")
-      doc[F("unit_of_measurement")] = unitOfMeasurement;
+      doc["unit_of_measurement"] = unitOfMeasurement;
     if (deviceClass != "")
-      doc[F("device_class")] = deviceClass;
-    doc[F("expire_after")] = 1800;
+      doc["device_class"] = deviceClass;
+    doc["expire_after"] = 1800;
 
-    JsonObject device = doc.createNestedObject(F("device")); // attach the sensor to the same device
-    device[F("name")] = serverDescription;
-    device[F("identifiers")] = "wled-sensor-" + String(mqttClientID);
-    device[F("manufacturer")] = F(WLED_BRAND);
-    device[F("model")] = F(WLED_PRODUCT_NAME);
-    device[F("sw_version")] = versionString;
+    JsonObject device = doc.createNestedObject("device"); // attach the sensor to the same device
+    device["name"] = serverDescription;
+    device["identifiers"] = "wled-sensor-" + String(mqttClientID);
+    device["manufacturer"] = WLED_BRAND;
+    device["model"] = WLED_PRODUCT_NAME;
+    device["sw_version"] = versionString;
 
     String temp;
     serializeJson(doc, temp);
@@ -162,7 +162,7 @@ private:
       //Check if MQTT Connected, otherwise it will crash the 8266
       if (WLED_MQTT_CONNECTED){
         char subuf[128];
-        snprintf_P(subuf, 127, PSTR("%s/%s"), mqttDeviceTopic, topic);
+        snprintf(subuf, 127, "%s/%s", mqttDeviceTopic, topic);
         mqtt->publish(subuf, 0, false, state);
       }
     }
@@ -185,7 +185,7 @@ private:
       if (!bme.begin())
       {
         sensorType = 0;
-        DEBUG_PRINTLN(F("Could not find BME280 I2C sensor!"));
+        DEBUG_PRINTLN("Could not find BME280 I2C sensor!");
       }
       else
       {
@@ -193,15 +193,15 @@ private:
         {
         case BME280::ChipModel_BME280:
           sensorType = 1;
-          DEBUG_PRINTLN(F("Found BME280 sensor! Success."));
+          DEBUG_PRINTLN("Found BME280 sensor! Success.");
           break;
         case BME280::ChipModel_BMP280:
           sensorType = 2;
-          DEBUG_PRINTLN(F("Found BMP280 sensor! No Humidity available."));
+          DEBUG_PRINTLN("Found BMP280 sensor! No Humidity available.");
           break;
         default:
           sensorType = 0;
-          DEBUG_PRINTLN(F("Found UNKNOWN sensor! Error!"));
+          DEBUG_PRINTLN("Found UNKNOWN sensor! Error!");
         }
       }
     }
@@ -358,37 +358,37 @@ public:
   // Publish Sensor Information to Info Page
   void addToJsonInfo(JsonObject &root)
   {
-    JsonObject user = root[F("u")];
-    if (user.isNull()) user = root.createNestedObject(F("u"));
+    JsonObject user = root["u"];
+    if (user.isNull()) user = root.createNestedObject("u");
     
     if (sensorType==0) //No Sensor
     {
       // if we sensor not detected, let the user know
-      JsonArray temperature_json = user.createNestedArray(F("BME/BMP280 Sensor"));
-      temperature_json.add(F("Not Found"));
+      JsonArray temperature_json = user.createNestedArray("BME/BMP280 Sensor");
+      temperature_json.add("Not Found");
     }
     else if (sensorType==2) //BMP280
     {
-      JsonArray temperature_json = user.createNestedArray(F("Temperature"));
-      JsonArray pressure_json = user.createNestedArray(F("Pressure"));
+      JsonArray temperature_json = user.createNestedArray("Temperature");
+      JsonArray pressure_json = user.createNestedArray("Pressure");
       temperature_json.add(roundf(sensorTemperature * powf(10, TemperatureDecimals)) / powf(10, TemperatureDecimals));
       temperature_json.add(tempScale);
       pressure_json.add(roundf(sensorPressure * powf(10, PressureDecimals)) / powf(10, PressureDecimals));
-      pressure_json.add(F("hPa"));
+      pressure_json.add("hPa");
     }
     else if (sensorType==1) //BME280
     {
-      JsonArray temperature_json = user.createNestedArray(F("Temperature"));
-      JsonArray humidity_json = user.createNestedArray(F("Humidity"));
-      JsonArray pressure_json = user.createNestedArray(F("Pressure"));
-      JsonArray heatindex_json = user.createNestedArray(F("Heat Index"));
-      JsonArray dewpoint_json = user.createNestedArray(F("Dew Point"));
+      JsonArray temperature_json = user.createNestedArray("Temperature");
+      JsonArray humidity_json = user.createNestedArray("Humidity");
+      JsonArray pressure_json = user.createNestedArray("Pressure");
+      JsonArray heatindex_json = user.createNestedArray("Heat Index");
+      JsonArray dewpoint_json = user.createNestedArray("Dew Point");
       temperature_json.add(roundf(sensorTemperature * powf(10, TemperatureDecimals)) / powf(10, TemperatureDecimals));
       temperature_json.add(tempScale);
       humidity_json.add(roundf(sensorHumidity * powf(10, HumidityDecimals)) / powf(10, HumidityDecimals));
-      humidity_json.add(F("%"));
+      humidity_json.add("%");
       pressure_json.add(roundf(sensorPressure * powf(10, PressureDecimals)) / powf(10, PressureDecimals));
-      pressure_json.add(F("hPa"));
+      pressure_json.add("hPa");
       heatindex_json.add(roundf(sensorHeatIndex * powf(10, TemperatureDecimals)) / powf(10, TemperatureDecimals));
       heatindex_json.add(tempScale);
       dewpoint_json.add(roundf(sensorDewPoint * powf(10, TemperatureDecimals)) / powf(10, TemperatureDecimals));
@@ -400,18 +400,18 @@ public:
   // Save Usermod Config Settings
   void addToConfig(JsonObject& root)
   {
-    JsonObject top = root.createNestedObject(FPSTR(_name));
-    top[FPSTR(_enabled)] = enabled;
-    top[F("I2CAddress")] = static_cast<uint8_t>(I2CAddress);
-    top[F("TemperatureDecimals")] = TemperatureDecimals;
-    top[F("HumidityDecimals")] = HumidityDecimals;
-    top[F("PressureDecimals")] = PressureDecimals;
-    top[F("TemperatureInterval")] = TemperatureInterval;
-    top[F("PressureInterval")] = PressureInterval;
-    top[F("PublishAlways")] = PublishAlways;
-    top[F("UseCelsius")] = UseCelsius;
-    top[F("HomeAssistantDiscovery")] = HomeAssistantDiscovery;
-    DEBUG_PRINTLN(F("BME280 config saved."));
+    JsonObject top = root.createNestedObject(_name);
+    top[_enabled] = enabled;
+    top["I2CAddress"] = static_cast<uint8_t>(I2CAddress);
+    top["TemperatureDecimals"] = TemperatureDecimals;
+    top["HumidityDecimals"] = HumidityDecimals;
+    top["PressureDecimals"] = PressureDecimals;
+    top["TemperatureInterval"] = TemperatureInterval;
+    top["PressureInterval"] = PressureInterval;
+    top["PublishAlways"] = PublishAlways;
+    top["UseCelsius"] = UseCelsius;
+    top["HomeAssistantDiscovery"] = HomeAssistantDiscovery;
+    DEBUG_PRINTLN("BME280 config saved.");
   }
 
   // Read Usermod Config Settings
@@ -420,36 +420,36 @@ public:
     // default settings values could be set here (or below using the 3-argument getJsonValue()) instead of in the class definition or constructor
     // setting them inside readFromConfig() is slightly more robust, handling the rare but plausible use case of single value being missing after boot (e.g. if the cfg.json was manually edited and a value was removed)
 
-    JsonObject top = root[FPSTR(_name)];
+    JsonObject top = root[_name];
     if (top.isNull()) {
-      DEBUG_PRINT(F(_name));
-      DEBUG_PRINTLN(F(": No config found. (Using defaults.)"));
+      DEBUG_PRINT(_name);
+      DEBUG_PRINTLN(": No config found. (Using defaults.)");
       return false;
     }
     bool configComplete = !top.isNull();
 
-    configComplete &= getJsonValue(top[FPSTR(_enabled)], enabled);
+    configComplete &= getJsonValue(top[_enabled], enabled);
     // A 3-argument getJsonValue() assigns the 3rd argument as a default value if the Json value is missing
     uint8_t tmpI2cAddress;
-    configComplete &= getJsonValue(top[F("I2CAddress")], tmpI2cAddress, 0x76);
+    configComplete &= getJsonValue(top["I2CAddress"], tmpI2cAddress, 0x76);
     I2CAddress = static_cast<BME280I2C::I2CAddr>(tmpI2cAddress);
 
-    configComplete &= getJsonValue(top[F("TemperatureDecimals")], TemperatureDecimals, 1);
-    configComplete &= getJsonValue(top[F("HumidityDecimals")], HumidityDecimals, 0);
-    configComplete &= getJsonValue(top[F("PressureDecimals")], PressureDecimals, 0);
-    configComplete &= getJsonValue(top[F("TemperatureInterval")], TemperatureInterval, 30);
-    configComplete &= getJsonValue(top[F("PressureInterval")], PressureInterval, 30);
-    configComplete &= getJsonValue(top[F("PublishAlways")], PublishAlways, false);
-    configComplete &= getJsonValue(top[F("UseCelsius")], UseCelsius, true);
-    configComplete &= getJsonValue(top[F("HomeAssistantDiscovery")], HomeAssistantDiscovery, false);
+    configComplete &= getJsonValue(top["TemperatureDecimals"], TemperatureDecimals, 1);
+    configComplete &= getJsonValue(top["HumidityDecimals"], HumidityDecimals, 0);
+    configComplete &= getJsonValue(top["PressureDecimals"], PressureDecimals, 0);
+    configComplete &= getJsonValue(top["TemperatureInterval"], TemperatureInterval, 30);
+    configComplete &= getJsonValue(top["PressureInterval"], PressureInterval, 30);
+    configComplete &= getJsonValue(top["PublishAlways"], PublishAlways, false);
+    configComplete &= getJsonValue(top["UseCelsius"], UseCelsius, true);
+    configComplete &= getJsonValue(top["HomeAssistantDiscovery"], HomeAssistantDiscovery, false);
 
-    DEBUG_PRINT(FPSTR(_name));
+    DEBUG_PRINT(_name);
     if (!initDone) {
       // first run: reading from cfg.json
-      DEBUG_PRINTLN(F(" config loaded."));
+      DEBUG_PRINTLN(" config loaded.");
     } else {
       // changing parameters from settings page
-      DEBUG_PRINTLN(F(" config (re)loaded."));
+      DEBUG_PRINTLN(" config (re)loaded.");
 
       // Reset all known values
       sensorType = 0;

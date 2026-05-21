@@ -32,7 +32,7 @@ void updateBaudRate(uint32_t rate){
   currentBaud = rate100;
 
   if (serialCanTX){
-    Serial.print(F("Baud is now ")); Serial.println(rate);
+    Serial.print("Baud is now "); Serial.println(rate);
   }
 
   Serial.flush();
@@ -106,7 +106,7 @@ void handleSerial()
         else if (next == '{')  { //JSON API
           bool verboseResponse = false;
           if (!requestJSONBufferLock(JSON_LOCK_SERIAL)) {
-            Serial.printf_P(PSTR("{\"error\":%d}\n"), ERR_NOBUF);
+            Serial.printf("{\"error\":%d}\n", ERR_NOBUF);
             return;
           }
           Serial.setTimeout(100);

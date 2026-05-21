@@ -122,7 +122,7 @@ class GyroSurge : public Usermod {
      */
     void addToConfig(JsonObject& root)
     {
-      JsonObject top = root.createNestedObject(FPSTR(_name));
+      JsonObject top = root.createNestedObject(_name);
 
       //save these vars persistently whenever settings are saved
       top["max"] = max;
@@ -150,7 +150,7 @@ class GyroSurge : public Usermod {
       // default settings values could be set here (or below using the 3-argument getJsonValue()) instead of in the class definition or constructor
       // setting them inside readFromConfig() is slightly more robust, handling the rare but plausible use case of single value being missing after boot (e.g. if the cfg.json was manually edited and a value was removed)
 
-      JsonObject top = root[FPSTR(_name)];
+      JsonObject top = root[_name];
 
       bool configComplete = !top.isNull();
 

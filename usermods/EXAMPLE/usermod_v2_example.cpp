@@ -137,16 +137,16 @@ class MyExampleUsermod : public Usermod {
 
       //this code adds "u":{"ExampleUsermod":[20," lux"]} to the info object
       //int reading = 20;
-      //JsonArray lightArr = user.createNestedArray(FPSTR(_name))); //name
+      //JsonArray lightArr = user.createNestedArray(_name)); //name
       //lightArr.add(reading); //value
-      //lightArr.add(F(" lux")); //unit
+      //lightArr.add(" lux"); //unit
 
       // if you are implementing a sensor usermod, you may publish sensor data
-      //JsonObject sensor = root[F("sensor")];
-      //if (sensor.isNull()) sensor = root.createNestedObject(F("sensor"));
-      //temp = sensor.createNestedArray(F("light"));
+      //JsonObject sensor = root["sensor"];
+      //if (sensor.isNull()) sensor = root.createNestedObject("sensor");
+      //temp = sensor.createNestedArray("light");
       //temp.add(reading);
-      //temp.add(F("lux"));
+      //temp.add("lux");
     }
 
 
@@ -158,8 +158,8 @@ class MyExampleUsermod : public Usermod {
     {
       if (!initDone || !enabled) return;  // prevent crash on boot applyPreset()
 
-      JsonObject usermod = root[FPSTR(_name)];
-      if (usermod.isNull()) usermod = root.createNestedObject(FPSTR(_name));
+      JsonObject usermod = root[_name];
+      if (usermod.isNull()) usermod = root.createNestedObject(_name);
 
       //usermod["user0"] = userVar0;
     }
@@ -173,13 +173,13 @@ class MyExampleUsermod : public Usermod {
     {
       if (!initDone) return;  // prevent crash on boot applyPreset()
 
-      JsonObject usermod = root[FPSTR(_name)];
+      JsonObject usermod = root[_name];
       if (!usermod.isNull()) {
         // expect JSON usermod data in usermod name object: {"ExampleUsermod:{"user0":10}"}
         userVar0 = usermod["user0"] | userVar0; //if "user0" key exists in JSON, update, else keep old value
       }
       // you can as well check WLED state JSON keys
-      //if (root["bri"] == 255) Serial.println(F("Don't burn down your garage!"));
+      //if (root["bri"] == 255) Serial.println("Don't burn down your garage!");
     }
 
 
@@ -220,8 +220,8 @@ class MyExampleUsermod : public Usermod {
      */
     void addToConfig(JsonObject& root) override
     {
-      JsonObject top = root.createNestedObject(FPSTR(_name));
-      top[FPSTR(_enabled)] = enabled;
+      JsonObject top = root.createNestedObject(_name);
+      top[_enabled] = enabled;
       //save these vars persistently whenever settings are saved
       top["great"] = userVar0;
       top["testBool"] = testBool;
@@ -256,7 +256,7 @@ class MyExampleUsermod : public Usermod {
       // default settings values could be set here (or below using the 3-argument getJsonValue()) instead of in the class definition or constructor
       // setting them inside readFromConfig() is slightly more robust, handling the rare but plausible use case of single value being missing after boot (e.g. if the cfg.json was manually edited and a value was removed)
 
-      JsonObject top = root[FPSTR(_name)];
+      JsonObject top = root[_name];
 
       bool configComplete = !top.isNull();
 
@@ -285,11 +285,11 @@ class MyExampleUsermod : public Usermod {
      */
     void appendConfigData() override
     {
-      oappend(F("addInfo('")); oappend(String(FPSTR(_name)).c_str()); oappend(F(":great")); oappend(F("',1,'<i>(this is a great config value)</i>');"));
-      oappend(F("addInfo('")); oappend(String(FPSTR(_name)).c_str()); oappend(F(":testString")); oappend(F("',1,'enter any string you want');"));
-      oappend(F("dd=addDropdown('")); oappend(String(FPSTR(_name)).c_str()); oappend(F("','testInt');"));
-      oappend(F("addOption(dd,'Nothing',0);"));
-      oappend(F("addOption(dd,'Everything',42);"));
+      oappend("addInfo('"); oappend(String(_name).c_str()); oappend(":great"); oappend("',1,'<i>(this is a great config value)</i>');");
+      oappend("addInfo('"); oappend(String(_name).c_str()); oappend(":testString"); oappend("',1,'enter any string you want');");
+      oappend("dd=addDropdown('"); oappend(String(_name).c_str()); oappend("','testInt');");
+      oappend("addOption(dd,'Nothing',0);");
+      oappend("addOption(dd,'Everything',42);");
     }
 
 
@@ -334,7 +334,7 @@ class MyExampleUsermod : public Usermod {
      */
     bool onMqttMessage(char* topic, char* payload) override {
       // check if we received a command
-      //if (strlen(topic) == 8 && strncmp_P(topic, PSTR("/command"), 8) == 0) {
+      //if (strlen(topic) == 8 && strncmp(topic, "/command", 8) == 0) {
       //  String action = payload;
       //  if (action == "on") {
       //    enabled = true;
@@ -397,7 +397,7 @@ void MyExampleUsermod::publishMqtt(const char* state, bool retain)
   if (WLED_MQTT_CONNECTED) {
     char subuf[64];
     strcpy(subuf, mqttDeviceTopic);
-    strcat_P(subuf, PSTR("/example"));
+    strcat(subuf, "/example");
     mqtt->publish(subuf, 0, retain, state);
   }
 #endif

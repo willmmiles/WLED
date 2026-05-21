@@ -53,7 +53,7 @@ static ColorOrderMap _colorOrderMap = {};
 bool ColorOrderMap::add(uint16_t start, uint16_t len, uint8_t colorOrder) {
   if (count() >= WLED_MAX_COLOR_ORDER_MAPPINGS || len == 0 || (colorOrder & 0x0F) > COL_ORDER_MAX) return false; // upper nibble contains W swap information
   _mappings.push_back({start,len,colorOrder});
-  DEBUGBUS_PRINTF_P(PSTR("Bus: Add COM (%d,%d,%d)\n"), (int)start, (int)len, (int)colorOrder);
+  DEBUGBUS_PRINTF_P("Bus: Add COM (%d,%d,%d)\n", (int)start, (int)len, (int)colorOrder);
   return true;
 }
 
@@ -134,19 +134,19 @@ BusDigital::BusDigital(const BusConfig &bc)
 , _milliAmpsMax(bc.milliAmpsMax)
 , _driverType(bc.driverType) // Store driver preference (0=RMT, 1=I2S)
 {
-  DEBUGBUS_PRINTLN(F("Bus: Creating digital bus."));
-  if (!isDigital(bc.type) || !bc.count) { DEBUGBUS_PRINTLN(F("Not digial or empty bus!")); return; }
+  DEBUGBUS_PRINTLN("Bus: Creating digital bus.");
+  if (!isDigital(bc.type) || !bc.count) { DEBUGBUS_PRINTLN("Not digial or empty bus!"); return; }
   _iType = bc.iType; // reuse the iType that was determined by polyBus in getI() in finalizeInit()
-  if (_iType == I_NONE) { DEBUGBUS_PRINTLN(F("Incorrect iType!")); return; }
+  if (_iType == I_NONE) { DEBUGBUS_PRINTLN("Incorrect iType!"); return; }
 
-  if (!PinManager::allocatePin(bc.pins[0], true, PinOwner::BusDigital)) { DEBUGBUS_PRINTLN(F("Pin 0 allocated!")); return; }
+  if (!PinManager::allocatePin(bc.pins[0], true, PinOwner::BusDigital)) { DEBUGBUS_PRINTLN("Pin 0 allocated!"); return; }
   _frequencykHz = 0U;
   _colorSum = 0;
   _pins[0] = bc.pins[0];
   if (is2Pin(bc.type)) {
     if (!PinManager::allocatePin(bc.pins[1], true, PinOwner::BusDigital)) {
       cleanup();
-      DEBUGBUS_PRINTLN(F("Pin 1 allocated!"));
+      DEBUGBUS_PRINTLN("Pin 1 allocated!");
       return;
     }
     _pins[1] = bc.pins[1];
@@ -167,7 +167,7 @@ BusDigital::BusDigital(const BusConfig &bc)
   else {
     cleanup();
   }
-  DEBUGBUS_PRINTF_P(PSTR("Bus len:%u, type:%u (RGB:%d, W:%d, CCT:%d), pins:%u,%u [itype:%u, driver:%s] mA=%d/%d %s\n"),
+  DEBUGBUS_PRINTF_P("Bus len:%u, type:%u (RGB:%d, W:%d, CCT:%d), pins:%u,%u [itype:%u, driver:%s] mA=%d/%d %s\n",
     (int)bc.count,
     (int)bc.type,
     (int)_hasRgb, (int)_hasWhite, (int)_hasCCT,
@@ -351,26 +351,26 @@ void BusDigital::setColorOrder(uint8_t colorOrder) {
 // credit @willmmiles & @netmindz https://github.com/wled/WLED/pull/4056
 std::vector<LEDType> BusDigital::getLEDTypes() {
   return {
-    {TYPE_WS2812_RGB,    "D",  PSTR("WS281x")},
-    {TYPE_SK6812_RGBW,   "D",  PSTR("SK6812/WS2814 RGBW")},
-    {TYPE_TM1814,        "D",  PSTR("TM1814")},
-    {TYPE_WS2811_400KHZ, "D",  PSTR("400kHz")},
-    {TYPE_TM1829,        "D",  PSTR("TM1829")},
-    {TYPE_UCS8903,       "D",  PSTR("UCS8903")},
-    {TYPE_APA106,        "D",  PSTR("APA106/PL9823")},
-    {TYPE_TM1914,        "D",  PSTR("TM1914")},
-    {TYPE_FW1906,        "D",  PSTR("FW1906 GRBCW")},
-    {TYPE_UCS8904,       "D",  PSTR("UCS8904 RGBW")},
-    {TYPE_WS2805,        "D",  PSTR("WS2805 RGBCW")},
-    {TYPE_SM16825,       "D",  PSTR("SM16825 RGBCW")},
-    {TYPE_WS2812_1CH_X3, "D",  PSTR("WS2811 White")},
-    //{TYPE_WS2812_2CH_X3, "D",  PSTR("WS281x CCT")}, // not implemented
-    {TYPE_WS2812_WWA,    "D",  PSTR("WS281x WWA")}, // amber ignored
-    {TYPE_WS2801,        "2P", PSTR("WS2801")},
-    {TYPE_APA102,        "2P", PSTR("APA102")},
-    {TYPE_LPD8806,       "2P", PSTR("LPD8806")},
-    {TYPE_LPD6803,       "2P", PSTR("LPD6803")},
-    {TYPE_P9813,         "2P", PSTR("PP9813")},
+    {TYPE_WS2812_RGB,    "D",  "WS281x"},
+    {TYPE_SK6812_RGBW,   "D",  "SK6812/WS2814 RGBW"},
+    {TYPE_TM1814,        "D",  "TM1814"},
+    {TYPE_WS2811_400KHZ, "D",  "400kHz"},
+    {TYPE_TM1829,        "D",  "TM1829"},
+    {TYPE_UCS8903,       "D",  "UCS8903"},
+    {TYPE_APA106,        "D",  "APA106/PL9823"},
+    {TYPE_TM1914,        "D",  "TM1914"},
+    {TYPE_FW1906,        "D",  "FW1906 GRBCW"},
+    {TYPE_UCS8904,       "D",  "UCS8904 RGBW"},
+    {TYPE_WS2805,        "D",  "WS2805 RGBCW"},
+    {TYPE_SM16825,       "D",  "SM16825 RGBCW"},
+    {TYPE_WS2812_1CH_X3, "D",  "WS2811 White"},
+    //{TYPE_WS2812_2CH_X3, "D",  "WS281x CCT"}, // not implemented
+    {TYPE_WS2812_WWA,    "D",  "WS281x WWA"}, // amber ignored
+    {TYPE_WS2801,        "2P", "WS2801"},
+    {TYPE_APA102,        "2P", "APA102"},
+    {TYPE_LPD8806,       "2P", "LPD8806"},
+    {TYPE_LPD6803,       "2P", "LPD6803"},
+    {TYPE_P9813,         "2P", "PP9813"},
   };
 }
 
@@ -384,7 +384,7 @@ void BusDigital::begin() {
 }
 
 void BusDigital::cleanup() {
-  DEBUGBUS_PRINTLN(F("Digital Cleanup."));
+  DEBUGBUS_PRINTLN("Digital Cleanup.");
   PolyBus::cleanup(_busPtr, _iType);
   _iType = I_NONE;
   _valid = false;
@@ -440,7 +440,7 @@ BusPwm::BusPwm(const BusConfig &bc)
     _ledcStart = PinManager::allocateLedc(numPins);
     if (_ledcStart == 255) { //no more free LEDC channels
       PinManager::deallocateMultiplePins(pins, numPins, PinOwner::BusPwm);
-      DEBUGBUS_PRINTLN(F("No more free LEDC channels!"));
+      DEBUGBUS_PRINTLN("No more free LEDC channels!");
       return;
     }
     // if _needsRefresh is true (UI hack) we are using dithering (credit @dedehai & @zalatnaicsongor)
@@ -465,7 +465,7 @@ BusPwm::BusPwm(const BusConfig &bc)
     _hasCCT = hasCCT(bc.type);
     _valid = true;
   }
-  DEBUGBUS_PRINTF_P(PSTR("%successfully inited PWM strip with type %u, frequency %u, bit depth %u and pins %u,%u,%u,%u,%u\n"), _valid?"S":"Uns", bc.type, _frequency, _depth, _pins[0], _pins[1], _pins[2], _pins[3], _pins[4]);
+  DEBUGBUS_PRINTF_P("%successfully inited PWM strip with type %u, frequency %u, bit depth %u and pins %u,%u,%u,%u,%u\n", _valid?"S":"Uns", bc.type, _frequency, _depth, _pins[0], _pins[1], _pins[2], _pins[3], _pins[4]);
 }
 
 void BusPwm::setPixelColor(unsigned pix, uint32_t c) {
@@ -607,12 +607,12 @@ size_t BusPwm::getPins(uint8_t* pinArray) const {
 // credit @willmmiles & @netmindz https://github.com/wled/WLED/pull/4056
 std::vector<LEDType> BusPwm::getLEDTypes() {
   return {
-    {TYPE_ANALOG_1CH, "A",      PSTR("PWM White")},
-    {TYPE_ANALOG_2CH, "AA",     PSTR("PWM CCT")},
-    {TYPE_ANALOG_3CH, "AAA",    PSTR("PWM RGB")},
-    {TYPE_ANALOG_4CH, "AAAA",   PSTR("PWM RGBW")},
-    {TYPE_ANALOG_5CH, "AAAAA",  PSTR("PWM RGB+CCT")},
-    //{TYPE_ANALOG_6CH, "AAAAAA", PSTR("PWM RGB+DCCT")}, // unimplementable ATM
+    {TYPE_ANALOG_1CH, "A",      "PWM White"},
+    {TYPE_ANALOG_2CH, "AA",     "PWM CCT"},
+    {TYPE_ANALOG_3CH, "AAA",    "PWM RGB"},
+    {TYPE_ANALOG_4CH, "AAAA",   "PWM RGBW"},
+    {TYPE_ANALOG_5CH, "AAAAA",  "PWM RGB+CCT"},
+    //{TYPE_ANALOG_6CH, "AAAAAA", "PWM RGB+DCCT"}, // unimplementable ATM
   };
 }
 
@@ -649,7 +649,7 @@ BusOnOff::BusOnOff(const BusConfig &bc)
   _hasWhite = false;
   _hasCCT = false;
   _valid = true;
-  DEBUGBUS_PRINTF_P(PSTR("%successfully inited On/Off strip with pin %u\n"), _valid?"S":"Uns", _pin);
+  DEBUGBUS_PRINTF_P("%successfully inited On/Off strip with pin %u\n", _valid?"S":"Uns", _pin);
 }
 
 void BusOnOff::setPixelColor(unsigned pix, uint32_t c) {
@@ -676,7 +676,7 @@ size_t BusOnOff::getPins(uint8_t* pinArray) const {
 // credit @willmmiles & @netmindz https://github.com/wled/WLED/pull/4056
 std::vector<LEDType> BusOnOff::getLEDTypes() {
   return {
-    {TYPE_ONOFF, "", PSTR("On/Off")},
+    {TYPE_ONOFF, "", "On/Off"},
   };
 }
 
@@ -709,7 +709,7 @@ BusNetwork::BusNetwork(const BusConfig &bc)
   #endif
   _data = (uint8_t*)d_calloc(_len, _UDPchannels);
   _valid = (_data != nullptr);
-  DEBUGBUS_PRINTF_P(PSTR("%successfully inited virtual strip with type %u and IP %u.%u.%u.%u\n"), _valid?"S":"Uns", bc.type, bc.pins[0], bc.pins[1], bc.pins[2], bc.pins[3]);
+  DEBUGBUS_PRINTF_P("%successfully inited virtual strip with type %u and IP %u.%u.%u.%u\n", _valid?"S":"Uns", bc.type, bc.pins[0], bc.pins[1], bc.pins[2], bc.pins[3]);
 }
 
 void BusNetwork::setPixelColor(unsigned pix, uint32_t c) {
@@ -768,20 +768,20 @@ void BusNetwork::resolveHostname() {
 // credit @willmmiles & @netmindz https://github.com/wled/WLED/pull/4056
 std::vector<LEDType> BusNetwork::getLEDTypes() {
   return {
-    {TYPE_NET_DDP_RGB,     "N",     PSTR("DDP RGB (network)")},      // should be "NNNN" to determine 4 "pin" fields
-    {TYPE_NET_ARTNET_RGB,  "N",     PSTR("Art-Net RGB (network)")},
-    {TYPE_NET_DDP_RGBW,    "N",     PSTR("DDP RGBW (network)")},
-    {TYPE_NET_ARTNET_RGBW, "N",     PSTR("Art-Net RGBW (network)")},
+    {TYPE_NET_DDP_RGB,     "N",     "DDP RGB (network)"},      // should be "NNNN" to determine 4 "pin" fields
+    {TYPE_NET_ARTNET_RGB,  "N",     "Art-Net RGB (network)"},
+    {TYPE_NET_DDP_RGBW,    "N",     "DDP RGBW (network)"},
+    {TYPE_NET_ARTNET_RGBW, "N",     "Art-Net RGBW (network)"},
     // hypothetical extensions
-    //{TYPE_VIRTUAL_I2C_W,   "V",     PSTR("I2C White (virtual)")}, // allows setting I2C address in _pin[0]
-    //{TYPE_VIRTUAL_I2C_CCT, "V",     PSTR("I2C CCT (virtual)")}, // allows setting I2C address in _pin[0]
-    //{TYPE_VIRTUAL_I2C_RGB, "VVV",   PSTR("I2C RGB (virtual)")}, // allows setting I2C address in _pin[0] and 2 additional values in _pin[1] & _pin[2]
-    //{TYPE_USERMOD,         "VVVVV", PSTR("Usermod (virtual)")}, // 5 data fields (see https://github.com/wled/WLED/pull/4123)
+    //{TYPE_VIRTUAL_I2C_W,   "V",     "I2C White (virtual)"}, // allows setting I2C address in _pin[0]
+    //{TYPE_VIRTUAL_I2C_CCT, "V",     "I2C CCT (virtual)"}, // allows setting I2C address in _pin[0]
+    //{TYPE_VIRTUAL_I2C_RGB, "VVV",   "I2C RGB (virtual)"}, // allows setting I2C address in _pin[0] and 2 additional values in _pin[1] & _pin[2]
+    //{TYPE_USERMOD,         "VVVVV", "Usermod (virtual)"}, // 5 data fields (see https://github.com/wled/WLED/pull/4123)
   };
 }
 
 void BusNetwork::cleanup() {
-  DEBUGBUS_PRINTLN(F("Virtual Cleanup."));
+  DEBUGBUS_PRINTLN("Virtual Cleanup.");
   d_free(_data);
   _data = nullptr;
   _type = I_NONE;
@@ -824,7 +824,7 @@ BusHub75Matrix::BusHub75Matrix(const BusConfig &bc) : Bus(bc.type, bc.start, bc.
   mxconfig.chain_length = max((uint8_t) 1, min(chainLength, (uint8_t) 4));
 
   if (mxconfig.mx_height >= 64 && (mxconfig.chain_length > 1)) {
-    DEBUGBUS_PRINTLN(F("WARNING, only single panel can be used of 64 pixel boards due to memory"));
+    DEBUGBUS_PRINTLN("WARNING, only single panel can be used of 64 pixel boards due to memory");
     mxconfig.chain_length = 1;
   }
 
@@ -937,7 +937,7 @@ BusHub75Matrix::BusHub75Matrix(const BusConfig &bc) : Bus(bc.type, bc.start, bc.
   display = new MatrixPanel_I2S_DMA(mxconfig);
   if (display == nullptr) {
       DEBUGBUS_PRINTLN("****** MatrixPanel_I2S_DMA !KABOOM! driver allocation failed ***********");
-      DEBUGBUS_PRINT(F("heap usage: ")); DEBUGBUS_PRINTLN(lastHeap - ESP.getFreeHeap());
+      DEBUGBUS_PRINT("heap usage: "); DEBUGBUS_PRINTLN(lastHeap - ESP.getFreeHeap());
       return;
   }
 
@@ -959,16 +959,16 @@ BusHub75Matrix::BusHub75Matrix(const BusConfig &bc) : Bus(bc.type, bc.start, bc.
   //display->setBrightness8(WLED_HUB75_MAX_BRIGHTNESS); // range is 0-255, 0 - 0%, 255 - 100%
 
   delay(24); // experimental
-  DEBUGBUS_PRINT(F("heap usage: ")); DEBUGBUS_PRINTLN(lastHeap - ESP.getFreeHeap());
+  DEBUGBUS_PRINT("heap usage: "); DEBUGBUS_PRINTLN(lastHeap - ESP.getFreeHeap());
   // Allocate memory and start DMA display
   if (!display->begin() ) {
       DEBUGBUS_PRINTLN("****** MatrixPanel_I2S_DMA !KABOOM! I2S memory allocation failed ***********");
-      DEBUGBUS_PRINT(F("heap usage: ")); DEBUGBUS_PRINTLN(lastHeap - ESP.getFreeHeap());
+      DEBUGBUS_PRINT("heap usage: "); DEBUGBUS_PRINTLN(lastHeap - ESP.getFreeHeap());
       return;
   }
   else {
     DEBUGBUS_PRINTLN("MatrixPanel_I2S_DMA begin ok");
-    DEBUGBUS_PRINT(F("heap usage: ")); DEBUGBUS_PRINTLN(lastHeap - ESP.getFreeHeap());
+    DEBUGBUS_PRINT("heap usage: "); DEBUGBUS_PRINTLN(lastHeap - ESP.getFreeHeap());
     delay(18);   // experiment - give the driver a moment (~ one full frame @ 60hz) to settle
     _valid = true;
     display->clearScreen();   // initially clear the screen buffer
@@ -984,8 +984,8 @@ BusHub75Matrix::BusHub75Matrix(const BusConfig &bc) : Bus(bc.type, bc.start, bc.
       display->stopDMAoutput();
       delete display; display = nullptr;
       _valid = false;
-      DEBUGBUS_PRINTLN(F("MatrixPanel_I2S_DMA not started - not enough memory for dirty bits!"));
-      DEBUGBUS_PRINT(F("heap usage: ")); DEBUGBUS_PRINTLN(lastHeap - ESP.getFreeHeap());
+      DEBUGBUS_PRINTLN("MatrixPanel_I2S_DMA not started - not enough memory for dirty bits!");
+      DEBUGBUS_PRINT("heap usage: "); DEBUGBUS_PRINTLN(lastHeap - ESP.getFreeHeap());
       return;  //  fail is we cannot get memory for the buffer
     }
     setBitArray(_ledsDirty, _len, false);             // reset dirty bits
@@ -1001,7 +1001,7 @@ BusHub75Matrix::BusHub75Matrix(const BusConfig &bc) : Bus(bc.type, bc.start, bc.
   if (chainLength > 1 && (_rows > 1 || _cols > 1) || bc.type == TYPE_HUB75MATRIX_QS) {
     _isVirtual = true;
     chainType = CHAIN_BOTTOM_LEFT_UP; // TODO: is there any need to support other chaining types?
-    DEBUGBUS_PRINTF_P(PSTR("Using virtual matrix: %ux%u panels of %ux%u pixels\n"), _cols, _rows, mxconfig.mx_width, mxconfig.mx_height);
+    DEBUGBUS_PRINTF_P("Using virtual matrix: %ux%u panels of %ux%u pixels\n", _cols, _rows, mxconfig.mx_width, mxconfig.mx_height);
   }
   else {
     _isVirtual = false;
@@ -1033,15 +1033,15 @@ BusHub75Matrix::BusHub75Matrix(const BusConfig &bc) : Bus(bc.type, bc.start, bc.
     _panelWidth = virtualDisp ? virtualDisp->width() : display->width();  // cache width - it will never change
   }
 
-  DEBUGBUS_PRINT(F("MatrixPanel_I2S_DMA "));
-  DEBUGBUS_PRINTF_P(PSTR("%sstarted, width=%u, %u pixels.\n"), _valid? "":"not ", _panelWidth, _len);
+  DEBUGBUS_PRINT("MatrixPanel_I2S_DMA ");
+  DEBUGBUS_PRINTF_P("%sstarted, width=%u, %u pixels.\n", _valid? "":"not ", _panelWidth, _len);
 
-  if (_ledBuffer != nullptr) DEBUGBUS_PRINTLN(F("MatrixPanel_I2S_DMA LEDS buffer enabled."));
-  if (_ledsDirty != nullptr) DEBUGBUS_PRINTLN(F("MatrixPanel_I2S_DMA LEDS dirty bit optimization enabled."));
+  if (_ledBuffer != nullptr) DEBUGBUS_PRINTLN("MatrixPanel_I2S_DMA LEDS buffer enabled.");
+  if (_ledsDirty != nullptr) DEBUGBUS_PRINTLN("MatrixPanel_I2S_DMA LEDS dirty bit optimization enabled.");
   if ((_ledBuffer != nullptr) || (_ledsDirty != nullptr)) {
-    DEBUGBUS_PRINT(F("MatrixPanel_I2S_DMA LEDS buffer uses "));
+    DEBUGBUS_PRINT("MatrixPanel_I2S_DMA LEDS buffer uses ");
     DEBUGBUS_PRINT((_ledBuffer? _len*sizeof(CRGB) :0) + (_ledsDirty? getBitArrayBytes(_len) :0));
-    DEBUGBUS_PRINTLN(F(" bytes."));
+    DEBUGBUS_PRINTLN(" bytes.");
   }
 }
 
@@ -1118,7 +1118,7 @@ void BusHub75Matrix::cleanup() {
   delay(30); // give some time to finish DMA
   _panelWidth = 0;
   deallocatePins();
-  DEBUGBUS_PRINTLN(F("HUB75 output ended."));
+  DEBUGBUS_PRINTLN("HUB75 output ended.");
   #ifndef CONFIG_IDF_TARGET_ESP32S3 // on ESP32-S3 deleting display/virtualDisp does not work and leads to crash (DMA issues), request reboot from user instead
   if (virtualDisp != nullptr) delete virtualDisp; // note: in MM there is a warning to not do this but if using "NO_GFX" this is safe
   if (display != nullptr) delete display;
@@ -1137,8 +1137,8 @@ void BusHub75Matrix::deallocatePins() {
 
 std::vector<LEDType> BusHub75Matrix::getLEDTypes() {
   return {
-    {TYPE_HUB75MATRIX_HS,     "H",     PSTR("HUB75 (Half Scan)")},
-    {TYPE_HUB75MATRIX_QS,     "H",     PSTR("HUB75 (Quarter Scan)")},
+    {TYPE_HUB75MATRIX_HS,     "H",     "HUB75 (Half Scan)"},
+    {TYPE_HUB75MATRIX_QS,     "H",     "HUB75 (Quarter Scan)"},
   };
 }
 
@@ -1194,7 +1194,7 @@ size_t BusConfig::memUsage() const {
 }
 
 int BusManager::add(const BusConfig &bc, bool placeholder) {
-  DEBUGBUS_PRINTF_P(PSTR("Bus: Adding bus (p:%d v:%d)\n"), getNumBusses(), getNumVirtualBusses());
+  DEBUGBUS_PRINTF_P("Bus: Adding bus (p:%d v:%d)\n", getNumBusses(), getNumVirtualBusses());
   unsigned digital = 0;
   unsigned analog  = 0;
   unsigned twoPin  = 0;
@@ -1231,7 +1231,7 @@ static String LEDTypesToJson(const std::vector<LEDType>& types) {
     // capabilities follows similar pattern as JSON API
     int capabilities = Bus::hasRGB(type.id) | Bus::hasWhite(type.id)<<1 | Bus::hasCCT(type.id)<<2 | Bus::is16bit(type.id)<<4 | Bus::mustRefresh(type.id)<<5;
     char str[256];
-    sprintf_P(str, PSTR("{i:%d,c:%d,t:\"%s\",n:\"%s\"},"), type.id, capabilities, type.type, type.name);
+    sprintf(str, "{i:%d,c:%d,t:\"%s\",n:\"%s\"},", type.id, capabilities, type.type, type.name);
     json += str;
   }
   return json;
@@ -1258,7 +1258,7 @@ uint8_t BusManager::getI(uint8_t busType, const uint8_t* pins, uint8_t driverPre
 }
 //do not call this method from system context (network callback)
 void BusManager::removeAll() {
-  DEBUGBUS_PRINTLN(F("Removing all."));
+  DEBUGBUS_PRINTLN("Removing all.");
   //prevents crashes due to deleting busses while in use.
   while (!canAllShow()) yield();
   busses.clear();

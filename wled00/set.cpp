@@ -9,7 +9,7 @@ void handleSettingsSet(AsyncWebServerRequest *request, byte subPage)
 {
   if (subPage == SUBPAGE_PINREQ)
   {
-    checkSettingsPIN(request->arg(F("PIN")).c_str());
+    checkSettingsPIN(request->arg("PIN").c_str());
     return;
   }
 
@@ -96,37 +96,37 @@ void handleSettingsSet(AsyncWebServerRequest *request, byte subPage)
       multiWiFi.shrink_to_fit(); // release memory
     }
 
-    if (request->hasArg(F("D0"))) {
-      dnsAddress = IPAddress(request->arg(F("D0")).toInt(),request->arg(F("D1")).toInt(),request->arg(F("D2")).toInt(),request->arg(F("D3")).toInt());
+    if (request->hasArg("D0")) {
+      dnsAddress = IPAddress(request->arg("D0").toInt(),request->arg("D1").toInt(),request->arg("D2").toInt(),request->arg("D3").toInt());
     }
 
-    strlcpy(cmDNS, request->arg(F("CM")).c_str(), 33);
+    strlcpy(cmDNS, request->arg("CM").c_str(), 33);
 
-    apBehavior = request->arg(F("AB")).toInt();
+    apBehavior = request->arg("AB").toInt();
     char oldSSID[33]; strcpy(oldSSID, apSSID);
-    strlcpy(apSSID, request->arg(F("AS")).c_str(), 33);
+    strlcpy(apSSID, request->arg("AS").c_str(), 33);
     if (!strcmp(oldSSID, apSSID) && apActive) forceReconnect = true;
-    apHide = request->hasArg(F("AH"));
-    int passlen = request->arg(F("AP")).length();
-    if (passlen == 0 || (passlen > 7 && !isAsterisksOnly(request->arg(F("AP")).c_str(), 65))) {
-      strlcpy(apPass, request->arg(F("AP")).c_str(), 65);
+    apHide = request->hasArg("AH");
+    int passlen = request->arg("AP").length();
+    if (passlen == 0 || (passlen > 7 && !isAsterisksOnly(request->arg("AP").c_str(), 65))) {
+      strlcpy(apPass, request->arg("AP").c_str(), 65);
       forceReconnect = true;
     }
-    int t = request->arg(F("AC")).toInt();
+    int t = request->arg("AC").toInt();
     if (t != apChannel) forceReconnect = true;
     if (t > 0 && t < 14) apChannel = t;
 
     #ifdef ARDUINO_ARCH_ESP32
-    int tx = request->arg(F("TX")).toInt();
+    int tx = request->arg("TX").toInt();
     txPower = min(max(tx, (int)WIFI_POWER_2dBm), (int)WIFI_POWER_19_5dBm);
     #endif
 
-    force802_3g = request->hasArg(F("FG"));
-    noWifiSleep = request->hasArg(F("WS"));
+    force802_3g = request->hasArg("FG");
+    noWifiSleep = request->hasArg("WS");
 
     #ifndef WLED_DISABLE_ESPNOW
     bool oldESPNow = enableESPNow;
-    enableESPNow = request->hasArg(F("RE"));
+    enableESPNow = request->hasArg("RE");
     if (oldESPNow != enableESPNow) forceReconnect = true;
     linked_remotes.clear();  // clear old remotes
     for (size_t n = 0; n < 10; n++) {
@@ -146,7 +146,7 @@ void handleSettingsSet(AsyncWebServerRequest *request, byte subPage)
     #endif
 
     #if defined(ARDUINO_ARCH_ESP32) && defined(WLED_USE_ETHERNET)
-    ethernetType = request->arg(F("ETH")).toInt();
+    ethernetType = request->arg("ETH").toInt();
     initEthernet();
     #endif
   }
@@ -181,17 +181,17 @@ void handleSettingsSet(AsyncWebServerRequest *request, byte subPage)
     String text;
 
     // this will set global ABL max current used when per-port ABL is not used
-    unsigned ablMilliampsMax = request->arg(F("MA")).toInt();
+    unsigned ablMilliampsMax = request->arg("MA").toInt();
     BusManager::setMilliampsMax(ablMilliampsMax);
 
-    strip.autoSegments = request->hasArg(F("MS"));
-    strip.correctWB = request->hasArg(F("CCT"));
-    strip.cctFromRgb = request->hasArg(F("CR"));
-    cctICused = request->hasArg(F("IC"));
-    uint8_t cctBlending = request->arg(F("CB")).toInt();
+    strip.autoSegments = request->hasArg("MS");
+    strip.correctWB = request->hasArg("CCT");
+    strip.cctFromRgb = request->hasArg("CR");
+    cctICused = request->hasArg("IC");
+    uint8_t cctBlending = request->arg("CB").toInt();
     Bus::setCCTBlend(cctBlending);
-    Bus::setGlobalAWMode(request->arg(F("AW")).toInt());
-    strip.setTargetFps(request->arg(F("FR")).toInt());
+    Bus::setGlobalAWMode(request->arg("AW").toInt());
+    strip.setTargetFps(request->arg("FR").toInt());
 
     bool busesChanged = false;
     for (int s = 0; s < 36; s++) { // theoretical limit is 36 : "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
@@ -212,7 +212,7 @@ void handleSettingsSet(AsyncWebServerRequest *request, byte subPage)
       char ld[4] = "LD"; ld[2] = offset+s; ld[3] = 0; //driver type (RMT=0, I2S=1)
       char hs[4] = "HS"; hs[2] = offset+s; hs[3] = 0; //hostname (for network types, custom text for others)
       if (!request->hasArg(lp)) {
-        DEBUG_PRINTF_P(PSTR("# of buses: %d\n"), s);
+        DEBUG_PRINTF_P("# of buses: %d\n", s);
         break;
       }
       for (int i = 0; i < 5; i++) {
@@ -258,7 +258,7 @@ void handleSettingsSet(AsyncWebServerRequest *request, byte subPage)
         maMax = 0;
       } else {
         maPerLed = request->arg(la).toInt();
-        maMax = request->arg(ma).toInt() * request->hasArg(F("PPL")); // if PP-ABL is disabled maMax (per bus) must be 0
+        maMax = request->arg(ma).toInt() * request->hasArg("PPL"); // if PP-ABL is disabled maMax (per bus) must be 0
       }
       type |= request->hasArg(rf) << 7; // off refresh override
       driverType = request->arg(ld).toInt(); // 0=RMT (default), 1=I2S
@@ -289,28 +289,28 @@ void handleSettingsSet(AsyncWebServerRequest *request, byte subPage)
 
     // update other pins
     #ifndef WLED_DISABLE_INFRARED
-    int hw_ir_pin = request->arg(F("IR")).toInt();
+    int hw_ir_pin = request->arg("IR").toInt();
     if (PinManager::allocatePin(hw_ir_pin,false, PinOwner::IR)) {
       irPin = hw_ir_pin;
     } else {
       irPin = -1;
     }
-    irEnabled = request->arg(F("IT")).toInt();
+    irEnabled = request->arg("IT").toInt();
     initIR();
     #endif
-    irApplyToAllSelected = !request->hasArg(F("MSO"));
+    irApplyToAllSelected = !request->hasArg("MSO");
 
-    int hw_rly_pin = request->arg(F("RL")).toInt();
+    int hw_rly_pin = request->arg("RL").toInt();
     if (PinManager::allocatePin(hw_rly_pin,true, PinOwner::Relay)) {
       rlyPin = hw_rly_pin;
     } else {
       rlyPin = -1;
     }
-    rlyMde = (bool)request->hasArg(F("RM"));
-    rlyOpenDrain = (bool)request->hasArg(F("RO"));
+    rlyMde = (bool)request->hasArg("RM");
+    rlyOpenDrain = (bool)request->hasArg("RO");
 
-    disablePullUp = (bool)request->hasArg(F("IP"));
-    touchThreshold = request->arg(F("TT")).toInt();
+    disablePullUp = (bool)request->hasArg("IP");
+    touchThreshold = request->arg("TT").toInt();
     for (int i = 0; i < WLED_MAX_BUTTONS; i++) {
       int offset = i < 10 ? '0' : 'A' - 10;
       char bt[4] = "BT"; bt[2] = offset+i; bt[3] = 0; // button pin (use A,B,C,... if WLED_MAX_BUTTONS>10)
@@ -327,7 +327,7 @@ void handleSettingsSet(AsyncWebServerRequest *request, byte subPage)
         if ((buttons[i].type == BTN_TYPE_ANALOG) || (buttons[i].type == BTN_TYPE_ANALOG_INVERTED)) {
           if (digitalPinToAnalogChannel(buttons[i].pin) < 0) {
             // not an ADC analog pin
-            DEBUG_PRINTF_P(PSTR("PIN ALLOC error: GPIO%d for analog button #%d is not an analog pin!\n"), buttons[i].pin, i);
+            DEBUG_PRINTF_P("PIN ALLOC error: GPIO%d for analog button #%d is not an analog pin!\n", buttons[i].pin, i);
             PinManager::deallocatePin(buttons[i].pin, PinOwner::Button);
             buttons[i].type = BTN_TYPE_NONE;
           } else {
@@ -336,7 +336,7 @@ void handleSettingsSet(AsyncWebServerRequest *request, byte subPage)
         } else if ((buttons[i].type == BTN_TYPE_TOUCH || buttons[i].type == BTN_TYPE_TOUCH_SWITCH)) {
           if (digitalPinToTouchChannel(buttons[i].pin) < 0) {
             // not a touch pin
-            DEBUG_PRINTF_P(PSTR("PIN ALLOC error: GPIO%d for touch button #%d is not an touch pin!\n"), buttons[i].pin, i);
+            DEBUG_PRINTF_P("PIN ALLOC error: GPIO%d for touch button #%d is not an touch pin!\n", buttons[i].pin, i);
             PinManager::deallocatePin(buttons[i].pin, PinOwner::Button);
             buttons[i].type = BTN_TYPE_NONE;
           }
@@ -369,14 +369,14 @@ void handleSettingsSet(AsyncWebServerRequest *request, byte subPage)
       }
     }
 
-    briS = request->arg(F("CA")).toInt();
+    briS = request->arg("CA").toInt();
 
-    turnOnAtBoot = request->hasArg(F("BO"));
-    t = request->arg(F("BP")).toInt();
+    turnOnAtBoot = request->hasArg("BO");
+    t = request->arg("BP").toInt();
     if (t <= 250) bootPreset = t;
-    gammaCorrectBri = request->hasArg(F("GB"));
-    gammaCorrectCol = request->hasArg(F("GC"));
-    gammaCorrectVal = request->arg(F("GV")).toFloat();
+    gammaCorrectBri = request->hasArg("GB");
+    gammaCorrectCol = request->hasArg("GC");
+    gammaCorrectVal = request->arg("GV").toFloat();
     if (gammaCorrectVal < 0.1f || gammaCorrectVal > 3) {
       gammaCorrectVal = 1.0f; // no gamma correction
       gammaCorrectBri = false;
@@ -384,21 +384,21 @@ void handleSettingsSet(AsyncWebServerRequest *request, byte subPage)
     }
     NeoGammaWLEDMethod::calcGammaTable(gammaCorrectVal); // fill look-up tables
 
-    t = request->arg(F("TD")).toInt();
+    t = request->arg("TD").toInt();
     if (t >= 0) transitionDelayDefault = t;
-    t = request->arg(F("TP")).toInt();
+    t = request->arg("TP").toInt();
     randomPaletteChangeTime = MIN(255,MAX(1,t));
-    useHarmonicRandomPalette = request->hasArg(F("TH"));
+    useHarmonicRandomPalette = request->hasArg("TH");
 
-    nightlightTargetBri = request->arg(F("TB")).toInt();
-    t = request->arg(F("TL")).toInt();
+    nightlightTargetBri = request->arg("TB").toInt();
+    t = request->arg("TL").toInt();
     if (t > 0) nightlightDelayMinsDefault = t;
     nightlightDelayMins = nightlightDelayMinsDefault;
-    nightlightMode = request->arg(F("TW")).toInt();
+    nightlightMode = request->arg("TW").toInt();
 
-    t = request->arg(F("PB")).toInt();
+    t = request->arg("PB").toInt();
     if (t >= 0 && t < 4) paletteBlend = t;
-    t = request->arg(F("BF")).toInt();
+    t = request->arg("BF").toInt();
     if (t > 0) briMultiplier = t;
 
     doInitBusses = busesChanged;
@@ -407,100 +407,100 @@ void handleSettingsSet(AsyncWebServerRequest *request, byte subPage)
   //UI
   if (subPage == SUBPAGE_UI)
   {
-    strlcpy(serverDescription, request->arg(F("DS")).c_str(), 33);
-    simplifiedUI = request->hasArg(F("SU"));
-    DEBUG_PRINTLN(F("Enumerating ledmaps"));
+    strlcpy(serverDescription, request->arg("DS").c_str(), 33);
+    simplifiedUI = request->hasArg("SU");
+    DEBUG_PRINTLN("Enumerating ledmaps");
     enumerateLedmaps();
-    DEBUG_PRINTLN(F("Loading custom palettes"));
+    DEBUG_PRINTLN("Loading custom palettes");
     loadCustomPalettes(); // (re)load all custom palettes
   }
 
   //SYNC
   if (subPage == SUBPAGE_SYNC)
   {
-    int t = request->arg(F("UP")).toInt();
+    int t = request->arg("UP").toInt();
     if (t > 0) udpPort = t;
-    t = request->arg(F("U2")).toInt();
+    t = request->arg("U2").toInt();
     if (t > 0) udpPort2 = t;
 
     #ifndef WLED_DISABLE_ESPNOW
-    useESPNowSync = request->hasArg(F("EN"));
+    useESPNowSync = request->hasArg("EN");
     #endif
 
-    syncGroups = request->arg(F("GS")).toInt();
-    receiveGroups = request->arg(F("GR")).toInt();
+    syncGroups = request->arg("GS").toInt();
+    receiveGroups = request->arg("GR").toInt();
 
-    receiveNotificationBrightness = request->hasArg(F("RB"));
-    receiveNotificationColor = request->hasArg(F("RC"));
-    receiveNotificationEffects = request->hasArg(F("RX"));
-    receiveNotificationPalette = request->hasArg(F("RP"));
-    receiveSegmentOptions = request->hasArg(F("SO"));
-    receiveSegmentBounds = request->hasArg(F("SG"));
-    sendNotifications = request->hasArg(F("SS"));
-    notifyDirect = request->hasArg(F("SD"));
-    notifyButton = request->hasArg(F("SB"));
-    notifyAlexa = request->hasArg(F("SA"));
-    notifyHue = request->hasArg(F("SH"));
+    receiveNotificationBrightness = request->hasArg("RB");
+    receiveNotificationColor = request->hasArg("RC");
+    receiveNotificationEffects = request->hasArg("RX");
+    receiveNotificationPalette = request->hasArg("RP");
+    receiveSegmentOptions = request->hasArg("SO");
+    receiveSegmentBounds = request->hasArg("SG");
+    sendNotifications = request->hasArg("SS");
+    notifyDirect = request->hasArg("SD");
+    notifyButton = request->hasArg("SB");
+    notifyAlexa = request->hasArg("SA");
+    notifyHue = request->hasArg("SH");
 
-    t = request->arg(F("UR")).toInt();
+    t = request->arg("UR").toInt();
     if ((t>=0) && (t<30)) udpNumRetries = t;
 
 
-    nodeListEnabled = request->hasArg(F("NL"));
+    nodeListEnabled = request->hasArg("NL");
     if (!nodeListEnabled) Nodes.clear();
-    nodeBroadcastEnabled = request->hasArg(F("NB"));
+    nodeBroadcastEnabled = request->hasArg("NB");
 
-    receiveDirect = request->hasArg(F("RD")); // UDP realtime
-    useMainSegmentOnly = request->hasArg(F("MO"));
-    realtimeRespectLedMaps = request->hasArg(F("RLM"));
-    e131SkipOutOfSequence = request->hasArg(F("ES"));
-    e131Multicast = request->hasArg(F("EM"));
-    t = request->arg(F("EP")).toInt();
+    receiveDirect = request->hasArg("RD"); // UDP realtime
+    useMainSegmentOnly = request->hasArg("MO");
+    realtimeRespectLedMaps = request->hasArg("RLM");
+    e131SkipOutOfSequence = request->hasArg("ES");
+    e131Multicast = request->hasArg("EM");
+    t = request->arg("EP").toInt();
     if (t > 0) e131Port = t;
-    t = request->arg(F("EU")).toInt();
+    t = request->arg("EU").toInt();
     if (t >= 0  && t <= 63999) e131Universe = t;
-    t = request->arg(F("DA")).toInt();
+    t = request->arg("DA").toInt();
     if (t >= 0  && t <= 510) DMXAddress = t;
-    t = request->arg(F("XX")).toInt();
+    t = request->arg("XX").toInt();
     if (t >= 0  && t <= 150) DMXSegmentSpacing = t;
-    t = request->arg(F("PY")).toInt();
+    t = request->arg("PY").toInt();
     if (t >= 0  && t <= 200) e131Priority = t;
-    t = request->arg(F("DM")).toInt();
+    t = request->arg("DM").toInt();
     if (t >= DMX_MODE_DISABLED && t <= DMX_MODE_PRESET) DMXMode = t;
-    t = request->arg(F("ET")).toInt();
+    t = request->arg("ET").toInt();
     if (t > 99  && t <= 65000) realtimeTimeoutMs = t;
-    arlsForceMaxBri = request->hasArg(F("FB"));
-    arlsDisableGammaCorrection = request->hasArg(F("RG"));
-    t = request->arg(F("WO")).toInt();
+    arlsForceMaxBri = request->hasArg("FB");
+    arlsDisableGammaCorrection = request->hasArg("RG");
+    t = request->arg("WO").toInt();
     if (t >= -255  && t <= 255) arlsOffset = t;
 
 #ifdef WLED_ENABLE_DMX_INPUT
-    dmxInputTransmitPin = request->arg(F("IDMT")).toInt();
-    dmxInputReceivePin = request->arg(F("IDMR")).toInt();
-    dmxInputEnablePin = request->arg(F("IDME")).toInt();
-    dmxInputPort = request->arg(F("IDMP")).toInt();
+    dmxInputTransmitPin = request->arg("IDMT").toInt();
+    dmxInputReceivePin = request->arg("IDMR").toInt();
+    dmxInputEnablePin = request->arg("IDME").toInt();
+    dmxInputPort = request->arg("IDMP").toInt();
     if(dmxInputPort <= 0 || dmxInputPort > 2) dmxInputPort = 2;
 #endif
 
     #ifndef WLED_DISABLE_ALEXA
-    alexaEnabled = request->hasArg(F("AL"));
-    strlcpy(alexaInvocationName, request->arg(F("AI")).c_str(), 33);
-    t = request->arg(F("AP")).toInt();
+    alexaEnabled = request->hasArg("AL");
+    strlcpy(alexaInvocationName, request->arg("AI").c_str(), 33);
+    t = request->arg("AP").toInt();
     if (t >= 0 && t <= 9) alexaNumPresets = t;
     #endif
 
     #ifndef WLED_DISABLE_MQTT
-    mqttEnabled = request->hasArg(F("MQ"));
-    strlcpy(mqttServer, request->arg(F("MS")).c_str(), MQTT_MAX_SERVER_LEN+1);
-    t = request->arg(F("MQPORT")).toInt();
+    mqttEnabled = request->hasArg("MQ");
+    strlcpy(mqttServer, request->arg("MS").c_str(), MQTT_MAX_SERVER_LEN+1);
+    t = request->arg("MQPORT").toInt();
     if (t > 0) mqttPort = t;
-    strlcpy(mqttUser, request->arg(F("MQUSER")).c_str(), 41);
-    if (!isAsterisksOnly(request->arg(F("MQPASS")).c_str(), 41)) strlcpy(mqttPass, request->arg(F("MQPASS")).c_str(), 65);
-    strlcpy(mqttClientID, request->arg(F("MQCID")).c_str(), 41);
-    strlcpy(mqttDeviceTopic, request->arg(F("MD")).c_str(), MQTT_MAX_TOPIC_LEN+1);
-    strlcpy(mqttGroupTopic, request->arg(F("MG")).c_str(), MQTT_MAX_TOPIC_LEN+1);
-    buttonPublishMqtt = request->hasArg(F("BM"));
-    retainMqttMsg = request->hasArg(F("RT"));
+    strlcpy(mqttUser, request->arg("MQUSER").c_str(), 41);
+    if (!isAsterisksOnly(request->arg("MQPASS").c_str(), 41)) strlcpy(mqttPass, request->arg("MQPASS").c_str(), 65);
+    strlcpy(mqttClientID, request->arg("MQCID").c_str(), 41);
+    strlcpy(mqttDeviceTopic, request->arg("MD").c_str(), MQTT_MAX_TOPIC_LEN+1);
+    strlcpy(mqttGroupTopic, request->arg("MG").c_str(), MQTT_MAX_TOPIC_LEN+1);
+    buttonPublishMqtt = request->hasArg("BM");
+    retainMqttMsg = request->hasArg("RT");
     #endif
 
     #ifndef WLED_DISABLE_HUESYNC
@@ -509,21 +509,21 @@ void handleSettingsSet(AsyncWebServerRequest *request, byte subPage)
       hueIP[i] = request->arg(a).toInt();
     }
 
-    t = request->arg(F("HL")).toInt();
+    t = request->arg("HL").toInt();
     if (t > 0) huePollLightId = t;
 
-    t = request->arg(F("HI")).toInt();
+    t = request->arg("HI").toInt();
     if (t > 50) huePollIntervalMs = t;
 
-    hueApplyOnOff = request->hasArg(F("HO"));
-    hueApplyBri = request->hasArg(F("HB"));
-    hueApplyColor = request->hasArg(F("HC"));
-    huePollingEnabled = request->hasArg(F("HP"));
+    hueApplyOnOff = request->hasArg("HO");
+    hueApplyBri = request->hasArg("HB");
+    hueApplyColor = request->hasArg("HC");
+    huePollingEnabled = request->hasArg("HP");
     hueStoreAllowed = true;
     reconnectHue();
     #endif
 
-    t = request->arg(F("BD")).toInt();
+    t = request->arg("BD").toInt();
     if (t >= 96 && t <= 15000) serialBaud = t;
     updateBaudRate(serialBaud *100);
   }
@@ -531,43 +531,43 @@ void handleSettingsSet(AsyncWebServerRequest *request, byte subPage)
   //TIME
   if (subPage == SUBPAGE_TIME)
   {
-    ntpEnabled = request->hasArg(F("NT"));
-    strlcpy(ntpServerName, request->arg(F("NS")).c_str(), 33);
-    useAMPM = !request->hasArg(F("CF"));
-    currentTimezone = request->arg(F("TZ")).toInt();
-    utcOffsetSecs = request->arg(F("UO")).toInt();
+    ntpEnabled = request->hasArg("NT");
+    strlcpy(ntpServerName, request->arg("NS").c_str(), 33);
+    useAMPM = !request->hasArg("CF");
+    currentTimezone = request->arg("TZ").toInt();
+    utcOffsetSecs = request->arg("UO").toInt();
 
     //start ntp if not already connected
     if (ntpEnabled && WLED_CONNECTED && !ntpConnected) ntpConnected = ntpUdp.begin(ntpLocalPort);
     ntpLastSyncTime = NTP_NEVER; // force new NTP query
 
-    longitude = request->arg(F("LN")).toFloat();
-    latitude = request->arg(F("LT")).toFloat();
+    longitude = request->arg("LN").toFloat();
+    latitude = request->arg("LT").toFloat();
     // force a sunrise/sunset re-calculation
     calculateSunriseAndSunset();
 
-    overlayCurrent = request->hasArg(F("OL")) ? 1 : 0;
+    overlayCurrent = request->hasArg("OL") ? 1 : 0;
 
-    overlayMin = request->arg(F("O1")).toInt();
-    overlayMax = request->arg(F("O2")).toInt();
-    analogClock12pixel = request->arg(F("OM")).toInt();
-    analogClock5MinuteMarks = request->hasArg(F("O5"));
-    analogClockSecondsTrail = request->hasArg(F("OS"));
-    analogClockSolidBlack = request->hasArg(F("OB"));
+    overlayMin = request->arg("O1").toInt();
+    overlayMax = request->arg("O2").toInt();
+    analogClock12pixel = request->arg("OM").toInt();
+    analogClock5MinuteMarks = request->hasArg("O5");
+    analogClockSecondsTrail = request->hasArg("OS");
+    analogClockSolidBlack = request->hasArg("OB");
 
-    countdownMode = request->hasArg(F("CE"));
-    countdownYear = request->arg(F("CY")).toInt();
-    countdownMonth = request->arg(F("CI")).toInt();
-    countdownDay = request->arg(F("CD")).toInt();
-    countdownHour = request->arg(F("CH")).toInt();
-    countdownMin = request->arg(F("CM")).toInt();
-    countdownSec = request->arg(F("CS")).toInt();
+    countdownMode = request->hasArg("CE");
+    countdownYear = request->arg("CY").toInt();
+    countdownMonth = request->arg("CI").toInt();
+    countdownDay = request->arg("CD").toInt();
+    countdownHour = request->arg("CH").toInt();
+    countdownMin = request->arg("CM").toInt();
+    countdownSec = request->arg("CS").toInt();
     setCountdown();
 
-    macroAlexaOn = request->arg(F("A0")).toInt();
-    macroAlexaOff = request->arg(F("A1")).toInt();
-    macroCountdown = request->arg(F("MC")).toInt();
-    macroNl = request->arg(F("MN")).toInt();
+    macroAlexaOn = request->arg("A0").toInt();
+    macroAlexaOff = request->arg("A1").toInt();
+    macroCountdown = request->arg("MC").toInt();
+    macroNl = request->arg("MN").toInt();
     int ii = 0;
     for (auto &button : buttons) {
       char mp[4] = "MP"; mp[2] = (ii<10?'0':'A'-10)+ii; mp[3] = 0; // short
@@ -625,15 +625,15 @@ void handleSettingsSet(AsyncWebServerRequest *request, byte subPage)
   //SECURITY
   if (subPage == SUBPAGE_SEC)
   {
-    if (request->hasArg(F("RS"))) //complete factory reset
+    if (request->hasArg("RS")) //complete factory reset
     {
       WLED_FS.format();
-      serveMessage(request, 200, F("All Settings erased."), F("Connect to WLED-AP to setup again"),255);
+      serveMessage(request, 200, "All Settings erased.", "Connect to WLED-AP to setup again",255);
       doReboot = true; // may reboot immediately on dual-core system (race condition) which is desireable in this case
     }
 
-    if (request->hasArg(F("PIN"))) {
-      const char *pin = request->arg(F("PIN")).c_str();
+    if (request->hasArg("PIN")) {
+      const char *pin = request->arg("PIN").c_str();
       unsigned pinLen = strlen(pin);
       if (pinLen == 4 || pinLen == 0) {
         unsigned numZeros = 0;
@@ -646,49 +646,49 @@ void handleSettingsSet(AsyncWebServerRequest *request, byte subPage)
     }
 
     bool pwdCorrect = !otaLock; //always allow access if ota not locked
-    if (request->hasArg(F("OP")))
+    if (request->hasArg("OP"))
     {
-      if (otaLock && strcmp(otaPass,request->arg(F("OP")).c_str()) == 0)
+      if (otaLock && strcmp(otaPass,request->arg("OP").c_str()) == 0)
       {
         // brute force protection: do not unlock even if correct if last save was less than 3 seconds ago
         if (millis() - lastEditTime > PIN_RETRY_COOLDOWN) pwdCorrect = true;
       }
-      if (!otaLock && request->arg(F("OP")).length() > 0)
+      if (!otaLock && request->arg("OP").length() > 0)
       {
-        strlcpy(otaPass,request->arg(F("OP")).c_str(), 33); // set new OTA password
+        strlcpy(otaPass,request->arg("OP").c_str(), 33); // set new OTA password
       }
     }
 
     if (pwdCorrect) //allow changes if correct pwd or no ota active
     {
-      otaLock = request->hasArg(F("NO"));
-      wifiLock = request->hasArg(F("OW"));
+      otaLock = request->hasArg("NO");
+      wifiLock = request->hasArg("OW");
       #ifndef WLED_DISABLE_OTA
-      aOtaEnabled = request->hasArg(F("AO"));
+      aOtaEnabled = request->hasArg("AO");
       #endif
-      otaSameSubnet = request->hasArg(F("SU"));
+      otaSameSubnet = request->hasArg("SU");
     }
   }
 
   #ifdef WLED_ENABLE_DMX // include only if DMX is enabled
   if (subPage == SUBPAGE_DMX)
   {
-    int t = request->arg(F("PU")).toInt();
+    int t = request->arg("PU").toInt();
     if (t >= 0  && t <= 63999) e131ProxyUniverse = t;
 
-    t = request->arg(F("CN")).toInt();
+    t = request->arg("CN").toInt();
     if (t>0 && t<16) {
       DMXChannels = t;
     }
-    t = request->arg(F("CS")).toInt();
+    t = request->arg("CS").toInt();
     if (t>0 && t<513) {
       DMXStart = t;
     }
-    t = request->arg(F("CG")).toInt();
+    t = request->arg("CG").toInt();
     if (t>0 && t<513) {
       DMXGap = t;
     }
-    t = request->arg(F("SL")).toInt();
+    t = request->arg("SL").toInt();
     if (t>=0 && t < MAX_LEDS) {
       DMXStartLED = t;
     }
@@ -709,8 +709,8 @@ void handleSettingsSet(AsyncWebServerRequest *request, byte subPage)
     }
 
     // global I2C & SPI pins
-    int8_t hw_sda_pin  = !request->arg(F("SDA")).length() ? -1 : (int)request->arg(F("SDA")).toInt();
-    int8_t hw_scl_pin  = !request->arg(F("SCL")).length() ? -1 : (int)request->arg(F("SCL")).toInt();
+    int8_t hw_sda_pin  = !request->arg("SDA").length() ? -1 : (int)request->arg("SDA").toInt();
+    int8_t hw_scl_pin  = !request->arg("SCL").length() ? -1 : (int)request->arg("SCL").toInt();
     if (i2c_sda != hw_sda_pin || i2c_scl != hw_scl_pin) {
       // only if pins changed
       uint8_t old_i2c[2] = { static_cast<uint8_t>(i2c_scl), static_cast<uint8_t>(i2c_sda) };
@@ -724,14 +724,14 @@ void handleSettingsSet(AsyncWebServerRequest *request, byte subPage)
         //Wire.begin(i2c_sda, i2c_scl);
       } else {
         // there is no Wire.end()
-        DEBUG_PRINTLN(F("Could not allocate I2C pins."));
+        DEBUG_PRINTLN("Could not allocate I2C pins.");
         i2c_sda = -1;
         i2c_scl = -1;
       }
     }
-    int8_t hw_mosi_pin = !request->arg(F("MOSI")).length() ? -1 : (int)request->arg(F("MOSI")).toInt();
-    int8_t hw_miso_pin = !request->arg(F("MISO")).length() ? -1 : (int)request->arg(F("MISO")).toInt();
-    int8_t hw_sclk_pin = !request->arg(F("SCLK")).length() ? -1 : (int)request->arg(F("SCLK")).toInt();
+    int8_t hw_mosi_pin = !request->arg("MOSI").length() ? -1 : (int)request->arg("MOSI").toInt();
+    int8_t hw_miso_pin = !request->arg("MISO").length() ? -1 : (int)request->arg("MISO").toInt();
+    int8_t hw_sclk_pin = !request->arg("SCLK").length() ? -1 : (int)request->arg("SCLK").toInt();
     #ifdef ESP8266
     // cannot change pins on ESP8266
     if (hw_mosi_pin >= 0 && hw_mosi_pin != HW_PIN_DATASPI)  hw_mosi_pin = HW_PIN_DATASPI;
@@ -756,7 +756,7 @@ void handleSettingsSet(AsyncWebServerRequest *request, byte subPage)
         #endif
       } else {
         //SPI.end();
-        DEBUG_PRINTLN(F("Could not allocate SPI pins."));
+        DEBUG_PRINTLN("Could not allocate SPI pins.");
         spi_mosi = -1;
         spi_miso = -1;
         spi_sclk = -1;
@@ -786,7 +786,7 @@ void handleSettingsSet(AsyncWebServerRequest *request, byte subPage)
       // if the resulting name still contains ":" this means nested object
       JsonObject subObj;
       int umSubObj = name.indexOf(":");
-      DEBUG_PRINTF_P(PSTR("(%d):"),umSubObj);
+      DEBUG_PRINTF_P("(%d):",umSubObj);
       if (umSubObj>0) {
         subObj = mod[name.substring(0,umSubObj)];
         if (subObj.isNull())
@@ -811,7 +811,7 @@ void handleSettingsSet(AsyncWebServerRequest *request, byte subPage)
           else                         subObj[name].add(value.toInt());    // we may have an int
           j++;
         }
-        DEBUG_PRINTF_P(PSTR("[%d] = %s\n"), j, value.c_str());
+        DEBUG_PRINTF_P("[%d] = %s\n", j, value.c_str());
       } else {
         // we are using a hidden field with the same name as our parameter (!before the actual parameter!)
         // to describe the type of parameter (text,float,int), for boolean parameters the first field contains "off"
@@ -830,11 +830,11 @@ void handleSettingsSet(AsyncWebServerRequest *request, byte subPage)
           } else if (type == "int")      subObj[name] = value.toInt();
           else                           subObj[name] = value;  // text fields
         }
-        DEBUG_PRINTF_P(PSTR(" = %s\n"), value.c_str());
+        DEBUG_PRINTF_P(" = %s\n", value.c_str());
       }
     }
     UsermodManager::readFromConfig(um);  // force change of usermod parameters
-    DEBUG_PRINTLN(F("Done re-init UsermodManager::"));
+    DEBUG_PRINTLN("Done re-init UsermodManager::");
     releaseJSONBufferLock();
   }
 
@@ -842,15 +842,15 @@ void handleSettingsSet(AsyncWebServerRequest *request, byte subPage)
   //2D panels
   if (subPage == SUBPAGE_2D)
   {
-    strip.isMatrix = request->arg(F("SOMP")).toInt();
+    strip.isMatrix = request->arg("SOMP").toInt();
     strip.panel.clear();
     if (strip.isMatrix) {
-      unsigned panels = constrain(request->arg(F("MPC")).toInt(), 1, WLED_MAX_PANELS);
+      unsigned panels = constrain(request->arg("MPC").toInt(), 1, WLED_MAX_PANELS);
       strip.panel.reserve(panels); // pre-allocate memory
       for (unsigned i=0; i<panels; i++) {
         WS2812FX::Panel p;
         char pO[8] = { '\0' };
-        snprintf_P(pO, 7, PSTR("P%d"), i);       // WLED_MAX_PANELS is less than 100 so pO will always only be 4 characters or less
+        snprintf(pO, 7, "P%d", i);       // WLED_MAX_PANELS is less than 100 so pO will always only be 4 characters or less
         pO[7] = '\0';
         unsigned l = strlen(pO);
         // create P0B, P1B, ..., P63B, etc for other PxxX
@@ -880,7 +880,7 @@ void handleSettingsSet(AsyncWebServerRequest *request, byte subPage)
   lastEditTime = millis();
   // do not save if factory reset or LED settings (which are saved after LED re-init)
   configNeedsWrite = subPage != SUBPAGE_LEDS && !(subPage == SUBPAGE_SEC && doReboot);
-  if (subPage == SUBPAGE_UM) doReboot = request->hasArg(F("RBT")); // prevent race condition on dual core system (set reboot here, after configNeedsWrite has been set)
+  if (subPage == SUBPAGE_UM) doReboot = request->hasArg("RBT"); // prevent race condition on dual core system (set reboot here, after configNeedsWrite has been set)
   #ifndef WLED_DISABLE_ALEXA
   if (subPage == SUBPAGE_SYNC) alexaInit();
   #endif
@@ -893,10 +893,10 @@ bool handleSet(AsyncWebServerRequest *request, const String& req, bool apply)
   if (!(req.indexOf("win") >= 0)) return false;
 
   int pos = 0;
-  DEBUG_PRINTF_P(PSTR("API req: %s\n"), req.c_str());
+  DEBUG_PRINTF_P("API req: %s\n", req.c_str());
 
   //segment select (sets main segment)
-  pos = req.indexOf(F("SM="));
+  pos = req.indexOf("SM=");
   if (pos > 0 && !realtimeMode) {
     strip.setMainSegmentId(getNumVal(req, pos));
   }
@@ -905,7 +905,7 @@ bool handleSet(AsyncWebServerRequest *request, const String& req, bool apply)
 
   bool singleSegment = false;
 
-  pos = req.indexOf(F("SS="));
+  pos = req.indexOf("SS=");
   if (pos > 0) {
     unsigned t = getNumVal(req, pos);
     if (t < strip.getSegmentsNum()) {
@@ -915,7 +915,7 @@ bool handleSet(AsyncWebServerRequest *request, const String& req, bool apply)
   }
 
   Segment& selseg = strip.getSegment(selectedSeg);
-  pos = req.indexOf(F("SV=")); //segment selected
+  pos = req.indexOf("SV="); //segment selected
   if (pos > 0) {
     unsigned t = getNumVal(req, pos);
     if (t == 2) for (unsigned i = 0; i < strip.getSegmentsNum(); i++) strip.getSegment(i).selected = false; // unselect other segments
@@ -944,19 +944,19 @@ bool handleSet(AsyncWebServerRequest *request, const String& req, bool apply)
   uint16_t stopY   = selseg.stopY;
   uint8_t  grpI    = selseg.grouping;
   uint16_t spcI    = selseg.spacing;
-  pos = req.indexOf(F("&S=")); //segment start
+  pos = req.indexOf("&S="); //segment start
   if (pos > 0) {
     startI = std::abs(getNumVal(req, pos));
   }
-  pos = req.indexOf(F("S2=")); //segment stop
+  pos = req.indexOf("S2="); //segment stop
   if (pos > 0) {
     stopI = std::abs(getNumVal(req, pos));
   }
-  pos = req.indexOf(F("GP=")); //segment grouping
+  pos = req.indexOf("GP="); //segment grouping
   if (pos > 0) {
     grpI = std::max(1,getNumVal(req, pos));
   }
-  pos = req.indexOf(F("SP=")); //segment spacing
+  pos = req.indexOf("SP="); //segment spacing
   if (pos > 0) {
     spcI = std::max(0,getNumVal(req, pos));
   }
@@ -964,13 +964,13 @@ bool handleSet(AsyncWebServerRequest *request, const String& req, bool apply)
   selseg.setGeometry(startI, stopI, grpI, spcI, UINT16_MAX, startY, stopY, selseg.map1D2D);
   strip.resume();
 
-  pos = req.indexOf(F("RV=")); //Segment reverse
+  pos = req.indexOf("RV="); //Segment reverse
   if (pos > 0) selseg.reverse = req.charAt(pos+3) != '0';
 
-  pos = req.indexOf(F("MI=")); //Segment mirror
+  pos = req.indexOf("MI="); //Segment mirror
   if (pos > 0) selseg.mirror = req.charAt(pos+3) != '0';
 
-  pos = req.indexOf(F("SB=")); //Segment brightness/opacity
+  pos = req.indexOf("SB="); //Segment brightness/opacity
   if (pos > 0) {
     byte segbri = getNumVal(req, pos);
     selseg.setOption(SEG_OPTION_ON, segbri); // use transition
@@ -979,7 +979,7 @@ bool handleSet(AsyncWebServerRequest *request, const String& req, bool apply)
     }
   }
 
-  pos = req.indexOf(F("SW=")); //segment power
+  pos = req.indexOf("SW="); //segment power
   if (pos > 0) {
     switch (getNumVal(req, pos)) {
       case 0:  selseg.setOption(SEG_OPTION_ON, false);      break; // use transition
@@ -988,13 +988,13 @@ bool handleSet(AsyncWebServerRequest *request, const String& req, bool apply)
     }
   }
 
-  pos = req.indexOf(F("PS=")); //saves current in preset
+  pos = req.indexOf("PS="); //saves current in preset
   if (pos > 0) savePreset(getNumVal(req, pos));
 
-  pos = req.indexOf(F("P1=")); //sets first preset for cycle
+  pos = req.indexOf("P1="); //sets first preset for cycle
   if (pos > 0) presetCycMin = getNumVal(req, pos);
 
-  pos = req.indexOf(F("P2=")); //sets last preset for cycle
+  pos = req.indexOf("P2="); //sets last preset for cycle
   if (pos > 0) presetCycMax = getNumVal(req, pos);
 
   //apply preset
@@ -1002,7 +1002,7 @@ bool handleSet(AsyncWebServerRequest *request, const String& req, bool apply)
     applyPreset(presetCycCurr);
   }
 
-  pos = req.indexOf(F("NP")); //advances to next preset in a playlist
+  pos = req.indexOf("NP"); //advances to next preset in a playlist
   if (pos > 0) doAdvancePlaylist = true;
 
   //set brightness
@@ -1022,7 +1022,7 @@ bool handleSet(AsyncWebServerRequest *request, const String& req, bool apply)
 
   #ifdef WLED_ENABLE_LOXONE
   //lox parser
-  pos = req.indexOf(F("LX=")); // Lox primary color
+  pos = req.indexOf("LX="); // Lox primary color
   if (pos > 0) {
     int lxValue = getNumVal(req, pos);
     if (parseLx(lxValue, colIn)) {
@@ -1031,7 +1031,7 @@ bool handleSet(AsyncWebServerRequest *request, const String& req, bool apply)
       col0Changed = true;
     }
   }
-  pos = req.indexOf(F("LY=")); // Lox secondary color
+  pos = req.indexOf("LY="); // Lox secondary color
   if (pos > 0) {
     int lxValue = getNumVal(req, pos);
     if(parseLx(lxValue, colInSec)) {
@@ -1043,39 +1043,39 @@ bool handleSet(AsyncWebServerRequest *request, const String& req, bool apply)
   #endif
 
   //set hue
-  pos = req.indexOf(F("HU="));
+  pos = req.indexOf("HU=");
   if (pos > 0) {
     uint16_t temphue = getNumVal(req, pos);
     byte tempsat = 255;
-    pos = req.indexOf(F("SA="));
+    pos = req.indexOf("SA=");
     if (pos > 0) {
       tempsat = getNumVal(req, pos);
     }
-    byte sec = req.indexOf(F("H2"));
+    byte sec = req.indexOf("H2");
     colorHStoRGB(temphue, tempsat, (sec>0) ? colInSec : colIn);
     col0Changed |= (!sec); col1Changed |= sec;
   }
 
   //set white spectrum (kelvin)
-  pos = req.indexOf(F("&K="));
+  pos = req.indexOf("&K=");
   if (pos > 0) {
-    byte sec = req.indexOf(F("K2"));
+    byte sec = req.indexOf("K2");
     colorKtoRGB(getNumVal(req, pos), (sec>0) ? colInSec : colIn);
     col0Changed |= (!sec); col1Changed |= sec;
   }
 
   //set color from HEX or 32bit DEC
-  pos = req.indexOf(F("CL="));
+  pos = req.indexOf("CL=");
   if (pos > 0) {
     colorFromDecOrHexString(colIn, (char*)req.substring(pos + 3).c_str());
     col0Changed = true;
   }
-  pos = req.indexOf(F("C2="));
+  pos = req.indexOf("C2=");
   if (pos > 0) {
     colorFromDecOrHexString(colInSec, (char*)req.substring(pos + 3).c_str());
     col1Changed = true;
   }
-  pos = req.indexOf(F("C3="));
+  pos = req.indexOf("C3=");
   if (pos > 0) {
     byte tmpCol[4];
     colorFromDecOrHexString(tmpCol, (char*)req.substring(pos + 3).c_str());
@@ -1085,7 +1085,7 @@ bool handleSet(AsyncWebServerRequest *request, const String& req, bool apply)
   }
 
   //set to random hue SR=0->1st SR=1->2nd
-  pos = req.indexOf(F("SR"));
+  pos = req.indexOf("SR");
   if (pos > 0) {
     byte sec = getNumVal(req, pos);
     setRandomColor(sec? colInSec : colIn);
@@ -1104,7 +1104,7 @@ bool handleSet(AsyncWebServerRequest *request, const String& req, bool apply)
   }
 
   //swap 2nd & 1st
-  pos = req.indexOf(F("SC"));
+  pos = req.indexOf("SC");
   if (pos > 0) {
     std::swap(col0,col1);
     col0Changed = col1Changed = true;
@@ -1133,7 +1133,7 @@ bool handleSet(AsyncWebServerRequest *request, const String& req, bool apply)
   for (unsigned i = 0; i < strip.getSegmentsNum(); i++) {
     Segment& seg = strip.getSegment(i);
     if (i != selectedSeg && (singleSegment || !seg.isActive() || !seg.isSelected())) continue; // skip non main segments if not applying to all
-    if (fxModeChanged)    seg.setMode(effectIn, req.indexOf(F("FXD="))>0);  // apply defaults if FXD= is specified
+    if (fxModeChanged)    seg.setMode(effectIn, req.indexOf("FXD=")>0);  // apply defaults if FXD= is specified
     if (speedChanged)     seg.speed     = speedIn;
     if (intensityChanged) seg.intensity = intensityIn;
     if (paletteChanged)   seg.setPalette(paletteIn);
@@ -1149,31 +1149,31 @@ bool handleSet(AsyncWebServerRequest *request, const String& req, bool apply)
   }
 
   //set advanced overlay
-  pos = req.indexOf(F("OL="));
+  pos = req.indexOf("OL=");
   if (pos > 0) {
     overlayCurrent = getNumVal(req, pos);
   }
 
   //apply macro (deprecated, added for compatibility with pre-0.11 automations)
-  pos = req.indexOf(F("&M="));
+  pos = req.indexOf("&M=");
   if (pos > 0) {
     applyPreset(getNumVal(req, pos) + 16);
   }
 
   //toggle send UDP direct notifications
-  pos = req.indexOf(F("SN="));
+  pos = req.indexOf("SN=");
   if (pos > 0) notifyDirect = (req.charAt(pos+3) != '0');
 
   //toggle receive UDP direct notifications
-  pos = req.indexOf(F("RN="));
+  pos = req.indexOf("RN=");
   if (pos > 0) receiveGroups = (req.charAt(pos+3) != '0') ? receiveGroups | 1 : receiveGroups & 0xFE;
 
   //receive live data via UDP/Hyperion
-  pos = req.indexOf(F("RD="));
+  pos = req.indexOf("RD=");
   if (pos > 0) receiveDirect = (req.charAt(pos+3) != '0');
 
   //main toggle on/off (parse before nightlight, #1214)
-  pos = req.indexOf(F("&T="));
+  pos = req.indexOf("&T=");
   if (pos > 0) {
     nightlightActive = false; //always disable nightlight when toggling
     switch (getNumVal(req, pos))
@@ -1186,8 +1186,8 @@ bool handleSet(AsyncWebServerRequest *request, const String& req, bool apply)
 
   //toggle nightlight mode
   bool aNlDef = false;
-  if (req.indexOf(F("&ND")) > 0) aNlDef = true;
-  pos = req.indexOf(F("NL="));
+  if (req.indexOf("&ND") > 0) aNlDef = true;
+  pos = req.indexOf("NL=");
   if (pos > 0)
   {
     if (req.charAt(pos+3) == '0')
@@ -1207,14 +1207,14 @@ bool handleSet(AsyncWebServerRequest *request, const String& req, bool apply)
   }
 
   //set nightlight target brightness
-  pos = req.indexOf(F("NT="));
+  pos = req.indexOf("NT=");
   if (pos > 0) {
     nightlightTargetBri = getNumVal(req, pos);
     nightlightActiveOld = false; //re-init
   }
 
   //toggle nightlight fade
-  pos = req.indexOf(F("NF="));
+  pos = req.indexOf("NF=");
   if (pos > 0)
   {
     nightlightMode = getNumVal(req, pos);
@@ -1223,24 +1223,24 @@ bool handleSet(AsyncWebServerRequest *request, const String& req, bool apply)
   }
   if (nightlightMode > NL_MODE_SUN) nightlightMode = NL_MODE_SUN;
 
-  pos = req.indexOf(F("TT="));
+  pos = req.indexOf("TT=");
   if (pos > 0) transitionDelay = getNumVal(req, pos);
   strip.setTransition(transitionDelay);
 
   //set time (unix timestamp)
-  pos = req.indexOf(F("ST="));
+  pos = req.indexOf("ST=");
   if (pos > 0) {
     setTimeFromAPI(getNumVal(req, pos));
   }
 
   //set countdown goal (unix timestamp)
-  pos = req.indexOf(F("CT="));
+  pos = req.indexOf("CT=");
   if (pos > 0) {
     countdownTime = getNumVal(req, pos);
     if (countdownTime - toki.second() > 0) countdownOverTriggered = false;
   }
 
-  pos = req.indexOf(F("LO="));
+  pos = req.indexOf("LO=");
   if (pos > 0) {
     realtimeOverride = getNumVal(req, pos);
     if (realtimeOverride > 2) realtimeOverride = REALTIME_OVERRIDE_ALWAYS;
@@ -1250,19 +1250,19 @@ bool handleSet(AsyncWebServerRequest *request, const String& req, bool apply)
     }
   }
 
-  pos = req.indexOf(F("RB"));
+  pos = req.indexOf("RB");
   if (pos > 0) doReboot = true;
 
   // clock mode, 0: normal, 1: countdown
-  pos = req.indexOf(F("NM="));
+  pos = req.indexOf("NM=");
   if (pos > 0) countdownMode = (req.charAt(pos+3) != '0');
 
-  pos = req.indexOf(F("U0=")); //user var 0
+  pos = req.indexOf("U0="); //user var 0
   if (pos > 0) {
     userVar0 = getNumVal(req, pos);
   }
 
-  pos = req.indexOf(F("U1=")); //user var 1
+  pos = req.indexOf("U1="); //user var 1
   if (pos > 0) {
     userVar1 = getNumVal(req, pos);
   }
@@ -1271,11 +1271,11 @@ bool handleSet(AsyncWebServerRequest *request, const String& req, bool apply)
   // global colPri[], effectCurrent, ... are updated in stateChanged()
   if (!apply) return true; // when called by JSON API, do not call colorUpdated() here
 
-  pos = req.indexOf(F("&NN")); //do not send UDP notifications this time
+  pos = req.indexOf("&NN"); //do not send UDP notifications this time
   stateUpdated((pos > 0) ? CALL_MODE_NO_NOTIFY : CALL_MODE_DIRECT_CHANGE);
 
   // internal call, does not send XML response
-  pos = req.indexOf(F("IN"));
+  pos = req.indexOf("IN");
   if ((request != nullptr) && (pos < 1)) {
     auto response = request->beginResponseStream("text/xml");
     XML_response(*response);

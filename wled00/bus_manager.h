@@ -48,7 +48,7 @@ make_unique(Args&&... args)
   #define DEBUGBUS_PRINT(x) DEBUGOUT.print(x)
   #define DEBUGBUS_PRINTLN(x) DEBUGOUT.println(x)
   #define DEBUGBUS_PRINTF(x...) DEBUGOUT.printf(x)
-  #define DEBUGBUS_PRINTF_P(x...) DEBUGOUT.printf_P(x)
+  #define DEBUGBUS_PRINTF_P(x...) DEBUGOUT.printf(x)
 #else
   #define DEBUGBUS_PRINT(x)
   #define DEBUGBUS_PRINTLN(x)
@@ -170,7 +170,7 @@ class Bus {
     inline  bool     isOffRefreshRequired() const               { return _needsRefresh; }
     inline  bool     containsPixel(uint16_t pix) const          { return pix >= _start && pix < _start + _len; }
 
-    static inline std::vector<LEDType> getLEDTypes()            { return {{TYPE_NONE, "", PSTR("None")}}; } // not used. just for reference for derived classes
+    static inline std::vector<LEDType> getLEDTypes()            { return {{TYPE_NONE, "", "None"}}; } // not used. just for reference for derived classes
     static constexpr size_t   getNumberOfPins(uint8_t type)     { return isVirtual(type) ? 4 : isPWM(type) ? numPWMPins(type) : isHub75(type) ? 5 : is2Pin(type) + 1; } // credit @PaoloTK; for HUB75 the 5 slots store config params (panelW, panelH, chain, rows, cols), not GPIO pins
     static constexpr size_t   getNumberOfChannels(uint8_t type) { return hasWhite(type) + 3*hasRGB(type) + hasCCT(type); }
     static constexpr bool hasRGB(uint8_t type) {
@@ -487,7 +487,7 @@ struct BusConfig {
     type = busType & 0x7F;  // bit 7 may be/is hacked to include refresh info (1=refresh in off state, 0=no refresh)
     size_t nPins = Bus::getNumberOfPins(type);
     for (size_t i = 0; i < nPins; i++) pins[i] = ppins[i];
-    DEBUGBUS_PRINTF_P(PSTR("Bus: Config (%d-%d, type:%d, CO:%d, rev:%d, skip:%d, AW:%d kHz:%d, mA:%d/%d, driver:%s)\n"),
+    DEBUGBUS_PRINTF_P("Bus: Config (%d-%d, type:%d, CO:%d, rev:%d, skip:%d, AW:%d kHz:%d, mA:%d/%d, driver:%s)\n",
       (int)start, (int)(start+len),
       (int)type,
       (int)colorOrder,

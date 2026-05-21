@@ -79,8 +79,8 @@ class AutoSaveUsermod : public Usermod {
     void inline saveSettings() {
       char presetNameBuffer[PRESET_NAME_BUFFER_SIZE];
       updateLocalTime();
-      sprintf_P(presetNameBuffer, 
-        PSTR("~ %02d-%02d %02d:%02d:%02d ~"),
+      sprintf(presetNameBuffer, 
+        "~ %02d-%02d %02d:%02d:%02d ~",
         month(localTime), day(localTime),
         hour(localTime), minute(localTime), second(localTime));
       cacheInvalidate++;  // force reload of presets
@@ -171,16 +171,16 @@ class AutoSaveUsermod : public Usermod {
         user = root.createNestedObject("u");
       }
 
-      JsonArray infoArr = user.createNestedArray(FPSTR(_name));  // name
+      JsonArray infoArr = user.createNestedArray(_name);  // name
 
-      String uiDomString = F("<button class=\"btn btn-xs\" onclick=\"requestJson({");
-      uiDomString += FPSTR(_name);
-      uiDomString += F(":{");
-      uiDomString += FPSTR(_autoSaveEnabled);
-      uiDomString += enabled ? F(":false}});\">") : F(":true}});\">");
-      uiDomString += F("<i class=\"icons ");
+      String uiDomString = "<button class=\"btn btn-xs\" onclick=\"requestJson({";
+      uiDomString += _name;
+      uiDomString += ":{";
+      uiDomString += _autoSaveEnabled;
+      uiDomString += enabled ? ":false}});\">" : ":true}});\">";
+      uiDomString += "<i class=\"icons ";
       uiDomString += enabled ? "on" : "off";
-      uiDomString += F("\">&#xe08f;</i></button>");
+      uiDomString += "\">&#xe08f;</i></button>";
       infoArr.add(uiDomString);
     }
 
@@ -198,12 +198,12 @@ class AutoSaveUsermod : public Usermod {
     void readFromJsonState(JsonObject& root) {
       if (!initDone) return;  // prevent crash on boot applyPreset()
       bool en = enabled;
-      JsonObject um = root[FPSTR(_name)];
+      JsonObject um = root[_name];
       if (!um.isNull()) {
-        if (um[FPSTR(_autoSaveEnabled)].is<bool>()) {
-          en = um[FPSTR(_autoSaveEnabled)].as<bool>();
+        if (um[_autoSaveEnabled].is<bool>()) {
+          en = um[_autoSaveEnabled].as<bool>();
         } else {
-          String str = um[FPSTR(_autoSaveEnabled)]; // checkbox -> off or on
+          String str = um[_autoSaveEnabled]; // checkbox -> off or on
           en = (bool)(str!="off"); // off is guaranteed to be present
         }
         if (en != enabled) enable(en);
@@ -226,13 +226,13 @@ class AutoSaveUsermod : public Usermod {
      */
     void addToConfig(JsonObject& root) {
       // we add JSON object: {"Autosave": {"autoSaveAfterSec": 10, "autoSavePreset": 99}}
-      JsonObject top = root.createNestedObject(FPSTR(_name)); // usermodname
-      top[FPSTR(_autoSaveEnabled)]       = enabled;
-      top[FPSTR(_autoSaveAfterSec)]      = autoSaveAfterSec;  // usermodparam
-      top[FPSTR(_autoSavePreset)]        = autoSavePreset;    // usermodparam
-      top[FPSTR(_autoSaveApplyOnBoot)]   = applyAutoSaveOnBoot;
-      top[FPSTR(_autoSaveIgnorePresets)] = autoSaveIgnorePresets;
-      DEBUG_PRINTLN(F("Autosave config saved."));
+      JsonObject top = root.createNestedObject(_name); // usermodname
+      top[_autoSaveEnabled]       = enabled;
+      top[_autoSaveAfterSec]      = autoSaveAfterSec;  // usermodparam
+      top[_autoSavePreset]        = autoSavePreset;    // usermodparam
+      top[_autoSaveApplyOnBoot]   = applyAutoSaveOnBoot;
+      top[_autoSaveIgnorePresets] = autoSaveIgnorePresets;
+      DEBUG_PRINTLN("Autosave config saved.");
     }
 
     /*
@@ -247,22 +247,22 @@ class AutoSaveUsermod : public Usermod {
      */
     bool readFromConfig(JsonObject& root) {
       // we look for JSON object: {"Autosave": {"enabled": true, "autoSaveAfterSec": 10, "autoSavePreset": 250, ...}}
-      JsonObject top = root[FPSTR(_name)];
+      JsonObject top = root[_name];
       if (top.isNull()) {
-        DEBUG_PRINT(FPSTR(_name));
-        DEBUG_PRINTLN(F(": No config found. (Using defaults.)"));
+        DEBUG_PRINT(_name);
+        DEBUG_PRINTLN(": No config found. (Using defaults.)");
         return false;
       }
 
-      enabled               = top[FPSTR(_autoSaveEnabled)] | enabled;
-      autoSaveAfterSec      = top[FPSTR(_autoSaveAfterSec)] | autoSaveAfterSec;
+      enabled               = top[_autoSaveEnabled] | enabled;
+      autoSaveAfterSec      = top[_autoSaveAfterSec] | autoSaveAfterSec;
       autoSaveAfterSec      = (uint16_t) min(3600,max(10,(int)autoSaveAfterSec)); // bounds checking
-      autoSavePreset        = top[FPSTR(_autoSavePreset)] | autoSavePreset;
+      autoSavePreset        = top[_autoSavePreset] | autoSavePreset;
       autoSavePreset        = (uint8_t) min(250,max(100,(int)autoSavePreset)); // bounds checking
-      applyAutoSaveOnBoot   = top[FPSTR(_autoSaveApplyOnBoot)] | applyAutoSaveOnBoot;
-      autoSaveIgnorePresets = top[FPSTR(_autoSaveIgnorePresets)] | autoSaveIgnorePresets;
-      DEBUG_PRINT(FPSTR(_name));
-      DEBUG_PRINTLN(F(" config (re)loaded."));
+      applyAutoSaveOnBoot   = top[_autoSaveApplyOnBoot] | applyAutoSaveOnBoot;
+      autoSaveIgnorePresets = top[_autoSaveIgnorePresets] | autoSaveIgnorePresets;
+      DEBUG_PRINT(_name);
+      DEBUG_PRINTLN(" config (re)loaded.");
 
       // use "return !top["newestParameter"].isNull();" when updating Usermod with new features
       return true;

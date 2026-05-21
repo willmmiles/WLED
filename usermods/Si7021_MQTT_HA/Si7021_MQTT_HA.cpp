@@ -91,8 +91,8 @@ class Si7021_MQTT_HA : public Usermod
 
         JsonObject device = doc.createNestedObject("device"); // attach the sensor to the same device
         device["name"] = String(serverDescription);
-        device["model"] = F(WLED_PRODUCT_NAME);
-        device["manufacturer"] = F(WLED_BRAND);
+        device["model"] = WLED_PRODUCT_NAME;
+        device["manufacturer"] = WLED_BRAND;
         device["identifiers"] = String("wled-") + String(serverDescription);
         device["sw_version"] = VERSION;
 
@@ -146,21 +146,21 @@ class Si7021_MQTT_HA : public Usermod
   public:
     void addToConfig(JsonObject& root)
     {
-      JsonObject top = root.createNestedObject(FPSTR(_name));
+      JsonObject top = root.createNestedObject(_name);
       
-      top[FPSTR(_enabled)] = enabled;
-      top[FPSTR(_sendAdditionalSensors)] = sendAdditionalSensors;
-      top[FPSTR(_haAutoDiscovery)] = haAutoDiscovery;
+      top[_enabled] = enabled;
+      top[_sendAdditionalSensors] = sendAdditionalSensors;
+      top[_haAutoDiscovery] = haAutoDiscovery;
     }
 
     bool readFromConfig(JsonObject& root)
     {
-      JsonObject top = root[FPSTR(_name)];
+      JsonObject top = root[_name];
       
       bool configComplete = !top.isNull();
-      configComplete &= getJsonValue(top[FPSTR(_enabled)], enabled);
-      configComplete &= getJsonValue(top[FPSTR(_sendAdditionalSensors)], sendAdditionalSensors);
-      configComplete &= getJsonValue(top[FPSTR(_haAutoDiscovery)], haAutoDiscovery);
+      configComplete &= getJsonValue(top[_enabled], enabled);
+      configComplete &= getJsonValue(top[_sendAdditionalSensors], sendAdditionalSensors);
+      configComplete &= getJsonValue(top[_haAutoDiscovery], haAutoDiscovery);
 
       return configComplete;
     }

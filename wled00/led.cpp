@@ -67,7 +67,7 @@ byte scaledBri(byte in)
 void applyBri() {
   if (realtimeOverride || !(realtimeMode && arlsForceMaxBri))
   {
-    //DEBUG_PRINTF_P(PSTR("Applying strip brightness: %d (%d,%d)\n"), (int)briT, (int)bri, (int)briOld);
+    //DEBUG_PRINTF_P("Applying strip brightness: %d (%d,%d)\n", (int)briT, (int)bri, (int)briOld);
     strip.setBrightness(briT);
   }
 }

@@ -93,7 +93,7 @@ class St7789DisplayUsermod : public Usermod {
         knownHour = hourCurrent;
 
         byte currentMonth = month(localTime);
-        sprintf_P(lineBuffer, PSTR("%s %2d "), monthShortStr(currentMonth), day(localTime));
+        sprintf(lineBuffer, "%s %2d ", monthShortStr(currentMonth), day(localTime));
         tft.setTextColor(TFT_SILVER);
         tft.setCursor(84, 0);
         tft.setTextSize(2);
@@ -113,7 +113,7 @@ class St7789DisplayUsermod : public Usermod {
             }
         }
 
-        sprintf_P(lineBuffer, PSTR("%2d:%02d"), (useAMPM ? showHour : hourCurrent), minuteCurrent);
+        sprintf(lineBuffer, "%2d:%02d", (useAMPM ? showHour : hourCurrent), minuteCurrent);
         tft.setTextColor(TFT_WHITE);
         tft.setTextSize(4);
         tft.setCursor(60, 24);
@@ -121,7 +121,7 @@ class St7789DisplayUsermod : public Usermod {
 
         tft.setTextSize(2);
         tft.setCursor(186, 24);
-        //sprintf_P(lineBuffer, PSTR("%02d"), secondCurrent);
+        //sprintf(lineBuffer, "%02d", secondCurrent);
         if (useAMPM) tft.print(isAM ? "AM" : "PM");
         //else         tft.print(lineBuffer);
     }
@@ -299,7 +299,7 @@ class St7789DisplayUsermod : public Usermod {
 
         tft.setCursor(0, 192);
         tft.setTextColor(TFT_SILVER);
-        sprintf_P(buff, PSTR("FX  Spd:%3d Int:%3d"), effectSpeed, effectIntensity);
+        sprintf(buff, "FX  Spd:%3d Int:%3d", effectSpeed, effectIntensity);
         tft.print(buff);
 
         // Fifth row with estimated mA usage
@@ -323,7 +323,7 @@ class St7789DisplayUsermod : public Usermod {
       if (user.isNull()) user = root.createNestedObject("u");
 
       JsonArray lightArr = user.createNestedArray("ST7789"); //name
-      lightArr.add(enabled?F("installed"):F("disabled")); //unit
+      lightArr.add(enabled?"installed":"disabled"); //unit
     }
 
 
@@ -344,7 +344,7 @@ class St7789DisplayUsermod : public Usermod {
     void readFromJsonState(JsonObject& root) override
     {
       //userVar0 = root["user0"] | userVar0; //if "user0" key exists in JSON, update, else keep old value
-      //if (root["bri"] == 255) Serial.println(F("Don't burn down your garage!"));
+      //if (root["bri"] == 255) Serial.println("Don't burn down your garage!");
     }
 
 
@@ -375,10 +375,10 @@ class St7789DisplayUsermod : public Usermod {
 
 
     void appendConfigData() override {
-      oappend(F("addInfo('ST7789:pin[]',0,'','SPI CS');"));
-      oappend(F("addInfo('ST7789:pin[]',1,'','SPI DC');"));
-      oappend(F("addInfo('ST7789:pin[]',2,'','SPI RST');"));
-      oappend(F("addInfo('ST7789:pin[]',3,'','SPI BL');"));
+      oappend("addInfo('ST7789:pin[]',0,'','SPI CS');");
+      oappend("addInfo('ST7789:pin[]',1,'','SPI DC');");
+      oappend("addInfo('ST7789:pin[]',2,'','SPI RST');");
+      oappend("addInfo('ST7789:pin[]',3,'','SPI BL');");
     }
 
     /*

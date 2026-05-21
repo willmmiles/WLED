@@ -60,11 +60,11 @@ private:
       return;
 
     char topic[128];
-    snprintf_P(topic, 127, "%s/temperature", mqttDeviceTopic);
-    mqttCreateHassSensor(F("Temperature"), topic, F("temperature"), F("°C"));
+    snprintf(topic, 127, "%s/temperature", mqttDeviceTopic);
+    mqttCreateHassSensor("Temperature", topic, "temperature", "°C");
 
-    snprintf_P(topic, 127, "%s/humidity", mqttDeviceTopic);
-    mqttCreateHassSensor(F("Humidity"), topic, F("humidity"), F("%"));
+    snprintf(topic, 127, "%s/humidity", mqttDeviceTopic);
+    mqttCreateHassSensor("Humidity", topic, "humidity", "%");
   }
 
   void mqttPublishIfChanged(const __FlashStringHelper *topic, float &lastState, float state, float minChange)
@@ -74,7 +74,7 @@ private:
     if (WLED_MQTT_CONNECTED && _mqttPublish && (_mqttPublishAlways || fabsf(lastState - state) > minChange))
     {
       char subuf[128];
-      snprintf_P(subuf, 127, PSTR("%s/%s"), mqttDeviceTopic, (const char *)topic);
+      snprintf(subuf, 127, "%s/%s", mqttDeviceTopic, (const char *)topic);
       mqtt->publish(subuf, 0, false, String(state).c_str());
 
       lastState = state;
@@ -84,25 +84,25 @@ private:
   // Create an MQTT Sensor for Home Assistant Discovery purposes, this includes a pointer to the topic that is published to in the Loop.
   void mqttCreateHassSensor(const String &name, const String &topic, const String &deviceClass, const String &unitOfMeasurement)
   {
-    String t = String(F("homeassistant/sensor/")) + mqttClientID + "/" + name + F("/config");
+    String t = String("homeassistant/sensor/") + mqttClientID + "/" + name + "/config";
 
     StaticJsonDocument<600> doc;
 
-    doc[F("name")] = name;
-    doc[F("state_topic")] = topic;
-    doc[F("unique_id")] = String(mqttClientID) + name;
+    doc["name"] = name;
+    doc["state_topic"] = topic;
+    doc["unique_id"] = String(mqttClientID) + name;
     if (unitOfMeasurement != "")
-      doc[F("unit_of_measurement")] = unitOfMeasurement;
+      doc["unit_of_measurement"] = unitOfMeasurement;
     if (deviceClass != "")
-      doc[F("device_class")] = deviceClass;
-    doc[F("expire_after")] = 1800;
+      doc["device_class"] = deviceClass;
+    doc["expire_after"] = 1800;
 
-    JsonObject device = doc.createNestedObject(F("device")); // attach the sensor to the same device
-    device[F("name")] = serverDescription;
-    device[F("identifiers")] = "wled-sensor-" + String(mqttClientID);
-    device[F("manufacturer")] = F(WLED_BRAND);
-    device[F("model")] = F(WLED_PRODUCT_NAME);
-    device[F("sw_version")] = versionString;
+    JsonObject device = doc.createNestedObject("device"); // attach the sensor to the same device
+    device["name"] = serverDescription;
+    device["identifiers"] = "wled-sensor-" + String(mqttClientID);
+    device["manufacturer"] = WLED_BRAND;
+    device["model"] = WLED_PRODUCT_NAME;
+    device["sw_version"] = versionString;
 
     String temp;
     serializeJson(doc, temp);
@@ -138,10 +138,10 @@ public:
     if (_lastStatus == AHT10_ERROR)
     {
       // Perform softReset and retry
-      DEBUG_PRINTLN(F("AHTxx returned error, doing softReset"));
+      DEBUG_PRINTLN("AHTxx returned error, doing softReset");
       if (!_aht->softReset())
       {
-        DEBUG_PRINTLN(F("softReset failed"));
+        DEBUG_PRINTLN("softReset failed");
         return;
       }
 
@@ -158,10 +158,10 @@ public:
 
       // We can avoid reporting if the change is insignificant. The threshold chosen is below the level of accuracy, but way above 0.01 which is the precision of the value provided.
       // The AHT10/15/20 has an accuracy of 0.3C in the temperature readings
-      mqttPublishIfChanged(F("temperature"), _lastTemperatureSent, temperature, 0.1f);
+      mqttPublishIfChanged("temperature", _lastTemperatureSent, temperature, 0.1f);
 
       // The AHT10/15/20 has an accuracy in the humidity sensor of 2%
-      mqttPublishIfChanged(F("humidity"), _lastHumiditySent, humidity, 0.5f);
+      mqttPublishIfChanged("humidity", _lastHumiditySent, humidity, 0.5f);
 #endif
 
       // Store
@@ -190,53 +190,53 @@ public:
       user = root.createNestedObject("u");
 
 #ifdef USERMOD_AHT10_DEBUG
-    JsonArray temp = user.createNestedArray(F("AHT last loop"));
+    JsonArray temp = user.createNestedArray("AHT last loop");
     temp.add(_lastLoopCheck);
 
-    temp = user.createNestedArray(F("AHT last status"));
+    temp = user.createNestedArray("AHT last status");
     temp.add(_lastStatus);
 #endif
 
-    JsonArray jsonTemp = user.createNestedArray(F("Temperature"));
-    JsonArray jsonHumidity = user.createNestedArray(F("Humidity"));
+    JsonArray jsonTemp = user.createNestedArray("Temperature");
+    JsonArray jsonHumidity = user.createNestedArray("Humidity");
 
     if (_lastLoopCheck == 0)
     {
       // Before first run
-      jsonTemp.add(F("Not read yet"));
-      jsonHumidity.add(F("Not read yet"));
+      jsonTemp.add("Not read yet");
+      jsonHumidity.add("Not read yet");
       return;
     }
 
     if (_lastStatus != AHT10_SUCCESS)
     {
-      jsonTemp.add(F("An error occurred"));
-      jsonHumidity.add(F("An error occurred"));
+      jsonTemp.add("An error occurred");
+      jsonHumidity.add("An error occurred");
       return;
     }
 
     jsonTemp.add(_lastTemperature);
-    jsonTemp.add(F("°C"));
+    jsonTemp.add("°C");
 
     jsonHumidity.add(_lastHumidity);
-    jsonHumidity.add(F("%"));
+    jsonHumidity.add("%");
   }
 
   void addToConfig(JsonObject &root)
   {
-    JsonObject top = root.createNestedObject(FPSTR(_name));
-    top[F("Enabled")] = _settingEnabled;
-    top[F("I2CAddress")] = static_cast<uint8_t>(_i2cAddress);
-    top[F("SensorType")] = _ahtType;
-    top[F("CheckInterval")] = _checkInterval / 1000;
-    top[F("Decimals")] = log10f(_decimalFactor);
+    JsonObject top = root.createNestedObject(_name);
+    top["Enabled"] = _settingEnabled;
+    top["I2CAddress"] = static_cast<uint8_t>(_i2cAddress);
+    top["SensorType"] = _ahtType;
+    top["CheckInterval"] = _checkInterval / 1000;
+    top["Decimals"] = log10f(_decimalFactor);
 #ifndef WLED_DISABLE_MQTT
-    top[F("MqttPublish")] = _mqttPublish;
-    top[F("MqttPublishAlways")] = _mqttPublishAlways;
-    top[F("MqttHomeAssistantDiscovery")] = _mqttHomeAssistant;
+    top["MqttPublish"] = _mqttPublish;
+    top["MqttPublishAlways"] = _mqttPublishAlways;
+    top["MqttHomeAssistantDiscovery"] = _mqttHomeAssistant;
 #endif
 
-    DEBUG_PRINTLN(F("AHT10 config saved."));
+    DEBUG_PRINTLN("AHT10 config saved.");
   }
 
   bool readFromConfig(JsonObject &root) override
@@ -244,19 +244,19 @@ public:
     // default settings values could be set here (or below using the 3-argument getJsonValue()) instead of in the class definition or constructor
     // setting them inside readFromConfig() is slightly more robust, handling the rare but plausible use case of single value being missing after boot (e.g. if the cfg.json was manually edited and a value was removed)
 
-    JsonObject top = root[FPSTR(_name)];
+    JsonObject top = root[_name];
 
     bool configComplete = !top.isNull();
     if (!configComplete)
       return false;
 
     bool tmpBool = false;
-    configComplete &= getJsonValue(top[F("Enabled")], tmpBool);
+    configComplete &= getJsonValue(top["Enabled"], tmpBool);
     if (configComplete)
       _settingEnabled = tmpBool;
 
-    configComplete &= getJsonValue(top[F("I2CAddress")], _i2cAddress);
-    configComplete &= getJsonValue(top[F("CheckInterval")], _checkInterval);
+    configComplete &= getJsonValue(top["I2CAddress"], _i2cAddress);
+    configComplete &= getJsonValue(top["CheckInterval"], _checkInterval);
     if (configComplete)
     {
       if (1 <= _checkInterval && _checkInterval <= 600)
@@ -266,7 +266,7 @@ public:
         _checkInterval = 60000;
     }
 
-    configComplete &= getJsonValue(top[F("Decimals")], _decimalFactor);
+    configComplete &= getJsonValue(top["Decimals"], _decimalFactor);
     if (configComplete)
     {
       if (0 <= _decimalFactor && _decimalFactor <= 5)
@@ -277,7 +277,7 @@ public:
     }
 
     uint8_t tmpAhtType;
-    configComplete &= getJsonValue(top[F("SensorType")], tmpAhtType);
+    configComplete &= getJsonValue(top["SensorType"], tmpAhtType);
     if (configComplete)
     {
       if (0 <= tmpAhtType && tmpAhtType <= 2)
@@ -288,15 +288,15 @@ public:
     }
 
 #ifndef WLED_DISABLE_MQTT
-    configComplete &= getJsonValue(top[F("MqttPublish")], tmpBool);
+    configComplete &= getJsonValue(top["MqttPublish"], tmpBool);
     if (configComplete)
       _mqttPublish = tmpBool;
 
-    configComplete &= getJsonValue(top[F("MqttPublishAlways")], tmpBool);
+    configComplete &= getJsonValue(top["MqttPublishAlways"], tmpBool);
     if (configComplete)
       _mqttPublishAlways = tmpBool;
 
-    configComplete &= getJsonValue(top[F("MqttHomeAssistantDiscovery")], tmpBool);
+    configComplete &= getJsonValue(top["MqttHomeAssistantDiscovery"], tmpBool);
     if (configComplete)
       _mqttHomeAssistant = tmpBool;
 #endif

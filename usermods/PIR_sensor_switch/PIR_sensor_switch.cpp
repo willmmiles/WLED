@@ -227,7 +227,7 @@ void PIRsensorSwitch::switchStrip(bool switchOn)
   if (m_offOnly && bri && (switchOn || (!PIRtriggered && !switchOn))) return; //if lights on and off only, do nothing
   if (PIRtriggered && switchOn) return; //if already on and triggered before, do nothing
   PIRtriggered = switchOn;
-  DEBUG_PRINT(F("PIR: strip=")); DEBUG_PRINTLN(switchOn?"on":"off");
+  DEBUG_PRINT("PIR: strip="); DEBUG_PRINTLN(switchOn?"on":"off");
   if (switchOn) {
     if (m_onPreset) {
       if (currentPlaylist>0 && !offMode) {
@@ -277,15 +277,15 @@ void PIRsensorSwitch::publishMqtt(bool switchOn)
   //Check if MQTT Connected, otherwise it will crash the 8266
   if (WLED_MQTT_CONNECTED) {
     char buf[128];
-    sprintf_P(buf, PSTR("%s/motion"), mqttDeviceTopic);   //max length: 33 + 7 = 40
+    sprintf(buf, "%s/motion", mqttDeviceTopic);   //max length: 33 + 7 = 40
     mqtt->publish(buf, 0, false, switchOn?"on":"off");
     // Domoticz formatted message
     if (idx > 0) {
       StaticJsonDocument <128> msg;
-      msg[F("idx")]       = idx;
-      msg[F("RSSI")]      = WiFi.RSSI();
-      msg[F("command")]   = F("switchlight");
-      msg[F("switchcmd")] = switchOn ? F("On") : F("Off");
+      msg["idx"]       = idx;
+      msg["RSSI"]      = WiFi.RSSI();
+      msg["command"]   = "switchlight";
+      msg["switchcmd"] = switchOn ? "On" : "Off";
       serializeJson(msg, buf, 128);
       mqtt->publish("domoticz/in", 0, false, buf);
     }
@@ -300,25 +300,25 @@ void PIRsensorSwitch::publishHomeAssistantAutodiscovery()
     StaticJsonDocument<600> doc;
     char uid[24], json_str[1024], buf[128];
 
-    sprintf_P(buf, PSTR("%s Motion"), serverDescription); //max length: 33 + 7 = 40
-    doc[F("name")] = buf;
-    sprintf_P(buf, PSTR("%s/motion"), mqttDeviceTopic);   //max length: 33 + 7 = 40
-    doc[F("stat_t")] = buf;
-    doc[F("pl_on")]  = "on";
-    doc[F("pl_off")] = "off";
-    sprintf_P(uid, PSTR("%s_motion"), escapedMac.c_str());
-    doc[F("uniq_id")] = uid;
-    doc[F("dev_cla")] = F("motion");
-    doc[F("exp_aft")] = 1800;
+    sprintf(buf, "%s Motion", serverDescription); //max length: 33 + 7 = 40
+    doc["name"] = buf;
+    sprintf(buf, "%s/motion", mqttDeviceTopic);   //max length: 33 + 7 = 40
+    doc["stat_t"] = buf;
+    doc["pl_on"]  = "on";
+    doc["pl_off"] = "off";
+    sprintf(uid, "%s_motion", escapedMac.c_str());
+    doc["uniq_id"] = uid;
+    doc["dev_cla"] = "motion";
+    doc["exp_aft"] = 1800;
 
-    JsonObject device = doc.createNestedObject(F("device")); // attach the sensor to the same device
-    device[F("name")] = serverDescription;
-    device[F("ids")]  = String(F("wled-sensor-")) + mqttClientID;
-    device[F("mf")]   = F(WLED_BRAND);
-    device[F("mdl")]  = F(WLED_PRODUCT_NAME);
-    device[F("sw")]   = versionString;
+    JsonObject device = doc.createNestedObject("device"); // attach the sensor to the same device
+    device["name"] = serverDescription;
+    device["ids"]  = String("wled-sensor-") + mqttClientID;
+    device["mf"]   = WLED_BRAND;
+    device["mdl"]  = WLED_PRODUCT_NAME;
+    device["sw"]   = versionString;
     
-    sprintf_P(buf, PSTR("homeassistant/binary_sensor/%s/config"), uid);
+    sprintf(buf, "homeassistant/binary_sensor/%s/config", uid);
     DEBUG_PRINTLN(buf);
     size_t payload_size = serializeJson(doc, json_str);
     DEBUG_PRINTLN(json_str);
@@ -382,7 +382,7 @@ void PIRsensorSwitch::setup()
       #endif
       sensorPinState[i] = digitalRead(PIRsensorPin[i]);
     } else {
-      DEBUG_PRINT(F("PIRSensorSwitch pin ")); DEBUG_PRINTLN(i); DEBUG_PRINTLN(F(" allocation failed."));
+      DEBUG_PRINT("PIRSensorSwitch pin "); DEBUG_PRINTLN(i); DEBUG_PRINTLN(" allocation failed.");
       PIRsensorPin[i] = -1;  // allocation failed
     }
   }
@@ -416,7 +416,7 @@ void PIRsensorSwitch::addToJsonInfo(JsonObject &root)
   for (int i = 0; i < PIR_SENSOR_MAX_SENSORS; i++)
     if (PIRsensorPin[i] >= 0) state |= sensorPinState[i];
 
-  JsonArray infoArr = user.createNestedArray(FPSTR(_name));
+  JsonArray infoArr = user.createNestedArray(_name);
 
   String uiDomString;
   if (enabled) {
@@ -425,7 +425,7 @@ void PIRsensorSwitch::addToJsonInfo(JsonObject &root)
       unsigned int offSeconds = (m_switchOffDelay - (millis() - offTimerStart)) / 1000;
       if (offSeconds >= 3600) {
         uiDomString += (offSeconds / 3600);
-        uiDomString += F("h ");
+        uiDomString += "h ";
         offSeconds %= 3600;
       }
       if (offSeconds >= 60) {
@@ -435,44 +435,44 @@ void PIRsensorSwitch::addToJsonInfo(JsonObject &root)
         uiDomString += 0;
       }
       if (uiDomString.length() > 0) {
-        uiDomString += F("min ");
+        uiDomString += "min ";
       }
       uiDomString += (offSeconds);
-      infoArr.add(uiDomString + F("s"));
+      infoArr.add(uiDomString + "s");
     } else {
-      infoArr.add(state ? F("sensor on") : F("inactive"));
+      infoArr.add(state ? "sensor on" : "inactive");
     }
   } else {
-    infoArr.add(F("disabled"));
+    infoArr.add("disabled");
   }
 
-  uiDomString  = F(" <button class=\"btn btn-xs\" onclick=\"requestJson({");
-  uiDomString += FPSTR(_name);
-  uiDomString += F(":{");
-  uiDomString += FPSTR(_enabled);
+  uiDomString  = " <button class=\"btn btn-xs\" onclick=\"requestJson({";
+  uiDomString += _name;
+  uiDomString += ":{";
+  uiDomString += _enabled;
   if (enabled) {
-    uiDomString += F(":false}});\">");
-    uiDomString += F("<i class=\"icons on\">&#xe325;</i>");
+    uiDomString += ":false}});\">";
+    uiDomString += "<i class=\"icons on\">&#xe325;</i>";
   } else {
-    uiDomString += F(":true}});\">");
-    uiDomString += F("<i class=\"icons off\">&#xe08f;</i>");
+    uiDomString += ":true}});\">";
+    uiDomString += "<i class=\"icons off\">&#xe08f;</i>";
   }
-  uiDomString += F("</button>");
+  uiDomString += "</button>";
   infoArr.add(uiDomString);
 
   if (enabled) {
-    JsonObject sensor = root[F("sensor")];
-    if (sensor.isNull()) sensor = root.createNestedObject(F("sensor"));
-    sensor[F("motion")] = state || offTimerStart>0 ? true : false;
+    JsonObject sensor = root["sensor"];
+    if (sensor.isNull()) sensor = root.createNestedObject("sensor");
+    sensor["motion"] = state || offTimerStart>0 ? true : false;
   }
 }
 
 void PIRsensorSwitch::onStateChange(uint8_t mode) {
   if (!initDone) return;
-  DEBUG_PRINT(F("PIR: offTimerStart=")); DEBUG_PRINTLN(offTimerStart);
+  DEBUG_PRINT("PIR: offTimerStart="); DEBUG_PRINTLN(offTimerStart);
   if (m_override && PIRtriggered && offTimerStart) { // debounce
     // checking PIRtriggered and offTimerStart will prevent cancellation upon On trigger
-    DEBUG_PRINTLN(F("PIR: Canceled."));
+    DEBUG_PRINTLN("PIR: Canceled.");
     offTimerStart = 0;
     PIRtriggered = false;
   }
@@ -481,39 +481,39 @@ void PIRsensorSwitch::onStateChange(uint8_t mode) {
 void PIRsensorSwitch::readFromJsonState(JsonObject &root)
 {
   if (!initDone) return;  // prevent crash on boot applyPreset()
-  JsonObject usermod = root[FPSTR(_name)];
+  JsonObject usermod = root[_name];
   if (!usermod.isNull()) {
-    if (usermod[FPSTR(_enabled)].is<bool>()) {
-      enabled = usermod[FPSTR(_enabled)].as<bool>();
+    if (usermod[_enabled].is<bool>()) {
+      enabled = usermod[_enabled].as<bool>();
     }
   }
 }
 
 void PIRsensorSwitch::addToConfig(JsonObject &root)
 {
-  JsonObject top = root.createNestedObject(FPSTR(_name));
-  top[FPSTR(_enabled)]        = enabled;
-  top[FPSTR(_switchOffDelay)] = m_switchOffDelay / 1000;
+  JsonObject top = root.createNestedObject(_name);
+  top[_enabled]        = enabled;
+  top[_switchOffDelay] = m_switchOffDelay / 1000;
   JsonArray pinArray          = top.createNestedArray("pin");
   for (int i = 0; i < PIR_SENSOR_MAX_SENSORS; i++) pinArray.add(PIRsensorPin[i]);
-  top[FPSTR(_onPreset)]       = m_onPreset;
-  top[FPSTR(_offPreset)]      = m_offPreset;
-  top[FPSTR(_nightTime)]      = m_nightTimeOnly;
-  top[FPSTR(_mqttOnly)]       = m_mqttOnly;
-  top[FPSTR(_offOnly)]        = m_offOnly;
-  top[FPSTR(_override)]       = m_override;
-  top[FPSTR(_haDiscovery)]    = HomeAssistantDiscovery;
-  top[FPSTR(_domoticzIDX)]    = idx;
-  DEBUG_PRINTLN(F("PIR config saved."));
+  top[_onPreset]       = m_onPreset;
+  top[_offPreset]      = m_offPreset;
+  top[_nightTime]      = m_nightTimeOnly;
+  top[_mqttOnly]       = m_mqttOnly;
+  top[_offOnly]        = m_offOnly;
+  top[_override]       = m_override;
+  top[_haDiscovery]    = HomeAssistantDiscovery;
+  top[_domoticzIDX]    = idx;
+  DEBUG_PRINTLN("PIR config saved.");
 }
 
 void PIRsensorSwitch::appendConfigData()
 {
-  oappend(F("addInfo('PIRsensorSwitch:HA-discovery',1,'HA=Home Assistant');"));     // 0 is field type, 1 is actual field
-  oappend(F("addInfo('PIRsensorSwitch:override',1,'Cancel timer on change');"));    // 0 is field type, 1 is actual field
+  oappend("addInfo('PIRsensorSwitch:HA-discovery',1,'HA=Home Assistant');");     // 0 is field type, 1 is actual field
+  oappend("addInfo('PIRsensorSwitch:override',1,'Cancel timer on change');");    // 0 is field type, 1 is actual field
   for (int i = 0; i < PIR_SENSOR_MAX_SENSORS; i++) {
     char str[128];
-    sprintf_P(str, PSTR("addInfo('PIRsensorSwitch:pin[]',%d,'','#%d');"), i, i);
+    sprintf(str, "addInfo('PIRsensorSwitch:pin[]',%d,'','#%d');", i, i);
     oappend(str);
   }
 }
@@ -526,10 +526,10 @@ bool PIRsensorSwitch::readFromConfig(JsonObject &root)
     PIRsensorPin[i] = -1;
   }
 
-  DEBUG_PRINT(FPSTR(_name));
-  JsonObject top = root[FPSTR(_name)];
+  DEBUG_PRINT(_name);
+  JsonObject top = root[_name];
   if (top.isNull()) {
-    DEBUG_PRINTLN(F(": No config found. (Using defaults.)"));
+    DEBUG_PRINTLN(": No config found. (Using defaults.)");
     return false;
   }
 
@@ -541,30 +541,30 @@ bool PIRsensorSwitch::readFromConfig(JsonObject &root)
     PIRsensorPin[0] = top["pin"] | oldPin[0];
   }
 
-  enabled = top[FPSTR(_enabled)] | enabled;
+  enabled = top[_enabled] | enabled;
 
-  m_switchOffDelay = (top[FPSTR(_switchOffDelay)] | m_switchOffDelay/1000) * 1000;
+  m_switchOffDelay = (top[_switchOffDelay] | m_switchOffDelay/1000) * 1000;
 
-  m_onPreset = top[FPSTR(_onPreset)] | m_onPreset;
+  m_onPreset = top[_onPreset] | m_onPreset;
   m_onPreset = max(0,min(250,(int)m_onPreset));
-  m_offPreset = top[FPSTR(_offPreset)] | m_offPreset;
+  m_offPreset = top[_offPreset] | m_offPreset;
   m_offPreset = max(0,min(250,(int)m_offPreset));
 
-  m_nightTimeOnly = top[FPSTR(_nightTime)] | m_nightTimeOnly;
-  m_mqttOnly      = top[FPSTR(_mqttOnly)] | m_mqttOnly;
-  m_offOnly       = top[FPSTR(_offOnly)] | m_offOnly;
-  m_override      = top[FPSTR(_override)] | m_override;
-  HomeAssistantDiscovery = top[FPSTR(_haDiscovery)] | HomeAssistantDiscovery;
-  idx             = top[FPSTR(_domoticzIDX)] | idx;
+  m_nightTimeOnly = top[_nightTime] | m_nightTimeOnly;
+  m_mqttOnly      = top[_mqttOnly] | m_mqttOnly;
+  m_offOnly       = top[_offOnly] | m_offOnly;
+  m_override      = top[_override] | m_override;
+  HomeAssistantDiscovery = top[_haDiscovery] | HomeAssistantDiscovery;
+  idx             = top[_domoticzIDX] | idx;
 
   if (!initDone) {
     // reading config prior to setup()
-    DEBUG_PRINTLN(F(" config loaded."));
+    DEBUG_PRINTLN(" config loaded.");
   } else {
     for (int i = 0; i < PIR_SENSOR_MAX_SENSORS; i++)
       if (oldPin[i] >= 0) PinManager::deallocatePin(oldPin[i], PinOwner::UM_PIR);
     setup();
-    DEBUG_PRINTLN(F(" config (re)loaded."));
+    DEBUG_PRINTLN(" config (re)loaded.");
   }
   // use "return !top["newestParameter"].isNull();" when updating Usermod with new features
   return !(pins.isNull() || pins.size() != PIR_SENSOR_MAX_SENSORS);

@@ -66,14 +66,9 @@ const wled_metadata_t __attribute__((section(BUILD_METADATA_SECTION))) WLED_BUIL
 #endif
 };
 
-static const char repoString_s[] PROGMEM = WLED_REPO;
-const __FlashStringHelper* repoString = FPSTR(repoString_s);
-
-static const char productString_s[] PROGMEM = WLED_PRODUCT_NAME;
-const __FlashStringHelper* productString = FPSTR(productString_s);
-
-static const char brandString_s [] PROGMEM = WLED_BRAND;
-const __FlashStringHelper* brandString = FPSTR(brandString_s);
+const char* repoString    = WLED_REPO;
+const char* productString = WLED_PRODUCT_NAME;
+const char* brandString   = WLED_BRAND;
 
 
 
@@ -103,21 +98,21 @@ bool findWledMetadata(const uint8_t* binaryData, size_t dataSize, wled_metadata_
         // Validate hash using runtime function
         uint32_t expected_hash = djb2_hash_runtime(candidate.release_name);
         if (candidate.hash != expected_hash) {
-          DEBUG_PRINTF_P(PSTR("Found WLED structure at offset %u but hash mismatch\n"), offset);
+          DEBUG_PRINTF_P("Found WLED structure at offset %u but hash mismatch\n", offset);
           continue;
         }
         
         // Valid structure found - copy entire structure
         *extractedDesc = candidate;
         
-        DEBUG_PRINTF_P(PSTR("Extracted WLED structure at offset %u: '%s'\n"), 
+        DEBUG_PRINTF_P("Extracted WLED structure at offset %u: '%s'\n", 
                       offset, extractedDesc->release_name);
         return true;
       }
     }
   }
   
-  DEBUG_PRINTLN(F("No WLED custom description found in binary"));
+  DEBUG_PRINTLN("No WLED custom description found in binary");
   return false;
 }
 
@@ -154,7 +149,7 @@ bool shouldAllowOTA(const wled_metadata_t& firmwareDescription, char* errorMessa
   
   if (normalizeReleaseName(uploadedRelease) != normalizeReleaseName(releaseString)) {
     if (errorMessage && errorMessageLen > 0) {
-      snprintf_P(errorMessage, errorMessageLen, PSTR("Firmware release name mismatch: current='%s', uploaded='%s'."),
+      snprintf(errorMessage, errorMessageLen, "Firmware release name mismatch: current='%s', uploaded='%s'.",
                 releaseString, uploadedRelease.c_str());
       errorMessage[errorMessageLen - 1] = '\0'; // Ensure null termination
     }
@@ -176,7 +171,7 @@ bool shouldAllowOTA(const wled_metadata_t& firmwareDescription, char* errorMessa
 
       if (firmwareDescription.safe_update_version[v_index] > our_v_parsed) {
         if (errorMessage && errorMessageLen > 0) {
-          snprintf_P(errorMessage, errorMessageLen, PSTR("Cannot update from this version: requires at least %d.%d.%d, current='%s'."), 
+          snprintf(errorMessage, errorMessageLen, "Cannot update from this version: requires at least %d.%d.%d, current='%s'.", 
                   firmwareDescription.safe_update_version[0], firmwareDescription.safe_update_version[1], firmwareDescription.safe_update_version[2],
                   versionString);
           errorMessage[errorMessageLen - 1] = '\0'; // Ensure null termination

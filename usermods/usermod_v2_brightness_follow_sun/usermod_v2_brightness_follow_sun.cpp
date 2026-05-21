@@ -79,18 +79,18 @@ public:
 
   void addToConfig(JsonObject& root)
   {
-      JsonObject top = root.createNestedObject(FPSTR(_name)); // usermodname
+      JsonObject top = root.createNestedObject(_name); // usermodname
 
-      top[FPSTR(_enabled)] = enabled;
-      top[FPSTR(_update_interval)] = update_interval;
-      top[FPSTR(_min_bri)] = min_bri;
-      top[FPSTR(_max_bri)] = max_bri;
-      top[FPSTR(_relax_hour)] = relax_hour;
+      top[_enabled] = enabled;
+      top[_update_interval] = update_interval;
+      top[_min_bri] = min_bri;
+      top[_max_bri] = max_bri;
+      top[_relax_hour] = relax_hour;
   }
 
   bool readFromConfig(JsonObject& root)
   {
-    JsonObject top = root[FPSTR(_name)];
+    JsonObject top = root[_name];
     if (top.isNull()) {
       DEBUG_PRINTF("[%s] No config found. (Using defaults.)\n", _name);
       return false;
@@ -98,11 +98,11 @@ public:
 
     bool configComplete = true;
 
-    configComplete &= getJsonValue(top[FPSTR(_enabled)], enabled, false);
-    configComplete &= getJsonValue(top[FPSTR(_update_interval)], update_interval, 60);
-    configComplete &= getJsonValue(top[FPSTR(_min_bri)], min_bri, 1);
-    configComplete &= getJsonValue(top[FPSTR(_max_bri)], max_bri, 255);
-    configComplete &= getJsonValue(top[FPSTR(_relax_hour)], relax_hour, 0);
+    configComplete &= getJsonValue(top[_enabled], enabled, false);
+    configComplete &= getJsonValue(top[_update_interval], update_interval, 60);
+    configComplete &= getJsonValue(top[_min_bri], min_bri, 1);
+    configComplete &= getJsonValue(top[_max_bri], max_bri, 255);
+    configComplete &= getJsonValue(top[_relax_hour], relax_hour, 0);
     
     update_interval = constrain(update_interval, 1, SECS_PER_HOUR);
     min_bri = constrain(min_bri, 1, 255);

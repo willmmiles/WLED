@@ -56,7 +56,7 @@ void FourLineDisplayUsermod::setVcomh(bool highContrast) {
 void FourLineDisplayUsermod::startDisplay() {
   if (type == NONE || !enabled) return;
   lineHeight = u8x8->getRows() > 4 ? 2 : 1;
-  DEBUG_PRINTLN(F("Starting display."));
+  DEBUG_PRINTLN("Starting display.");
   u8x8->setBusClock(ioFrequency);  // can be used for SPI too
   u8x8->begin();
   setFlipMode(flip);
@@ -175,10 +175,10 @@ void FourLineDisplayUsermod::showTime() {
     }
     if (knownHour != hourCurrent) {
       // only update date when hour changes
-      sprintf_P(lineBuffer, PSTR("%s %2d "), monthShortStr(month(localTime)), day(localTime));
+      sprintf(lineBuffer, "%s %2d ", monthShortStr(month(localTime)), day(localTime));
       draw2x2String(2, lineHeight==1 ? 0 : lineHeight, lineBuffer); // adjust for 8 line displays, draw month and day
     }
-    sprintf_P(lineBuffer,PSTR("%2d:%02d"), (useAMPM ? AmPmHour : hourCurrent), minuteCurrent);
+    sprintf(lineBuffer,"%2d:%02d", (useAMPM ? AmPmHour : hourCurrent), minuteCurrent);
     draw2x2String(2, lineHeight*2, lineBuffer); //draw hour, min. blink ":" depending on odd/even seconds
     if (useAMPM) drawString(12, lineHeight*2, (isitAM ? "AM" : "PM"), true); //draw am/pm if using 12 time
 
@@ -190,7 +190,7 @@ void FourLineDisplayUsermod::showTime() {
   if (showSeconds && secondCurrent != lastSecond) {
     lastSecond = secondCurrent;
     draw2x2String(6, lineHeight*2, secondCurrent%2 ? " " : ":");
-    sprintf_P(lineBuffer, PSTR("%02d"), secondCurrent);
+    sprintf(lineBuffer, "%02d", secondCurrent);
     drawString(12, lineHeight*2+1, lineBuffer, true); // even with double sized rows print seconds in 1 line
   }
 }
@@ -229,7 +229,7 @@ void FourLineDisplayUsermod::setup() {
     if (i2c_scl<0 || i2c_sda<0) { type=NONE; }
   }
 
-  DEBUG_PRINTLN(F("Allocating display."));
+  DEBUG_PRINTLN("Allocating display.");
   switch (type) {
     // U8X8 uses Wire (or Wire1 with 2ND constructor) and will use existing Wire properties (calls Wire.begin() though)
     case SSD1306:       u8x8 = (U8X8 *) new U8X8_SSD1306_128X32_UNIVISION_HW_I2C(); break;
@@ -247,7 +247,7 @@ void FourLineDisplayUsermod::setup() {
   }
 
   if (nullptr == u8x8) {
-    DEBUG_PRINTLN(F("Display init failed."));
+    DEBUG_PRINTLN("Display init failed.");
     if (isSPI) {
       PinManager::deallocateMultiplePins((const uint8_t*)ioPin, 3, PinOwner::UM_FourLineDisplay);
     }
@@ -265,7 +265,7 @@ void FourLineDisplayUsermod::setup() {
 void FourLineDisplayUsermod::connected() {
   knownSsid = WiFi.SSID();       //apActive ? apSSID : WiFi.SSID(); //apActive ? WiFi.softAPSSID() :
   knownIp   = Network.localIP(); //apActive ? IPAddress(4, 3, 2, 1) : Network.localIP();
-  networkOverlay(PSTR("NETWORK INFO"),7000);
+  networkOverlay("NETWORK INFO",7000);
 }
 
 /**
@@ -307,7 +307,7 @@ void FourLineDisplayUsermod::redraw(bool forceRedraw) {
 
   if (apActive && WLED_WIFI_CONFIGURED && now<15000) {
     knownSsid = apSSID;
-    networkOverlay(PSTR("NETWORK INFO"),30000);
+    networkOverlay("NETWORK INFO",30000);
     return;
   }
 
@@ -323,7 +323,7 @@ void FourLineDisplayUsermod::redraw(bool forceRedraw) {
     knownnightlight = nightlightActive;
     drawStatusIcons();
     if (knownnightlight) {
-      String timer = PSTR("Timer On");
+      String timer = "Timer On";
       center(timer,LINE_BUFFER_SIZE-1);
       overlay(timer.c_str(), 2500, 6);
     }
@@ -408,7 +408,7 @@ void FourLineDisplayUsermod::updateBrightness() {
     lockRedraw = true;
     brightness100 = ((uint16_t)bri*100)/255;
     char lineBuffer[4];
-    sprintf_P(lineBuffer, PSTR("%-3d"), brightness100);
+    sprintf(lineBuffer, "%-3d", brightness100);
     drawString(1, lineHeight, lineBuffer);
     lockRedraw = false;
   }
@@ -425,7 +425,7 @@ void FourLineDisplayUsermod::updateSpeed() {
     lockRedraw = true;
     fxspeed100 = ((uint16_t)effectSpeed*100)/255;
     char lineBuffer[4];
-    sprintf_P(lineBuffer, PSTR("%-3d"), fxspeed100);
+    sprintf(lineBuffer, "%-3d", fxspeed100);
     drawString(5, lineHeight, lineBuffer);
     lockRedraw = false;
   }
@@ -442,7 +442,7 @@ void FourLineDisplayUsermod::updateIntensity() {
     lockRedraw = true;
     fxintensity100 = ((uint16_t)effectIntensity*100)/255;
     char lineBuffer[4];
-    sprintf_P(lineBuffer, PSTR("%-3d"), fxintensity100);
+    sprintf(lineBuffer, "%-3d", fxintensity100);
     drawString(9, lineHeight, lineBuffer);
     lockRedraw = false;
   }
@@ -774,7 +774,7 @@ bool FourLineDisplayUsermod::handleButton(uint8_t b) {
     if (now - buttonPressedTime > 600) { //long press
       //TODO: handleButton() handles button 0 without preset in a different way for double click
       //so we need to override with same behaviour
-      //DEBUG_PRINTLN(F("4LD action."));
+      //DEBUG_PRINTLN("4LD action.");
       //if (!buttonLongPressed) longPressAction(0);
       buttonLongPressed = true;
       return false;
@@ -795,7 +795,7 @@ bool FourLineDisplayUsermod::handleButton(uint8_t b) {
       // if this is second release within 350ms it is a double press (buttonWaitTime!=0)
       //TODO: handleButton() handles button 0 without preset in a different way for double click
       if (doublePress) {
-        networkOverlay(PSTR("NETWORK INFO"),7000);
+        networkOverlay("NETWORK INFO",7000);
         handled = true;
       } else  {
         buttonWaitTime = now;
@@ -862,8 +862,8 @@ void FourLineDisplayUsermod::onUpdateBegin(bool init) {
 //void FourLineDisplayUsermod::addToJsonInfo(JsonObject& root) {
   //JsonObject user = root["u"];
   //if (user.isNull()) user = root.createNestedObject("u");
-  //JsonArray data = user.createNestedArray(F("4LineDisplay"));
-  //data.add(F("Loaded."));
+  //JsonArray data = user.createNestedArray("4LineDisplay");
+  //data.add("Loaded.");
 //}
 
 /*
@@ -882,21 +882,21 @@ void FourLineDisplayUsermod::onUpdateBegin(bool init) {
 //}
 
 void FourLineDisplayUsermod::appendConfigData() {
-  oappend(F("dd=addDropdown('4LineDisplay','type');"));
-  oappend(F("addOption(dd,'None',0);"));
-  oappend(F("addOption(dd,'SSD1306',1);"));
-  oappend(F("addOption(dd,'SH1106',2);"));
-  oappend(F("addOption(dd,'SSD1306 128x64',3);"));
-  oappend(F("addOption(dd,'SSD1305',4);"));
-  oappend(F("addOption(dd,'SSD1305 128x64',5);"));
-  oappend(F("addOption(dd,'SSD1309 128x64',9);"));
-  oappend(F("addOption(dd,'SSD1306 SPI',6);"));
-  oappend(F("addOption(dd,'SSD1306 SPI 128x64',7);"));
-  oappend(F("addOption(dd,'SSD1309 SPI 128x64',8);"));
-  oappend(F("addInfo('4LineDisplay:type',1,'<br><i class=\"warn\">Change may require reboot</i>','');"));
-  oappend(F("addInfo('4LineDisplay:pin[]',0,'','SPI CS');"));
-  oappend(F("addInfo('4LineDisplay:pin[]',1,'','SPI DC');"));
-  oappend(F("addInfo('4LineDisplay:pin[]',2,'','SPI RST');"));
+  oappend("dd=addDropdown('4LineDisplay','type');");
+  oappend("addOption(dd,'None',0);");
+  oappend("addOption(dd,'SSD1306',1);");
+  oappend("addOption(dd,'SH1106',2);");
+  oappend("addOption(dd,'SSD1306 128x64',3);");
+  oappend("addOption(dd,'SSD1305',4);");
+  oappend("addOption(dd,'SSD1305 128x64',5);");
+  oappend("addOption(dd,'SSD1309 128x64',9);");
+  oappend("addOption(dd,'SSD1306 SPI',6);");
+  oappend("addOption(dd,'SSD1306 SPI 128x64',7);");
+  oappend("addOption(dd,'SSD1309 SPI 128x64',8);");
+  oappend("addInfo('4LineDisplay:type',1,'<br><i class=\"warn\">Change may require reboot</i>','');");
+  oappend("addInfo('4LineDisplay:pin[]',0,'','SPI CS');");
+  oappend("addInfo('4LineDisplay:pin[]',1,'','SPI DC');");
+  oappend("addInfo('4LineDisplay:pin[]',2,'','SPI RST');");
 }
 
 /*
@@ -914,24 +914,24 @@ void FourLineDisplayUsermod::appendConfigData() {
   * I highly recommend checking out the basics of ArduinoJson serialization and deserialization in order to use custom settings!
   */
 void FourLineDisplayUsermod::addToConfig(JsonObject& root) {
-  JsonObject top   = root.createNestedObject(FPSTR(_name));
-  top[FPSTR(_enabled)]       = enabled;
+  JsonObject top   = root.createNestedObject(_name);
+  top[_enabled]       = enabled;
 
   top["type"]                = type;
   JsonArray io_pin = top.createNestedArray("pin");
   for (int i=0; i<3; i++) io_pin.add(ioPin[i]);
-  top[FPSTR(_flip)]          = (bool) flip;
-  top[FPSTR(_contrast)]      = contrast;
-  top[FPSTR(_contrastFix)]   = (bool) contrastFix;
+  top[_flip]          = (bool) flip;
+  top[_contrast]      = contrast;
+  top[_contrastFix]   = (bool) contrastFix;
   #ifndef ARDUINO_ARCH_ESP32
-  top[FPSTR(_refreshRate)]   = refreshRate;
+  top[_refreshRate]   = refreshRate;
   #endif
-  top[FPSTR(_screenTimeOut)] = screenTimeout/1000;
-  top[FPSTR(_sleepMode)]     = (bool) sleepMode;
-  top[FPSTR(_clockMode)]     = (bool) clockMode;
-  top[FPSTR(_showSeconds)]   = (bool) showSeconds;
-  top[FPSTR(_busClkFrequency)] = ioFrequency/1000;
-  DEBUG_PRINTLN(F("4 Line Display config saved."));
+  top[_screenTimeOut] = screenTimeout/1000;
+  top[_sleepMode]     = (bool) sleepMode;
+  top[_clockMode]     = (bool) clockMode;
+  top[_showSeconds]   = (bool) showSeconds;
+  top[_busClkFrequency] = ioFrequency/1000;
+  DEBUG_PRINTLN("4 Line Display config saved.");
 }
 
 /*
@@ -947,39 +947,39 @@ bool FourLineDisplayUsermod::readFromConfig(JsonObject& root) {
   DisplayType newType = type;
   int8_t oldPin[3]; for (unsigned i=0; i<3; i++) oldPin[i] = ioPin[i];
 
-  JsonObject top = root[FPSTR(_name)];
+  JsonObject top = root[_name];
   if (top.isNull()) {
-    DEBUG_PRINT(FPSTR(_name));
-    DEBUG_PRINTLN(F(": No config found. (Using defaults.)"));
+    DEBUG_PRINT(_name);
+    DEBUG_PRINTLN(": No config found. (Using defaults.)");
     return false;
   }
 
-  enabled       = top[FPSTR(_enabled)] | enabled;
+  enabled       = top[_enabled] | enabled;
   newType       = top["type"] | newType;
   for (unsigned i=0; i<3; i++) ioPin[i] = top["pin"][i] | ioPin[i];
-  flip          = top[FPSTR(_flip)] | flip;
-  contrast      = top[FPSTR(_contrast)] | contrast;
+  flip          = top[_flip] | flip;
+  contrast      = top[_contrast] | contrast;
   #ifndef ARDUINO_ARCH_ESP32
-  refreshRate   = top[FPSTR(_refreshRate)] | refreshRate;
+  refreshRate   = top[_refreshRate] | refreshRate;
   refreshRate   = min(5000, max(250, (int)refreshRate));
   #endif
-  screenTimeout = (top[FPSTR(_screenTimeOut)] | screenTimeout/1000) * 1000;
-  sleepMode     = top[FPSTR(_sleepMode)] | sleepMode;
-  clockMode     = top[FPSTR(_clockMode)] | clockMode;
-  showSeconds   = top[FPSTR(_showSeconds)] | showSeconds;
-  contrastFix   = top[FPSTR(_contrastFix)] | contrastFix;
+  screenTimeout = (top[_screenTimeOut] | screenTimeout/1000) * 1000;
+  sleepMode     = top[_sleepMode] | sleepMode;
+  clockMode     = top[_clockMode] | clockMode;
+  showSeconds   = top[_showSeconds] | showSeconds;
+  contrastFix   = top[_contrastFix] | contrastFix;
   if (newType == SSD1306_SPI || newType == SSD1306_SPI64)
-    ioFrequency = min(20000, max(500, (int)(top[FPSTR(_busClkFrequency)] | ioFrequency/1000))) * 1000;  // limit frequency
+    ioFrequency = min(20000, max(500, (int)(top[_busClkFrequency] | ioFrequency/1000))) * 1000;  // limit frequency
   else
-    ioFrequency = min(3400, max(100, (int)(top[FPSTR(_busClkFrequency)] | ioFrequency/1000))) * 1000;  // limit frequency
+    ioFrequency = min(3400, max(100, (int)(top[_busClkFrequency] | ioFrequency/1000))) * 1000;  // limit frequency
 
-  DEBUG_PRINT(FPSTR(_name));
+  DEBUG_PRINT(_name);
   if (!initDone) {
     // first run: reading from cfg.json
     type = newType;
-    DEBUG_PRINTLN(F(" config loaded."));
+    DEBUG_PRINTLN(" config loaded.");
   } else {
-    DEBUG_PRINTLN(F(" config (re)loaded."));
+    DEBUG_PRINTLN(" config (re)loaded.");
     // changing parameters from settings page
     bool pinsChanged = false;
     for (unsigned i=0; i<3; i++) if (ioPin[i] != oldPin[i]) { pinsChanged = true; break; }
@@ -1064,7 +1064,7 @@ bool FourLineDisplayUsermod::readFromConfig(JsonObject& root) {
     else overlayLogo(3500);
   }
   // use "return !top["newestParameter"].isNull();" when updating Usermod with new features
-  return !top[FPSTR(_contrastFix)].isNull();
+  return !top[_contrastFix].isNull();
 }
 
 

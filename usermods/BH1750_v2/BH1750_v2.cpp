@@ -15,33 +15,33 @@ static bool checkBoundSensor(float newValue, float prevValue, float maxDiff)
 
 void Usermod_BH1750::_mqttInitialize()
 {
-  mqttLuminanceTopic = String(mqttDeviceTopic) + F("/brightness");
+  mqttLuminanceTopic = String(mqttDeviceTopic) + "/brightness";
 
-  if (HomeAssistantDiscovery) _createMqttSensor(F("Brightness"), mqttLuminanceTopic, F("Illuminance"), F(" lx"));
+  if (HomeAssistantDiscovery) _createMqttSensor("Brightness", mqttLuminanceTopic, "Illuminance", " lx");
 }
 
 // Create an MQTT Sensor for Home Assistant Discovery purposes, this includes a pointer to the topic that is published to in the Loop.
 void Usermod_BH1750::_createMqttSensor(const String &name, const String &topic, const String &deviceClass, const String &unitOfMeasurement)
 {
-  String t = String(F("homeassistant/sensor/")) + mqttClientID + F("/") + name + F("/config");
+  String t = String("homeassistant/sensor/") + mqttClientID + "/" + name + "/config";
   
   StaticJsonDocument<600> doc;
   
-  doc[F("name")] = String(serverDescription) + " " + name;
-  doc[F("state_topic")] = topic;
-  doc[F("unique_id")] = String(mqttClientID) + name;
+  doc["name"] = String(serverDescription) + " " + name;
+  doc["state_topic"] = topic;
+  doc["unique_id"] = String(mqttClientID) + name;
   if (unitOfMeasurement != "")
-    doc[F("unit_of_measurement")] = unitOfMeasurement;
+    doc["unit_of_measurement"] = unitOfMeasurement;
   if (deviceClass != "")
-    doc[F("device_class")] = deviceClass;
-  doc[F("expire_after")] = 1800;
+    doc["device_class"] = deviceClass;
+  doc["expire_after"] = 1800;
 
-  JsonObject device = doc.createNestedObject(F("device")); // attach the sensor to the same device
-  device[F("name")] = serverDescription;
-  device[F("identifiers")] = "wled-sensor-" + String(mqttClientID);
-  device[F("manufacturer")] = F(WLED_BRAND);
-  device[F("model")] = F(WLED_PRODUCT_NAME);
-  device[F("sw_version")] = versionString;
+  JsonObject device = doc.createNestedObject("device"); // attach the sensor to the same device
+  device["name"] = serverDescription;
+  device["identifiers"] = "wled-sensor-" + String(mqttClientID);
+  device["manufacturer"] = WLED_BRAND;
+  device["model"] = WLED_PRODUCT_NAME;
+  device["sw_version"] = versionString;
 
   String temp;
   serializeJson(doc, temp);
@@ -92,11 +92,11 @@ void Usermod_BH1750::loop()
           mqttInitialized = true;
         }
       mqtt->publish(mqttLuminanceTopic.c_str(), 0, true, String(lux).c_str());
-      DEBUG_PRINTLN(F("Brightness: ") + String(lux) + F("lx"));
+      DEBUG_PRINTLN("Brightness: " + String(lux) + "lx");
     }
     else
     {
-      DEBUG_PRINTLN(F("Missing MQTT connection. Not publishing data"));
+      DEBUG_PRINTLN("Missing MQTT connection. Not publishing data");
     }
   }
 }
@@ -104,26 +104,26 @@ void Usermod_BH1750::loop()
 
 void Usermod_BH1750::addToJsonInfo(JsonObject &root)
 {
-  JsonObject user = root[F("u")];
+  JsonObject user = root["u"];
   if (user.isNull())
-    user = root.createNestedObject(F("u"));
+    user = root.createNestedObject("u");
 
-  JsonArray lux_json = user.createNestedArray(F("Luminance"));
+  JsonArray lux_json = user.createNestedArray("Luminance");
   if (!enabled) {
-    lux_json.add(F("disabled"));
+    lux_json.add("disabled");
   } else if (!sensorFound) {
       // if no sensor 
-      lux_json.add(F("BH1750 "));
-      lux_json.add(F("Not Found"));
+      lux_json.add("BH1750 ");
+      lux_json.add("Not Found");
   } else if (!getLuminanceComplete) {
     // if we haven't read the sensor yet, let the user know
       // that we are still waiting for the first measurement
       lux_json.add((USERMOD_BH1750_FIRST_MEASUREMENT_AT - millis()) / 1000);
-      lux_json.add(F(" sec until read"));
+      lux_json.add(" sec until read");
       return;
   } else {
     lux_json.add(lastLux);
-    lux_json.add(F(" lx"));
+    lux_json.add(" lx");
   }
 }
 
@@ -131,41 +131,41 @@ void Usermod_BH1750::addToJsonInfo(JsonObject &root)
 void Usermod_BH1750::addToConfig(JsonObject &root)
 {
   // we add JSON object.
-  JsonObject top = root.createNestedObject(FPSTR(_name)); // usermodname
-  top[FPSTR(_enabled)] = enabled;
-  top[FPSTR(_maxReadInterval)] = maxReadingInterval;
-  top[FPSTR(_minReadInterval)] = minReadingInterval;
-  top[FPSTR(_HomeAssistantDiscovery)] = HomeAssistantDiscovery;
-  top[FPSTR(_offset)] = offset;
+  JsonObject top = root.createNestedObject(_name); // usermodname
+  top[_enabled] = enabled;
+  top[_maxReadInterval] = maxReadingInterval;
+  top[_minReadInterval] = minReadingInterval;
+  top[_HomeAssistantDiscovery] = HomeAssistantDiscovery;
+  top[_offset] = offset;
 
-  DEBUG_PRINTLN(F("BH1750 config saved."));
+  DEBUG_PRINTLN("BH1750 config saved.");
 }
 
 // called before setup() to populate properties from values stored in cfg.json
 bool Usermod_BH1750::readFromConfig(JsonObject &root)
 {
   // we look for JSON object.
-  JsonObject top = root[FPSTR(_name)];
+  JsonObject top = root[_name];
   if (top.isNull())
   {
-    DEBUG_PRINT(FPSTR(_name));
-    DEBUG_PRINT(F("BH1750"));
-    DEBUG_PRINTLN(F(": No config found. (Using defaults.)"));
+    DEBUG_PRINT(_name);
+    DEBUG_PRINT("BH1750");
+    DEBUG_PRINTLN(": No config found. (Using defaults.)");
     return false;
   }
   bool configComplete = !top.isNull();
 
-  configComplete &= getJsonValue(top[FPSTR(_enabled)], enabled, false);
-  configComplete &= getJsonValue(top[FPSTR(_maxReadInterval)], maxReadingInterval, 10000); //ms
-  configComplete &= getJsonValue(top[FPSTR(_minReadInterval)], minReadingInterval, 500); //ms
-  configComplete &= getJsonValue(top[FPSTR(_HomeAssistantDiscovery)], HomeAssistantDiscovery, false);
-  configComplete &= getJsonValue(top[FPSTR(_offset)], offset, 1);
+  configComplete &= getJsonValue(top[_enabled], enabled, false);
+  configComplete &= getJsonValue(top[_maxReadInterval], maxReadingInterval, 10000); //ms
+  configComplete &= getJsonValue(top[_minReadInterval], minReadingInterval, 500); //ms
+  configComplete &= getJsonValue(top[_HomeAssistantDiscovery], HomeAssistantDiscovery, false);
+  configComplete &= getJsonValue(top[_offset], offset, 1);
 
-  DEBUG_PRINT(FPSTR(_name));
+  DEBUG_PRINT(_name);
   if (!initDone) {
-    DEBUG_PRINTLN(F(" config loaded."));
+    DEBUG_PRINTLN(" config loaded.");
   } else {
-    DEBUG_PRINTLN(F(" config (re)loaded."));
+    DEBUG_PRINTLN(" config (re)loaded.");
   }
 
   return configComplete;

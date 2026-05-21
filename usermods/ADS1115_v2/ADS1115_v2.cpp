@@ -48,8 +48,8 @@ class ADS1115Usermod : public Usermod {
         return;
       }
 
-      JsonObject user = root[F("u")];
-      if (user.isNull()) user = root.createNestedObject(F("u"));
+      JsonObject user = root["u"];
+      if (user.isNull()) user = root.createNestedObject("u");
 
       for (uint8_t i = 0; i < channelsCount; i++) {
         ChannelSettings* settingsPtr = &(channelSettings[i]);
@@ -67,25 +67,25 @@ class ADS1115Usermod : public Usermod {
 
     void addToConfig(JsonObject& root)
     {
-      JsonObject top = root.createNestedObject(F("ADC ADS1115"));
+      JsonObject top = root.createNestedObject("ADC ADS1115");
       
       for (uint8_t i = 0; i < channelsCount; i++) {
         ChannelSettings* settingsPtr = &(channelSettings[i]);
         JsonObject channel = top.createNestedObject(settingsPtr->settingName);
-        channel[F("Enabled")] = settingsPtr->isEnabled;
-        channel[F("Name")] = settingsPtr->name;
-        channel[F("Units")] = settingsPtr->units;
-        channel[F("Multiplier")] = settingsPtr->multiplier;
-        channel[F("Offset")] = settingsPtr->offset;
-        channel[F("Decimals")] = settingsPtr->decimals;
+        channel["Enabled"] = settingsPtr->isEnabled;
+        channel["Name"] = settingsPtr->name;
+        channel["Units"] = settingsPtr->units;
+        channel["Multiplier"] = settingsPtr->multiplier;
+        channel["Offset"] = settingsPtr->offset;
+        channel["Decimals"] = settingsPtr->decimals;
       }
 
-      top[F("Loop Interval")] = loopInterval;
+      top["Loop Interval"] = loopInterval;
     }
 
     bool readFromConfig(JsonObject& root)
     {
-      JsonObject top = root[F("ADC ADS1115")];
+      JsonObject top = root["ADC ADS1115"];
 
       bool configComplete = !top.isNull();
       bool hasEnabledChannels = false;
@@ -96,17 +96,17 @@ class ADS1115Usermod : public Usermod {
 
         configComplete &= !channel.isNull();
 
-        configComplete &= getJsonValue(channel[F("Enabled")], settingsPtr->isEnabled);
-        configComplete &= getJsonValue(channel[F("Name")], settingsPtr->name);
-        configComplete &= getJsonValue(channel[F("Units")], settingsPtr->units);
-        configComplete &= getJsonValue(channel[F("Multiplier")], settingsPtr->multiplier);
-        configComplete &= getJsonValue(channel[F("Offset")], settingsPtr->offset);
-        configComplete &= getJsonValue(channel[F("Decimals")], settingsPtr->decimals);
+        configComplete &= getJsonValue(channel["Enabled"], settingsPtr->isEnabled);
+        configComplete &= getJsonValue(channel["Name"], settingsPtr->name);
+        configComplete &= getJsonValue(channel["Units"], settingsPtr->units);
+        configComplete &= getJsonValue(channel["Multiplier"], settingsPtr->multiplier);
+        configComplete &= getJsonValue(channel["Offset"], settingsPtr->offset);
+        configComplete &= getJsonValue(channel["Decimals"], settingsPtr->decimals);
 
         hasEnabledChannels |= settingsPtr->isEnabled;
       }
 
-      configComplete &= getJsonValue(top[F("Loop Interval")], loopInterval);
+      configComplete &= getJsonValue(top["Loop Interval"], loopInterval);
 
       isEnabled = isInitialized && configComplete && hasEnabledChannels;
 

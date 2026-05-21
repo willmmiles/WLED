@@ -62,36 +62,36 @@ class  Usermod_MAX17048 : public Usermod {
         char mqttBatteryVoltageTopic[128];
         char mqttBatteryPercentTopic[128];
 
-        snprintf_P(mqttBatteryVoltageTopic, 127, PSTR("%s/batteryVoltage"), mqttDeviceTopic);
-        snprintf_P(mqttBatteryPercentTopic, 127, PSTR("%s/batteryPercent"), mqttDeviceTopic);
+        snprintf(mqttBatteryVoltageTopic, 127, "%s/batteryVoltage", mqttDeviceTopic);
+        snprintf(mqttBatteryPercentTopic, 127, "%s/batteryPercent", mqttDeviceTopic);
 
         if (HomeAssistantDiscovery) {
-        _createMqttSensor(F("BatteryVoltage"), mqttBatteryVoltageTopic, "voltage", F("V"));
-        _createMqttSensor(F("BatteryPercent"), mqttBatteryPercentTopic, "battery", F("%"));
+        _createMqttSensor("BatteryVoltage", mqttBatteryVoltageTopic, "voltage", "V");
+        _createMqttSensor("BatteryPercent", mqttBatteryPercentTopic, "battery", "%");
         }
     }
 
     void _createMqttSensor(const String &name, const String &topic, const String &deviceClass, const String &unitOfMeasurement)
     {
-        String t = String(F("homeassistant/sensor/")) + mqttClientID + F("/") + name + F("/config");
+        String t = String("homeassistant/sensor/") + mqttClientID + "/" + name + "/config";
 
         StaticJsonDocument<600> doc;
 
-        doc[F("name")] = String(serverDescription) + " " + name;
-        doc[F("state_topic")] = topic;
-        doc[F("unique_id")] = String(mqttClientID) + name;
+        doc["name"] = String(serverDescription) + " " + name;
+        doc["state_topic"] = topic;
+        doc["unique_id"] = String(mqttClientID) + name;
         if (unitOfMeasurement != "")
-        doc[F("unit_of_measurement")] = unitOfMeasurement;
+        doc["unit_of_measurement"] = unitOfMeasurement;
         if (deviceClass != "")
-        doc[F("device_class")] = deviceClass;
-        doc[F("expire_after")] = 1800;
+        doc["device_class"] = deviceClass;
+        doc["expire_after"] = 1800;
 
-        JsonObject device = doc.createNestedObject(F("device")); // attach the sensor to the same device
-        device[F("name")] = serverDescription;
-        device[F("identifiers")] = "wled-sensor-" + String(mqttClientID);
-        device[F("manufacturer")] = F("WLED");
-        device[F("model")] = F("FOSS");
-        device[F("sw_version")] = versionString;
+        JsonObject device = doc.createNestedObject("device"); // attach the sensor to the same device
+        device["name"] = serverDescription;
+        device["identifiers"] = "wled-sensor-" + String(mqttClientID);
+        device["manufacturer"] = "WLED";
+        device["model"] = "FOSS";
+        device["sw_version"] = versionString;
 
         String temp;
         serializeJson(doc, temp);
@@ -106,7 +106,7 @@ class  Usermod_MAX17048 : public Usermod {
       //Check if MQTT Connected, otherwise it will crash the 8266
       if (WLED_MQTT_CONNECTED){
         char subuf[128];
-        snprintf_P(subuf, 127, PSTR("%s/%s"), mqttDeviceTopic, topic);
+        snprintf(subuf, 127, "%s/%s", mqttDeviceTopic, topic);
         mqtt->publish(subuf, 0, false, state);
       }
     #endif
@@ -149,8 +149,8 @@ class  Usermod_MAX17048 : public Usermod {
 
           publishMqtt("batteryVoltage", String(lastBattVoltage, VoltageDecimals).c_str());
           publishMqtt("batteryPercent", String(lastBattPercent, PercentDecimals).c_str());
-          DEBUG_PRINTLN(F("Battery Voltage: ") + String(lastBattVoltage, VoltageDecimals) + F("V"));
-          DEBUG_PRINTLN(F("Battery Percent: ") + String(lastBattPercent, PercentDecimals) + F("%"));
+          DEBUG_PRINTLN("Battery Voltage: " + String(lastBattVoltage, VoltageDecimals) + "V");
+          DEBUG_PRINTLN("Battery Percent: " + String(lastBattPercent, PercentDecimals) + "%");
         }
     }
 
@@ -178,85 +178,85 @@ class  Usermod_MAX17048 : public Usermod {
       if (user.isNull()) user = root.createNestedObject("u");
 
 
-      JsonArray battery_json = user.createNestedArray(F("Battery Monitor"));
+      JsonArray battery_json = user.createNestedArray("Battery Monitor");
       if (!enabled) {
-        battery_json.add(F("Disabled"));
+        battery_json.add("Disabled");
       }
       else if(!monitorFound) {
-        battery_json.add(F("MAX17048 Not Found"));
+        battery_json.add("MAX17048 Not Found");
       }        
       else if (!firstReadComplete) {
         // if we haven't read the sensor yet, let the user know
         // that we are still waiting for the first measurement
         battery_json.add((USERMOD_MAX17048_FIRST_MONITOR_AT - millis()) / 1000);
-        battery_json.add(F(" sec until read"));
+        battery_json.add(" sec until read");
       } else {
-        battery_json.add(F("Enabled"));
-        JsonArray voltage_json = user.createNestedArray(F("Battery Voltage"));
+        battery_json.add("Enabled");
+        JsonArray voltage_json = user.createNestedArray("Battery Voltage");
         voltage_json.add(lastBattVoltage);
-        voltage_json.add(F("V"));
-        JsonArray percent_json = user.createNestedArray(F("Battery Percent"));
+        voltage_json.add("V");
+        JsonArray percent_json = user.createNestedArray("Battery Percent");
         percent_json.add(lastBattPercent);
-        percent_json.add(F("%"));
+        percent_json.add("%");
       }
     }
 
     void addToJsonState(JsonObject& root)
     {
-        JsonObject usermod = root[FPSTR(_name)];
+        JsonObject usermod = root[_name];
         if (usermod.isNull())
         {
-        usermod = root.createNestedObject(FPSTR(_name));
+        usermod = root.createNestedObject(_name);
         }
-        usermod[FPSTR(_enabled)] = enabled;
+        usermod[_enabled] = enabled;
     }
 
     void readFromJsonState(JsonObject& root)
     {
-        JsonObject usermod = root[FPSTR(_name)];
+        JsonObject usermod = root[_name];
         if (!usermod.isNull())
         {
-            if (usermod[FPSTR(_enabled)].is<bool>())
+            if (usermod[_enabled].is<bool>())
             {
-                enabled = usermod[FPSTR(_enabled)].as<bool>();
+                enabled = usermod[_enabled].as<bool>();
             }
         }
     }
 
     void addToConfig(JsonObject& root)
     {
-      JsonObject top = root.createNestedObject(FPSTR(_name));
-      top[FPSTR(_enabled)] = enabled;
-      top[FPSTR(_maxReadInterval)] = maxReadingInterval;
-      top[FPSTR(_minReadInterval)] = minReadingInterval;
-      top[FPSTR(_HomeAssistantDiscovery)] = HomeAssistantDiscovery;
-      DEBUG_PRINT(F(_name));
-      DEBUG_PRINTLN(F(" config saved."));
+      JsonObject top = root.createNestedObject(_name);
+      top[_enabled] = enabled;
+      top[_maxReadInterval] = maxReadingInterval;
+      top[_minReadInterval] = minReadingInterval;
+      top[_HomeAssistantDiscovery] = HomeAssistantDiscovery;
+      DEBUG_PRINT(_name);
+      DEBUG_PRINTLN(" config saved.");
     }
 
     bool readFromConfig(JsonObject& root)
     {
-      JsonObject top = root[FPSTR(_name)];
+      JsonObject top = root[_name];
 
       if (top.isNull()) {
-        DEBUG_PRINT(F(_name));
-        DEBUG_PRINTLN(F(": No config found. (Using defaults.)"));
+        DEBUG_PRINT(_name);
+        DEBUG_PRINTLN(": No config found. (Using defaults.)");
         return false;
       }
 
       bool configComplete = !top.isNull();
 
-      configComplete &= getJsonValue(top[FPSTR(_enabled)], enabled);
-      configComplete &= getJsonValue(top[FPSTR(_maxReadInterval)], maxReadingInterval, USERMOD_MAX17048_MAX_MONITOR_INTERVAL);
-      configComplete &= getJsonValue(top[FPSTR(_minReadInterval)], minReadingInterval, USERMOD_MAX17048_MIN_MONITOR_INTERVAL);
-      configComplete &= getJsonValue(top[FPSTR(_HomeAssistantDiscovery)], HomeAssistantDiscovery, false);
+      configComplete &= getJsonValue(top[_enabled], enabled);
+      configComplete &= getJsonValue(top[_maxReadInterval], maxReadingInterval, USERMOD_MAX17048_MAX_MONITOR_INTERVAL);
+      configComplete &= getJsonValue(top[_minReadInterval], minReadingInterval, USERMOD_MAX17048_MIN_MONITOR_INTERVAL);
+      configComplete &= getJsonValue(top[_HomeAssistantDiscovery], HomeAssistantDiscovery, false);
 
-      DEBUG_PRINT(FPSTR(_name));
+      DEBUG_PRINT(_name);
       if (!initDone) {
         // first run: reading from cfg.json
-        DEBUG_PRINTLN(F(" config loaded."));
+        DEBUG_PRINTLN(" config loaded.");
       } else {
-        DEBUG_PRINTLN(F(" config (re)loaded."));
+        DEBUG_PRINTLN(" config (re)loaded.");
         // changing parameters from settings page
       }
 

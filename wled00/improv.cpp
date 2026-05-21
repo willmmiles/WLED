@@ -65,7 +65,7 @@ void handleImprovPacket() {
     switch (packetByte) {
       case ImprovPacketByte::Version: {
         if (next != IMPROV_VERSION) {
-          DIMPROV_PRINTLN(F("Invalid version"));
+          DIMPROV_PRINTLN("Invalid version");
           return;
         }
         break;
@@ -112,7 +112,7 @@ void handleImprovPacket() {
         }
         if (packetByte < 6) { //check header
           if (next != header[packetByte]) {
-            DIMPROV_PRINTLN(F("Invalid improv header"));
+            DIMPROV_PRINTLN("Invalid improv header");
             return;
           }
         } else if (packetByte > 9) { //RPC data
@@ -209,7 +209,7 @@ void sendImprovInfoResponse() {
   //Use serverDescription if it has been changed from the default "WLED", else mDNS name
   bool useMdnsName = (strcmp(serverDescription, "WLED") == 0 && strlen(cmDNS) > 0);
   char vString[32];
-  sprintf_P(vString, PSTR("%s/%i"), versionString, VERSION);
+  sprintf(vString, "%s/%i", versionString, VERSION);
   const char *str[4] = {"WLED", vString, bString, useMdnsName ? cmDNS : serverDescription};
 
   sendImprovRPCResult(ImprovRPCType::Request_Info, 4, str);

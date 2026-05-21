@@ -64,14 +64,14 @@ static void handleDDPPacket(e131_packet_t* p, size_t packetLen) {
 
   // ensure the received packet is at least as long as the header claims
   if (packetLen < DDP_HEADER_LEN + c + dataLen) {
-    DEBUG_PRINTLN(F("DDP packet incomplete"));
+    DEBUG_PRINTLN("DDP packet incomplete");
     return;
   }
 
   unsigned numLeds = stop - start; // stop >= start is guaranteed
   unsigned maxDataIndex = numLeds * ddpChannelsPerLed; // validate bounds before accessing data array
   if (maxDataIndex > dataLen) {
-    DEBUG_PRINTLN(F("DDP packet data bounds exceeded, rejecting."));
+    DEBUG_PRINTLN("DDP packet data bounds exceeded, rejecting.");
     return;
   }
 
@@ -158,7 +158,7 @@ void handleE131Packet(e131_packet_t* p, IPAddress clientIP, byte protocol, size_
 
   if (e131SkipOutOfSequence)
     if (seq < e131LastSequenceNumber[previousUniverses] && seq > 20 && e131LastSequenceNumber[previousUniverses] < 250){
-      DEBUG_PRINTF_P(PSTR("skipping E1.31 frame (last seq=%d, current seq=%d, universe=%d)\n"), e131LastSequenceNumber[previousUniverses], seq, uni);
+      DEBUG_PRINTF_P("skipping E1.31 frame (last seq=%d, current seq=%d, universe=%d)\n", e131LastSequenceNumber[previousUniverses], seq, uni);
       return;
     }
   e131LastSequenceNumber[previousUniverses] = seq;
@@ -370,7 +370,7 @@ void handleDMXData(uint16_t uni, uint16_t dmxChannels, uint8_t* e131_data, uint8
         break;
       }
     default:
-      DEBUG_PRINTLN(F("unknown E1.31 DMX mode"));
+      DEBUG_PRINTLN("unknown E1.31 DMX mode");
       return;  // nothing to do
       break;
   }
@@ -426,7 +426,7 @@ static void handleArtnetPollReply(IPAddress ipAddress) {
         break;
       }
     default:
-      DEBUG_PRINTLN(F("unknown E1.31 DMX mode"));
+      DEBUG_PRINTLN("unknown E1.31 DMX mode");
       return;  // nothing to do
       break;
   }
@@ -568,7 +568,7 @@ static void sendArtnetPollReply(ArtPollReply *reply, IPAddress ipAddress, uint16
   reply->reply_sub_sw = (uint8_t)((portAddress >> 4) & 0x000F);
   reply->reply_sw_out[0] = (uint8_t)(portAddress & 0x000F);
 
-  snprintf_P((char *)reply->reply_node_report, sizeof(reply->reply_node_report)-1, PSTR("#0001 [%04u] OK - WLED v%s"), pollReplyCount, versionString);
+  snprintf((char *)reply->reply_node_report, sizeof(reply->reply_node_report)-1, "#0001 [%04u] OK - WLED v%s", pollReplyCount, versionString);
 
   if (pollReplyCount < 9999) {
     pollReplyCount++;

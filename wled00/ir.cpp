@@ -559,8 +559,8 @@ static void decodeIRJson(uint32_t code)
 
   if (!requestJSONBufferLock(JSON_LOCK_IR)) return;
 
-  sprintf_P(objKey, PSTR("\"0x%lX\":"), (unsigned long)code);
-  strcpy_P(fileName, PSTR("/ir.json")); // for FS.exists()
+  sprintf(objKey, "\"0x%lX\":", (unsigned long)code);
+  strcpy(fileName, "/ir.json"); // for FS.exists()
 
   // attempt to read command from ir.json
   // this may fail for two reasons: ir.json does not exist or IR code not found
@@ -583,13 +583,13 @@ static void decodeIRJson(uint32_t code)
   {
     if (cmdStr.startsWith("!")) {
       // call limited set of C functions
-      if (cmdStr.startsWith(F("!incBri"))) {
+      if (cmdStr.startsWith("!incBri")) {
         lastValidCode = code;
         incBrightness();
-      } else if (cmdStr.startsWith(F("!decBri"))) {
+      } else if (cmdStr.startsWith("!decBri")) {
         lastValidCode = code;
         decBrightness();
-      } else if (cmdStr.startsWith(F("!presetF"))) { //!presetFallback
+      } else if (cmdStr.startsWith("!presetF")) { //!presetFallback
         uint8_t p1 = fdo["PL"] | 1;
         uint8_t p2 = fdo["FX"] | hw_random8(strip.getModeCount() -1);
         uint8_t p3 = fdo["FP"] | 0;
@@ -600,9 +600,9 @@ static void decodeIRJson(uint32_t code)
       String apireq = "win"; apireq += '&';                        // reduce flash string usage
       if (cmdStr.indexOf("~") > 0 || fdo["rpt"]) lastValidCode = code; // repeatable action
       if (!cmdStr.startsWith(apireq)) cmdStr = apireq + cmdStr;    // if no "win&" prefix
-      if (!irApplyToAllSelected && cmdStr.indexOf(F("SS="))<0) {
+      if (!irApplyToAllSelected && cmdStr.indexOf("SS=")<0) {
         char tmp[10];
-        sprintf_P(tmp, PSTR("&SS=%d"), strip.getMainSegmentId());
+        sprintf(tmp, "&SS=%d", strip.getMainSegmentId());
         cmdStr += tmp;
       }
       fdo.clear();                                                 // clear JSON buffer (it is no longer needed)
@@ -610,7 +610,7 @@ static void decodeIRJson(uint32_t code)
     }
   } else {
     // command is JSON object
-    if (jsonCmdObj[F("psave")].isNull()) {
+    if (jsonCmdObj["psave"].isNull()) {
       if (irApplyToAllSelected && jsonCmdObj["seg"].is<JsonArray>()) {
         JsonObject seg = jsonCmdObj["seg"][0];                    // take 1st segment from array and use it to apply to all selected segments
         seg.remove("id");                                         // remove segment ID if it exists
@@ -618,9 +618,9 @@ static void decodeIRJson(uint32_t code)
       }
       deserializeState(jsonCmdObj, CALL_MODE_BUTTON_PRESET);      // **will call stateUpdated() with correct CALL_MODE**
     } else {
-      uint8_t psave = jsonCmdObj[F("psave")].as<int>();
+      uint8_t psave = jsonCmdObj["psave"].as<int>();
       char pname[33];
-      sprintf_P(pname, PSTR("IR Preset %d"), psave);
+      sprintf(pname, "IR Preset %d", psave);
       fdo.clear();
       if (psave > 0 && psave < 251) savePreset(psave, pname, fdo);
     }
@@ -720,7 +720,7 @@ void handleIR()
     irCheckedTime = currentTime;
     if (irrecv->decode(&results)) {
       if (results.value != 0 && serialCanTX) { // only print results if anything is received ( != 0 )
-        Serial.printf_P(PSTR("IR recv: 0x%lX\n"), (unsigned long)results.value);
+        Serial.printf("IR recv: 0x%lX\n", (unsigned long)results.value);
       }
       decodeIR(results.value);
       irrecv->resume();

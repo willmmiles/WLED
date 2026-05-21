@@ -159,11 +159,11 @@ class MPU6050Driver : public Usermod {
       
       if (!config.enabled) return;
       // TODO: notice if these have changed ??
-      if (i2c_scl<0 || i2c_sda<0) { DEBUG_PRINTLN(F("MPU6050: I2C is no good."));  return; }
+      if (i2c_scl<0 || i2c_sda<0) { DEBUG_PRINTLN("MPU6050: I2C is no good.");  return; }
       // Check the interrupt pin
       if (config.interruptPin >= 0) {
         irqBound = PinManager::allocatePin(config.interruptPin, false, PinOwner::UM_IMU);
-        if (!irqBound) { DEBUG_PRINTLN(F("MPU6050: IRQ pin already in use.")); return; }
+        if (!irqBound) { DEBUG_PRINTLN("MPU6050: IRQ pin already in use."); return; }
         pinMode(config.interruptPin, INPUT);
       };
 
@@ -174,15 +174,15 @@ class MPU6050Driver : public Usermod {
       #endif
 
       // initialize device
-      DEBUG_PRINTLN(F("Initializing I2C devices..."));
+      DEBUG_PRINTLN("Initializing I2C devices...");
       mpu.initialize();
 
       // verify connection
-      DEBUG_PRINTLN(F("Testing device connections..."));
-      DEBUG_PRINTLN(mpu.testConnection() ? F("MPU6050 connection successful") : F("MPU6050 connection failed"));
+      DEBUG_PRINTLN("Testing device connections...");
+      DEBUG_PRINTLN(mpu.testConnection() ? "MPU6050 connection successful" : "MPU6050 connection failed");
 
       // load and configure the DMP
-      DEBUG_PRINTLN(F("Initializing DMP..."));
+      DEBUG_PRINTLN("Initializing DMP...");
       auto devStatus = mpu.dmpInitialize();
 
       // set offsets (from config)
@@ -199,13 +199,13 @@ class MPU6050Driver : public Usermod {
       // make sure it worked (returns 0 if so)
       if (devStatus == 0) {
         // turn on the DMP, now that it's ready
-        DEBUG_PRINTLN(F("Enabling DMP..."));
+        DEBUG_PRINTLN("Enabling DMP...");
         mpu.setDMPEnabled(true);
 
         mpuInterrupt = true;
         if (irqBound) {
           // enable Arduino interrupt detection
-          DEBUG_PRINTLN(F("Enabling interrupt detection (Arduino external interrupt 0)..."));          
+          DEBUG_PRINTLN("Enabling interrupt detection (Arduino external interrupt 0)...");          
           attachInterrupt(digitalPinToInterrupt(config.interruptPin), dmpDataReady, RISING);
         }
 
@@ -213,14 +213,14 @@ class MPU6050Driver : public Usermod {
         packetSize = mpu.dmpGetFIFOPacketSize();
 
         // set our DMP Ready flag so the main loop() function knows it's okay to use it
-        DEBUG_PRINTLN(F("DMP ready!"));
+        DEBUG_PRINTLN("DMP ready!");
         dmpReady = true;
       } else {
         // ERROR!
         // 1 = initial memory load failed
         // 2 = DMP configuration updates failed
         // (if it's going to break, usually the code will be 1)
-        DEBUG_PRINT(F("DMP Initialization failed (code "));
+        DEBUG_PRINT("DMP Initialization failed (code ");
         DEBUG_PRINT(devStatus);
         DEBUG_PRINTLN(")");
       }
@@ -234,7 +234,7 @@ class MPU6050Driver : public Usermod {
      * Use it to initialize network interfaces
      */
     void connected() {
-      //DEBUG_PRINTLN(F("Connected to WiFi!"));
+      //DEBUG_PRINTLN("Connected to WiFi!");
     }
 
 
@@ -260,16 +260,16 @@ class MPU6050Driver : public Usermod {
       if ((mpuIntStatus & 0x10) || fifoCount == 1024) {
         // reset so we can continue cleanly
         mpu.resetFIFO();
-        DEBUG_PRINTLN(F("MPU6050: FIFO overflow!"));
+        DEBUG_PRINTLN("MPU6050: FIFO overflow!");
 
         // otherwise, check for data ready
       } else if (fifoCount >= packetSize) {
         // clear local interrupt pending status, if not polling
         mpuInterrupt = !irqBound;
 
-        // DEBUG_PRINT(F("MPU6050: Processing packet: "));
+        // DEBUG_PRINT("MPU6050: Processing packet: ");
         // DEBUG_PRINT(fifoCount);
-        // DEBUG_PRINTLN(F(" bytes in FIFO"));
+        // DEBUG_PRINTLN(" bytes in FIFO");
 
         // read a packet from FIFO
         mpu.getFIFOBytes(fifoBuffer, packetSize);
@@ -347,17 +347,17 @@ class MPU6050Driver : public Usermod {
      */
     void addToConfig(JsonObject& root)
     {
-      JsonObject top = root.createNestedObject(FPSTR(_name));
+      JsonObject top = root.createNestedObject(_name);
 
       //save these vars persistently whenever settings are saved
-      top[FPSTR(_enabled)] = config.enabled;
-      top[FPSTR(_interrupt_pin)] = config.interruptPin;
-      top[FPSTR(_x_acc_bias)] = config.accel_offset[0];
-      top[FPSTR(_y_acc_bias)] = config.accel_offset[1];
-      top[FPSTR(_z_acc_bias)] = config.accel_offset[2];
-      top[FPSTR(_x_gyro_bias)] = config.gyro_offset[0];
-      top[FPSTR(_y_gyro_bias)] = config.gyro_offset[1];
-      top[FPSTR(_z_gyro_bias)] = config.gyro_offset[2];
+      top[_enabled] = config.enabled;
+      top[_interrupt_pin] = config.interruptPin;
+      top[_x_acc_bias] = config.accel_offset[0];
+      top[_y_acc_bias] = config.accel_offset[1];
+      top[_z_acc_bias] = config.accel_offset[2];
+      top[_x_gyro_bias] = config.gyro_offset[0];
+      top[_y_gyro_bias] = config.gyro_offset[1];
+      top[_z_gyro_bias] = config.gyro_offset[2];
     }
 
     /*
@@ -381,28 +381,28 @@ class MPU6050Driver : public Usermod {
       // setting them inside readFromConfig() is slightly more robust, handling the rare but plausible use case of single value being missing after boot (e.g. if the cfg.json was manually edited and a value was removed)
       auto old_cfg = config;
 
-      JsonObject top = root[FPSTR(_name)];
+      JsonObject top = root[_name];
 
       bool configComplete = top.isNull();
       // Ensure default configuration is loaded
-      configComplete &= getJsonValue(top[FPSTR(_enabled)], config.enabled, true);
-      configComplete &= getJsonValue(top[FPSTR(_interrupt_pin)], config.interruptPin, -1);
-      configComplete &= getJsonValue(top[FPSTR(_x_acc_bias)], config.accel_offset[0], 0);
-      configComplete &= getJsonValue(top[FPSTR(_y_acc_bias)], config.accel_offset[1], 0);
-      configComplete &= getJsonValue(top[FPSTR(_z_acc_bias)], config.accel_offset[2], 0);
-      configComplete &= getJsonValue(top[FPSTR(_x_gyro_bias)], config.gyro_offset[0], 0);
-      configComplete &= getJsonValue(top[FPSTR(_y_gyro_bias)], config.gyro_offset[1], 0);
-      configComplete &= getJsonValue(top[FPSTR(_z_gyro_bias)], config.gyro_offset[2], 0);
+      configComplete &= getJsonValue(top[_enabled], config.enabled, true);
+      configComplete &= getJsonValue(top[_interrupt_pin], config.interruptPin, -1);
+      configComplete &= getJsonValue(top[_x_acc_bias], config.accel_offset[0], 0);
+      configComplete &= getJsonValue(top[_y_acc_bias], config.accel_offset[1], 0);
+      configComplete &= getJsonValue(top[_z_acc_bias], config.accel_offset[2], 0);
+      configComplete &= getJsonValue(top[_x_gyro_bias], config.gyro_offset[0], 0);
+      configComplete &= getJsonValue(top[_y_gyro_bias], config.gyro_offset[1], 0);
+      configComplete &= getJsonValue(top[_z_gyro_bias], config.gyro_offset[2], 0);
 
-      DEBUG_PRINT(FPSTR(_name));
+      DEBUG_PRINT(_name);
       if (top.isNull()) {
-        DEBUG_PRINTLN(F(": No config found. (Using defaults.)"));
+        DEBUG_PRINTLN(": No config found. (Using defaults.)");
       } else if (!initDone()) {
-        DEBUG_PRINTLN(F(": config loaded."));
+        DEBUG_PRINTLN(": config loaded.");
       } else if (memcmp(&config, &old_cfg, sizeof(config)) == 0) {
-        DEBUG_PRINTLN(F(": config unchanged."));
+        DEBUG_PRINTLN(": config unchanged.");
       } else {
-        DEBUG_PRINTLN(F(": config updated."));
+        DEBUG_PRINTLN(": config updated.");
         // Previously loaded and config changed
         if (irqBound && ((old_cfg.interruptPin != config.interruptPin) || !config.enabled)) {
           detachInterrupt(old_cfg.interruptPin);

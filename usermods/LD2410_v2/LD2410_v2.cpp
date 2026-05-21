@@ -19,8 +19,8 @@ class LD2410Usermod : public Usermod {
     int8_t default_uart_tx = 18;
 
 
-    String mqttMovementTopic = F("");
-    String mqttStationaryTopic = F("");
+    String mqttMovementTopic = "";
+    String mqttStationaryTopic = "";
     bool mqttInitialized = false;
     bool HomeAssistantDiscovery = true; // Publish Home Assistant Discovery messages
 
@@ -43,38 +43,38 @@ class LD2410Usermod : public Usermod {
 
     void _mqttInitialize()
     {
-      mqttMovementTopic = String(mqttDeviceTopic) + F("/ld2410/movement");
-      mqttStationaryTopic = String(mqttDeviceTopic) + F("/ld2410/stationary");
+      mqttMovementTopic = String(mqttDeviceTopic) + "/ld2410/movement";
+      mqttStationaryTopic = String(mqttDeviceTopic) + "/ld2410/stationary";
       if (HomeAssistantDiscovery){
-        _createMqttSensor(F("Movement"), mqttMovementTopic, F("motion"), F(""));
-        _createMqttSensor(F("Stationary"), mqttStationaryTopic, F("occupancy"), F(""));
+        _createMqttSensor("Movement", mqttMovementTopic, "motion", "");
+        _createMqttSensor("Stationary", mqttStationaryTopic, "occupancy", "");
       } 
     }
 
     // Create an MQTT Sensor for Home Assistant Discovery purposes, this includes a pointer to the topic that is published to in the Loop.
     void _createMqttSensor(const String &name, const String &topic, const String &deviceClass, const String &unitOfMeasurement)
     {
-      String t = String(F("homeassistant/binary_sensor/")) + mqttClientID + F("/") + name + F("/config");
+      String t = String("homeassistant/binary_sensor/") + mqttClientID + "/" + name + "/config";
       
       StaticJsonDocument<600> doc;
       
-      doc[F("name")] = String(serverDescription) + F(" Module");
-      doc[F("state_topic")] = topic;
-      doc[F("unique_id")] = String(mqttClientID) + name;
+      doc["name"] = String(serverDescription) + " Module";
+      doc["state_topic"] = topic;
+      doc["unique_id"] = String(mqttClientID) + name;
       if (unitOfMeasurement != "")
-        doc[F("unit_of_measurement")] = unitOfMeasurement;
+        doc["unit_of_measurement"] = unitOfMeasurement;
       if (deviceClass != "")
-        doc[F("device_class")] = deviceClass;
-      doc[F("expire_after")] = 1800;
-      doc[F("payload_off")] = "OFF";
-      doc[F("payload_on")] = "ON";
+        doc["device_class"] = deviceClass;
+      doc["expire_after"] = 1800;
+      doc["payload_off"] = "OFF";
+      doc["payload_on"] = "ON";
 
-      JsonObject device = doc.createNestedObject(F("device")); // attach the sensor to the same device
-      device[F("name")] = serverDescription;
-      device[F("identifiers")] = "wled-sensor-" + String(mqttClientID);
-      device[F("manufacturer")] = F("WLED");
-      device[F("model")] = F("FOSS");
-      device[F("sw_version")] = versionString;
+      JsonObject device = doc.createNestedObject("device"); // attach the sensor to the same device
+      device["name"] = serverDescription;
+      device["identifiers"] = "wled-sensor-" + String(mqttClientID);
+      device["manufacturer"] = "WLED";
+      device["model"] = "FOSS";
+      device["sw_version"] = versionString;
 
       String temp;
       serializeJson(doc, temp);
@@ -90,11 +90,11 @@ class LD2410Usermod : public Usermod {
 
     void setup() {
       Serial1.begin(256000, SERIAL_8N1, uart_rx_pin, uart_tx_pin);
-      Serial.print(F("\nLD2410 radar sensor initialising: "));
+      Serial.print("\nLD2410 radar sensor initialising: ");
       if(radar.begin(Serial1)){
-        Serial.println(F("OK"));
+        Serial.println("OK");
       } else {
-        Serial.println(F("not connected"));
+        Serial.println("not connected");
       }
       initDone = true;
     }
@@ -136,16 +136,16 @@ class LD2410Usermod : public Usermod {
     void addToJsonInfo(JsonObject& root)
     {
       // if "u" object does not exist yet wee need to create it
-      JsonObject user = root[F("u")];
-      if (user.isNull()) user = root.createNestedObject(F("u"));
+      JsonObject user = root["u"];
+      if (user.isNull()) user = root.createNestedObject("u");
 
-      JsonArray ld2410_sta_json = user.createNestedArray(F("LD2410 Stationary"));
-      JsonArray ld2410_mov_json = user.createNestedArray(F("LD2410 Movement"));
+      JsonArray ld2410_sta_json = user.createNestedArray("LD2410 Stationary");
+      JsonArray ld2410_mov_json = user.createNestedArray("LD2410 Movement");
       if (!enabled){
-        ld2410_sta_json.add(F("disabled"));
-        ld2410_mov_json.add(F("disabled"));
+        ld2410_sta_json.add("disabled");
+        ld2410_mov_json.add("disabled");
       } else if(!sensorFound){
-        ld2410_sta_json.add(F("LD2410"));
+        ld2410_sta_json.add("LD2410");
         ld2410_sta_json.add(" Not Found");
       } else {
         ld2410_sta_json.add("Sta ");
@@ -157,8 +157,8 @@ class LD2410Usermod : public Usermod {
 
     void addToConfig(JsonObject& root)
     {
-      JsonObject top = root.createNestedObject(FPSTR(_name));
-      top[FPSTR(_enabled)] = enabled;
+      JsonObject top = root.createNestedObject(_name);
+      top[_enabled] = enabled;
       //save these vars persistently whenever settings are saved
       top["uart_rx_pin"] = default_uart_rx;
       top["uart_tx_pin"] = default_uart_tx;
@@ -170,14 +170,14 @@ class LD2410Usermod : public Usermod {
       // default settings values could be set here (or below using the 3-argument getJsonValue()) instead of in the class definition or constructor
       // setting them inside readFromConfig() is slightly more robust, handling the rare but plausible use case of single value being missing after boot (e.g. if the cfg.json was manually edited and a value was removed)
 
-      JsonObject top = root[FPSTR(_name)];
+      JsonObject top = root[_name];
 
       bool configComplete = !top.isNull();
       if (!configComplete)
       {
-        DEBUG_PRINT(FPSTR(_name));
-        DEBUG_PRINT(F("LD2410"));
-        DEBUG_PRINTLN(F(": No config found. (Using defaults.)"));
+        DEBUG_PRINT(_name);
+        DEBUG_PRINT("LD2410");
+        DEBUG_PRINTLN(": No config found. (Using defaults.)");
         return false;
       }
 

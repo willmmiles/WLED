@@ -385,9 +385,9 @@ class AnimartrixUsermod : public Usermod {
       JsonObject user = root["u"];
       if (user.isNull()) user = root.createNestedObject("u");
 
-      JsonArray infoArr = user.createNestedArray(FPSTR(_name));
+      JsonArray infoArr = user.createNestedArray(_name);
 
-      String uiDomString = F("Animartrix requires the Creative Commons Attribution License CC BY-NC 3.0");
+      String uiDomString = "Animartrix requires the Creative Commons Attribution License CC BY-NC 3.0";
       infoArr.add(uiDomString);
 	}
 

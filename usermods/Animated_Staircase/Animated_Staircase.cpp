@@ -97,7 +97,7 @@ class Animated_Staircase : public Usermod {
       //Check if MQTT Connected, otherwise it will crash the 8266
       if (WLED_MQTT_CONNECTED){
         char subuf[64];
-        sprintf_P(subuf, PSTR("%s/motion/%d"), mqttDeviceTopic, (int)bottom);
+        sprintf(subuf, "%s/motion/%d", mqttDeviceTopic, (int)bottom);
         mqtt->publish(subuf, 0, false, state);
       }
 #endif
@@ -177,14 +177,14 @@ class Animated_Staircase : public Usermod {
           bottomSensorState = bottomSensorRead; // change previous state
           sensorChanged = true;
           publishMqtt(true, bottomSensorState ? "on" : "off");
-          DEBUG_PRINTLN(F("Bottom sensor changed."));
+          DEBUG_PRINTLN("Bottom sensor changed.");
         }
 
         if (topSensorRead != topSensorState) {
           topSensorState = topSensorRead; // change previous state
           sensorChanged = true;
           publishMqtt(false, topSensorState ? "on" : "off");
-          DEBUG_PRINTLN(F("Top sensor changed."));
+          DEBUG_PRINTLN("Top sensor changed.");
         }
 
         // Values read, reset the flags for next API call
@@ -201,8 +201,8 @@ class Animated_Staircase : public Usermod {
             // If the bottom sensor triggered, we need to swipe up, ON
             swipe = bottomSensorRead;
 
-            DEBUG_PRINT(F("ON -> Swipe "));
-            DEBUG_PRINTLN(swipe ? F("up.") : F("down."));
+            DEBUG_PRINT("ON -> Swipe ");
+            DEBUG_PRINTLN(swipe ? "up." : "down.");
 
             if (onIndex == offIndex) {
               // Position the indices for a correct on-swipe
@@ -229,8 +229,8 @@ class Animated_Staircase : public Usermod {
         swipe = lastSensor;
         on = false;
 
-        DEBUG_PRINT(F("OFF -> Swipe "));
-        DEBUG_PRINTLN(swipe ? F("up.") : F("down."));
+        DEBUG_PRINT("OFF -> Swipe ");
+        DEBUG_PRINTLN(swipe ? "up." : "down.");
       }
     }
 
@@ -260,24 +260,24 @@ class Animated_Staircase : public Usermod {
 
     // send sensor values to JSON API
     void writeSensorsToJson(JsonObject& staircase) {
-      staircase[F("top-sensor")]    = topSensorRead;
-      staircase[F("bottom-sensor")] = bottomSensorRead;
+      staircase["top-sensor"]    = topSensorRead;
+      staircase["bottom-sensor"] = bottomSensorRead;
     }
 
     // allow overrides from JSON API
     void readSensorsFromJson(JsonObject& staircase) {
-      bottomSensorWrite = bottomSensorState || (staircase[F("bottom-sensor")].as<bool>());
-      topSensorWrite    = topSensorState    || (staircase[F("top-sensor")].as<bool>());
+      bottomSensorWrite = bottomSensorState || (staircase["bottom-sensor"].as<bool>());
+      topSensorWrite    = topSensorState    || (staircase["top-sensor"].as<bool>());
     }
 
     void enable(bool enable) {
       if (enable) {
-        DEBUG_PRINTLN(F("Animated Staircase enabled."));
-        DEBUG_PRINT(F("Delay between steps: "));
+        DEBUG_PRINTLN("Animated Staircase enabled.");
+        DEBUG_PRINT("Delay between steps: ");
         DEBUG_PRINT(segment_delay_ms);
-        DEBUG_PRINT(F(" milliseconds.\nStairs switch off after: "));
+        DEBUG_PRINT(" milliseconds.\nStairs switch off after: ");
         DEBUG_PRINT(on_time_ms / 1000);
-        DEBUG_PRINTLN(F(" seconds."));
+        DEBUG_PRINTLN(" seconds.");
 
         if (!useUSSensorBottom)
           pinMode(bottomPIRorTriggerPin, INPUT_PULLUP);
@@ -310,7 +310,7 @@ class Animated_Staircase : public Usermod {
         strip.trigger();  // force strip update
         stateChanged = true;  // inform external devices/UI of change
         colorUpdated(CALL_MODE_DIRECT_CHANGE);
-        DEBUG_PRINTLN(F("Animated Staircase disabled."));
+        DEBUG_PRINTLN("Animated Staircase disabled.");
       }
       enabled = enable;
     }
@@ -360,7 +360,7 @@ class Animated_Staircase : public Usermod {
      * topic should look like: /swipe with amessage of [up|down]
      */
     bool onMqttMessage(char* topic, char* payload) {
-      if (strlen(topic) == 6 && strncmp_P(topic, PSTR("/swipe"), 6) == 0) {
+      if (strlen(topic) == 6 && strncmp(topic, "/swipe", 6) == 0) {
         String action = payload;
         if (action == "up") {
           bottomSensorWrite = true;
@@ -387,19 +387,19 @@ class Animated_Staircase : public Usermod {
       char subuf[64];
       if (mqttDeviceTopic[0] != 0) {
         strcpy(subuf, mqttDeviceTopic);
-        strcat_P(subuf, PSTR("/swipe"));
+        strcat(subuf, "/swipe");
         mqtt->subscribe(subuf, 0);
       }
     }
 #endif
 
     void addToJsonState(JsonObject& root) {
-      JsonObject staircase = root[FPSTR(_name)];
+      JsonObject staircase = root[_name];
       if (staircase.isNull()) {
-        staircase = root.createNestedObject(FPSTR(_name));
+        staircase = root.createNestedObject(_name);
       }
       writeSensorsToJson(staircase);
-      DEBUG_PRINTLN(F("Staircase sensor state exposed in API."));
+      DEBUG_PRINTLN("Staircase sensor state exposed in API.");
     }
 
     /*
@@ -409,25 +409,25 @@ class Animated_Staircase : public Usermod {
     void readFromJsonState(JsonObject& root) {
       if (!initDone) return;  // prevent crash on boot applyPreset()
       bool en = enabled;
-      JsonObject staircase = root[FPSTR(_name)];
+      JsonObject staircase = root[_name];
       if (!staircase.isNull()) {
-        if (staircase[FPSTR(_enabled)].is<bool>()) {
-          en = staircase[FPSTR(_enabled)].as<bool>();
+        if (staircase[_enabled].is<bool>()) {
+          en = staircase[_enabled].as<bool>();
         } else {
-          String str = staircase[FPSTR(_enabled)]; // checkbox -> off or on
+          String str = staircase[_enabled]; // checkbox -> off or on
           en = (bool)(str!="off"); // off is guaranteed to be present
         }
         if (en != enabled) enable(en);
         readSensorsFromJson(staircase);
-        DEBUG_PRINTLN(F("Staircase sensor state read from API."));
+        DEBUG_PRINTLN("Staircase sensor state read from API.");
       }
     }
 
     void appendConfigData() {
-      //oappend(F("dd=addDropdown('staircase','selectfield');"));
-      //oappend(F("addOption(dd,'1st value',0);"));
-      //oappend(F("addOption(dd,'2nd value',1);"));
-      //oappend(F("addInfo('staircase:selectfield',1,'additional info');"));  // 0 is field type, 1 is actual field
+      //oappend("dd=addDropdown('staircase','selectfield');");
+      //oappend("addOption(dd,'1st value',0);");
+      //oappend("addOption(dd,'2nd value',1);");
+      //oappend("addInfo('staircase:selectfield',1,'additional info');");  // 0 is field type, 1 is actual field
     }
 
 
@@ -435,23 +435,23 @@ class Animated_Staircase : public Usermod {
     * Writes the configuration to internal flash memory.
     */
     void addToConfig(JsonObject& root) {
-      JsonObject staircase = root[FPSTR(_name)];
+      JsonObject staircase = root[_name];
       if (staircase.isNull()) {
-        staircase = root.createNestedObject(FPSTR(_name));
+        staircase = root.createNestedObject(_name);
       }
-      staircase[FPSTR(_enabled)]                   = enabled;
-      staircase[FPSTR(_segmentDelay)]              = segment_delay_ms;
-      staircase[FPSTR(_onTime)]                    = on_time_ms / 1000;
-      staircase[FPSTR(_useTopUltrasoundSensor)]    = useUSSensorTop;
-      staircase[FPSTR(_topPIRorTrigger_pin)]       = topPIRorTriggerPin;
-      staircase[FPSTR(_topEcho_pin)]               = useUSSensorTop ? topEchoPin : -1;
-      staircase[FPSTR(_useBottomUltrasoundSensor)] = useUSSensorBottom;
-      staircase[FPSTR(_bottomPIRorTrigger_pin)]    = bottomPIRorTriggerPin;
-      staircase[FPSTR(_bottomEcho_pin)]            = useUSSensorBottom ? bottomEchoPin : -1;
-      staircase[FPSTR(_topEchoCm)]                 = topMaxDist;
-      staircase[FPSTR(_bottomEchoCm)]              = bottomMaxDist;
-      staircase[FPSTR(_togglePower)]               = togglePower;
-      DEBUG_PRINTLN(F("Staircase config saved."));
+      staircase[_enabled]                   = enabled;
+      staircase[_segmentDelay]              = segment_delay_ms;
+      staircase[_onTime]                    = on_time_ms / 1000;
+      staircase[_useTopUltrasoundSensor]    = useUSSensorTop;
+      staircase[_topPIRorTrigger_pin]       = topPIRorTriggerPin;
+      staircase[_topEcho_pin]               = useUSSensorTop ? topEchoPin : -1;
+      staircase[_useBottomUltrasoundSensor] = useUSSensorBottom;
+      staircase[_bottomPIRorTrigger_pin]    = bottomPIRorTriggerPin;
+      staircase[_bottomEcho_pin]            = useUSSensorBottom ? bottomEchoPin : -1;
+      staircase[_topEchoCm]                 = topMaxDist;
+      staircase[_bottomEchoCm]              = bottomMaxDist;
+      staircase[_togglePower]               = togglePower;
+      DEBUG_PRINTLN("Staircase config saved.");
     }
 
     /*
@@ -467,43 +467,43 @@ class Animated_Staircase : public Usermod {
       int8_t oldBottomAPin = bottomPIRorTriggerPin;
       int8_t oldBottomBPin = bottomEchoPin;
 
-      JsonObject top = root[FPSTR(_name)];
+      JsonObject top = root[_name];
       if (top.isNull()) {
-        DEBUG_PRINT(FPSTR(_name));
-        DEBUG_PRINTLN(F(": No config found. (Using defaults.)"));
+        DEBUG_PRINT(_name);
+        DEBUG_PRINTLN(": No config found. (Using defaults.)");
         return false;
       }
 
-      enabled   = top[FPSTR(_enabled)] | enabled;
+      enabled   = top[_enabled] | enabled;
 
-      segment_delay_ms = top[FPSTR(_segmentDelay)] | segment_delay_ms;
+      segment_delay_ms = top[_segmentDelay] | segment_delay_ms;
       segment_delay_ms = (unsigned long) min((unsigned long)10000,max((unsigned long)10,(unsigned long)segment_delay_ms));  // max delay 10s
 
-      on_time_ms = top[FPSTR(_onTime)] | on_time_ms/1000;
+      on_time_ms = top[_onTime] | on_time_ms/1000;
       on_time_ms = min(900,max(10,(int)on_time_ms)) * 1000; // min 10s, max 15min
 
-      useUSSensorTop     = top[FPSTR(_useTopUltrasoundSensor)] | useUSSensorTop;
-      topPIRorTriggerPin = top[FPSTR(_topPIRorTrigger_pin)] | topPIRorTriggerPin;
-      topEchoPin         = top[FPSTR(_topEcho_pin)] | topEchoPin;
+      useUSSensorTop     = top[_useTopUltrasoundSensor] | useUSSensorTop;
+      topPIRorTriggerPin = top[_topPIRorTrigger_pin] | topPIRorTriggerPin;
+      topEchoPin         = top[_topEcho_pin] | topEchoPin;
 
-      useUSSensorBottom     = top[FPSTR(_useBottomUltrasoundSensor)] | useUSSensorBottom;
-      bottomPIRorTriggerPin = top[FPSTR(_bottomPIRorTrigger_pin)] | bottomPIRorTriggerPin;
-      bottomEchoPin         = top[FPSTR(_bottomEcho_pin)] | bottomEchoPin;
+      useUSSensorBottom     = top[_useBottomUltrasoundSensor] | useUSSensorBottom;
+      bottomPIRorTriggerPin = top[_bottomPIRorTrigger_pin] | bottomPIRorTriggerPin;
+      bottomEchoPin         = top[_bottomEcho_pin] | bottomEchoPin;
 
-      topMaxDist    = top[FPSTR(_topEchoCm)] | topMaxDist;
+      topMaxDist    = top[_topEchoCm] | topMaxDist;
       topMaxDist    = min(150,max(30,(int)topMaxDist));     // max distance ~1.5m (a lag of 9ms may be expected)
-      bottomMaxDist = top[FPSTR(_bottomEchoCm)] | bottomMaxDist;
+      bottomMaxDist = top[_bottomEchoCm] | bottomMaxDist;
       bottomMaxDist = min(150,max(30,(int)bottomMaxDist));  // max distance ~1.5m (a lag of 9ms may be expected)
 
-      togglePower = top[FPSTR(_togglePower)] | togglePower;  // staircase toggles power on/off
+      togglePower = top[_togglePower] | togglePower;  // staircase toggles power on/off
 
-      DEBUG_PRINT(FPSTR(_name));
+      DEBUG_PRINT(_name);
       if (!initDone) {
         // first run: reading from cfg.json
-        DEBUG_PRINTLN(F(" config loaded."));
+        DEBUG_PRINTLN(" config loaded.");
       } else {
         // changing parameters from settings page
-        DEBUG_PRINTLN(F(" config (re)loaded."));
+        DEBUG_PRINTLN(" config (re)loaded.");
         bool changed = false;
         if ((oldUseUSSensorTop != useUSSensorTop) ||
             (oldUseUSSensorBottom != useUSSensorBottom) ||
@@ -520,7 +520,7 @@ class Animated_Staircase : public Usermod {
         if (changed) setup();
       }
       // use "return !top["newestParameter"].isNull();" when updating Usermod with new features
-      return !top[FPSTR(_togglePower)].isNull();
+      return !top[_togglePower].isNull();
     }
 
     /*
@@ -533,16 +533,16 @@ class Animated_Staircase : public Usermod {
         user = root.createNestedObject("u");
       }
 
-      JsonArray infoArr = user.createNestedArray(FPSTR(_name));  // name
+      JsonArray infoArr = user.createNestedArray(_name);  // name
 
-      String uiDomString = F("<button class=\"btn btn-xs\" onclick=\"requestJson({");
-      uiDomString += FPSTR(_name);
-      uiDomString += F(":{");
-      uiDomString += FPSTR(_enabled);
-      uiDomString += enabled ? F(":false}});\">") : F(":true}});\">");
-      uiDomString += F("<i class=\"icons ");
+      String uiDomString = "<button class=\"btn btn-xs\" onclick=\"requestJson({";
+      uiDomString += _name;
+      uiDomString += ":{";
+      uiDomString += _enabled;
+      uiDomString += enabled ? ":false}});\">" : ":true}});\">";
+      uiDomString += "<i class=\"icons ";
       uiDomString += enabled ? "on" : "off";
-      uiDomString += F("\">&#xe08f;</i></button>");
+      uiDomString += "\">&#xe08f;</i></button>";
       infoArr.add(uiDomString);
     }
 };

@@ -268,13 +268,13 @@ public:
 
   void addToConfig(JsonObject& root) override
   {
-    JsonObject top = root.createNestedObject(FPSTR(_name));
+    JsonObject top = root.createNestedObject(_name);
     top["noFlashOnClear"] = noFlashOnClear;
   }
 
   bool readFromConfig(JsonObject& root) override
   {
-    JsonObject top = root[FPSTR(_name)];
+    JsonObject top = root[_name];
     bool configComplete = !top.isNull();
     configComplete &= getJsonValue(top["noFlashOnClear"], noFlashOnClear);
     return configComplete;

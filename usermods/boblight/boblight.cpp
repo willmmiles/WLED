@@ -62,7 +62,7 @@ class BobLightUsermod : public Usermod {
       int bcount;
 
       if (total > strip.getLengthTotal()) {
-        DEBUG_PRINTLN(F("BobLight: Too many lights."));
+        DEBUG_PRINTLN("BobLight: Too many lights.");
         return;
       }
 
@@ -171,10 +171,10 @@ class BobLightUsermod : public Usermod {
       numLights = lightcount;
 
       #if WLED_DEBUG
-      DEBUG_PRINTLN(F("Fill light data: "));
-      DEBUG_PRINTF_P(PSTR(" lights %d\n"), numLights);
+      DEBUG_PRINTLN("Fill light data: ");
+      DEBUG_PRINTF_P(" lights %d\n", numLights);
       for (int i=0; i<numLights; i++) {
-        DEBUG_PRINTF_P(PSTR(" light %s scan %2.1f %2.1f %2.1f %2.1f\n"), lights[i].lightname, lights[i].vscan[0], lights[i].vscan[1], lights[i].hscan[0], lights[i].hscan[1]);
+        DEBUG_PRINTF_P(" light %s scan %2.1f %2.1f %2.1f %2.1f\n", lights[i].lightname, lights[i].vscan[0], lights[i].vscan[1], lights[i].hscan[0], lights[i].hscan[1]);
       }
       #endif
     }
@@ -188,8 +188,8 @@ class BobLightUsermod : public Usermod {
     void setup() override {
       uint16_t totalLights = bottom + left + top + right;
       if ( totalLights > strip.getLengthTotal() ) {
-        DEBUG_PRINTLN(F("BobLight: Too many lights."));
-        DEBUG_PRINTF_P(PSTR("%d+%d+%d+%d>%d\n"), bottom, left, top, right, strip.getLengthTotal());
+        DEBUG_PRINTLN("BobLight: Too many lights.");
+        DEBUG_PRINTF_P("%d+%d+%d+%d>%d\n", bottom, left, top, right, strip.getLengthTotal());
         totalLights = strip.getLengthTotal();
         top = bottom = (uint16_t) roundf((float)totalLights * 16.0f / 50.0f);
         left = right = (uint16_t) roundf((float)totalLights *  9.0f / 50.0f);
@@ -224,7 +224,7 @@ class BobLightUsermod : public Usermod {
      * topic should look like: /swipe with amessage of [up|down]
      */
     bool onMqttMessage(char* topic, char* payload) override {
-      //if (strlen(topic) == 6 && strncmp_P(topic, PSTR("/subtopic"), 6) == 0) {
+      //if (strlen(topic) == 6 && strncmp(topic, "/subtopic", 6) == 0) {
       //  String action = payload;
       //  if (action == "on") {
       //    enable(true);
@@ -244,7 +244,7 @@ class BobLightUsermod : public Usermod {
       //char subuf[64];
       //if (mqttDeviceTopic[0] != 0) {
       //  strcpy(subuf, mqttDeviceTopic);
-      //  strcat_P(subuf, PSTR("/subtopic"));
+      //  strcat(subuf, "/subtopic");
       //  mqtt->subscribe(subuf, 0);
       //}
     }
@@ -255,15 +255,15 @@ class BobLightUsermod : public Usermod {
       JsonObject user = root["u"];
       if (user.isNull()) user = root.createNestedObject("u");
 
-      JsonArray infoArr = user.createNestedArray(FPSTR(_name));
-      String uiDomString = F("<button class=\"btn btn-xs\" onclick=\"requestJson({");
-      uiDomString += FPSTR(_name);
-      uiDomString += F(":{");
-      uiDomString += FPSTR(_enabled);
-      uiDomString += enabled ? F(":false}});\">") : F(":true}});\">");
-      uiDomString += F("<i class=\"icons ");
+      JsonArray infoArr = user.createNestedArray(_name);
+      String uiDomString = "<button class=\"btn btn-xs\" onclick=\"requestJson({";
+      uiDomString += _name;
+      uiDomString += ":{";
+      uiDomString += _enabled;
+      uiDomString += enabled ? ":false}});\">" : ":true}});\">";
+      uiDomString += "<i class=\"icons ";
       uiDomString += enabled ? "on" : "off";
-      uiDomString += F("\">&#xe08f;</i></button>");
+      uiDomString += "\">&#xe08f;</i></button>";
       infoArr.add(uiDomString);
     }
 
@@ -282,12 +282,12 @@ class BobLightUsermod : public Usermod {
     void readFromJsonState(JsonObject& root) override {
       if (!initDone) return;  // prevent crash on boot applyPreset()
       bool en = enabled;
-      JsonObject um = root[FPSTR(_name)];
+      JsonObject um = root[_name];
       if (!um.isNull()) {
-        if (um[FPSTR(_enabled)].is<bool>()) {
-          en = um[FPSTR(_enabled)].as<bool>();
+        if (um[_enabled].is<bool>()) {
+          en = um[_enabled].as<bool>();
         } else {
-          String str = um[FPSTR(_enabled)]; // checkbox -> off or on
+          String str = um[_enabled]; // checkbox -> off or on
           en = (bool)(str!="off"); // off is guaranteed to be present
         }
         if (en != enabled && lights) {
@@ -303,41 +303,41 @@ class BobLightUsermod : public Usermod {
     }
 
     void appendConfigData() override {
-      //oappend(F("dd=addDropdown('usermod','selectfield');"));
-      //oappend(F("addOption(dd,'1st value',0);"));
-      //oappend(F("addOption(dd,'2nd value',1);"));
-      oappend(F("addInfo('BobLight:top',1,'LEDs');"));                // 0 is field type, 1 is actual field
-      oappend(F("addInfo('BobLight:bottom',1,'LEDs');"));             // 0 is field type, 1 is actual field
-      oappend(F("addInfo('BobLight:left',1,'LEDs');"));               // 0 is field type, 1 is actual field
-      oappend(F("addInfo('BobLight:right',1,'LEDs');"));              // 0 is field type, 1 is actual field
-      oappend(F("addInfo('BobLight:pct',1,'Depth of scan [%]');"));   // 0 is field type, 1 is actual field
+      //oappend("dd=addDropdown('usermod','selectfield');");
+      //oappend("addOption(dd,'1st value',0);");
+      //oappend("addOption(dd,'2nd value',1);");
+      oappend("addInfo('BobLight:top',1,'LEDs');");                // 0 is field type, 1 is actual field
+      oappend("addInfo('BobLight:bottom',1,'LEDs');");             // 0 is field type, 1 is actual field
+      oappend("addInfo('BobLight:left',1,'LEDs');");               // 0 is field type, 1 is actual field
+      oappend("addInfo('BobLight:right',1,'LEDs');");              // 0 is field type, 1 is actual field
+      oappend("addInfo('BobLight:pct',1,'Depth of scan [%]');");   // 0 is field type, 1 is actual field
     }
 
     void addToConfig(JsonObject& root) override {
-      JsonObject umData = root.createNestedObject(FPSTR(_name));
-      umData[FPSTR(_enabled)] = enabled;
+      JsonObject umData = root.createNestedObject(_name);
+      umData[_enabled] = enabled;
       umData[  "port" ]       = bobPort;
-      umData[F("top")]        = top;
-      umData[F("bottom")]     = bottom;
-      umData[F("left")]       = left;
-      umData[F("right")]      = right;
-      umData[F("pct")]        = pct;
+      umData["top"]        = top;
+      umData["bottom"]     = bottom;
+      umData["left"]       = left;
+      umData["right"]      = right;
+      umData["pct"]        = pct;
     }
 
     bool readFromConfig(JsonObject& root) override {
-      JsonObject umData = root[FPSTR(_name)];
+      JsonObject umData = root[_name];
       bool configComplete = !umData.isNull();
 
       bool en = enabled;
-      configComplete &= getJsonValue(umData[FPSTR(_enabled)], en);
+      configComplete &= getJsonValue(umData[_enabled], en);
       enable(en);
 
       configComplete &= getJsonValue(umData[  "port" ],   bobPort);
-      configComplete &= getJsonValue(umData[F("bottom")], bottom,    16);
-      configComplete &= getJsonValue(umData[F("top")],    top,       16);
-      configComplete &= getJsonValue(umData[F("left")],   left,       9);
-      configComplete &= getJsonValue(umData[F("right")],  right,      9);
-      configComplete &= getJsonValue(umData[F("pct")],    pct,        5); // Depth of scan [%]
+      configComplete &= getJsonValue(umData["bottom"], bottom,    16);
+      configComplete &= getJsonValue(umData["top"],    top,       16);
+      configComplete &= getJsonValue(umData["left"],   left,       9);
+      configComplete &= getJsonValue(umData["right"],  right,      9);
+      configComplete &= getJsonValue(umData["pct"],    pct,        5); // Depth of scan [%]
       pct = MIN(50,MAX(1,pct));
 
       uint16_t totalLights = bottom + left + top + right;
@@ -374,7 +374,7 @@ void BobLightUsermod::pollBob() {
     if (!bobClient || !bobClient.connected()) {
       if (bobClient) bobClient.stop();
       bobClient = bob->available();
-      DEBUG_PRINTLN(F("Boblight: Client connected."));
+      DEBUG_PRINTLN("Boblight: Client connected.");
     }
     //no free/disconnected spot so reject
     WiFiClient bobClientTmp = bob->available();
@@ -390,32 +390,32 @@ void BobLightUsermod::pollBob() {
     //get data from the client
     while (bobClient.available()) {
       String input = bobClient.readStringUntil('\n');
-      // DEBUG_PRINT(F("Client: ")); DEBUG_PRINTLN(input); // may be to stressful on Serial
-      if (input.startsWith(F("hello"))) {
-        DEBUG_PRINTLN(F("hello"));
-        bobClient.print(F("hello\n"));
-      } else if (input.startsWith(F("ping"))) {
-        DEBUG_PRINTLN(F("ping 1"));
-        bobClient.print(F("ping 1\n"));
-      } else if (input.startsWith(F("get version"))) {
-        DEBUG_PRINTLN(F("version 5"));
-        bobClient.print(F("version 5\n"));
-      } else if (input.startsWith(F("get lights"))) {
+      // DEBUG_PRINT("Client: "); DEBUG_PRINTLN(input); // may be to stressful on Serial
+      if (input.startsWith("hello")) {
+        DEBUG_PRINTLN("hello");
+        bobClient.print("hello\n");
+      } else if (input.startsWith("ping")) {
+        DEBUG_PRINTLN("ping 1");
+        bobClient.print("ping 1\n");
+      } else if (input.startsWith("get version")) {
+        DEBUG_PRINTLN("version 5");
+        bobClient.print("version 5\n");
+      } else if (input.startsWith("get lights")) {
         char tmp[64];
         String answer = "";
-        sprintf_P(tmp, PSTR("lights %d\n"), numLights);
+        sprintf(tmp, "lights %d\n", numLights);
         DEBUG_PRINT(tmp);
         answer.concat(tmp);
         for (int i=0; i<numLights; i++) {
-          sprintf_P(tmp, PSTR("light %s scan %2.1f %2.1f %2.1f %2.1f\n"), lights[i].lightname, lights[i].vscan[0], lights[i].vscan[1], lights[i].hscan[0], lights[i].hscan[1]);
+          sprintf(tmp, "light %s scan %2.1f %2.1f %2.1f %2.1f\n", lights[i].lightname, lights[i].vscan[0], lights[i].vscan[1], lights[i].hscan[0], lights[i].hscan[1]);
           DEBUG_PRINT(tmp);
           answer.concat(tmp);
         }
         bobClient.print(answer);
-      } else if (input.startsWith(F("set priority"))) {
-        DEBUG_PRINTLN(F("set priority not implemented"));
+      } else if (input.startsWith("set priority")) {
+        DEBUG_PRINTLN("set priority not implemented");
         // not implemented
-      } else if (input.startsWith(F("set light "))) { // <id> <cmd in rgb, speed, interpolation> <value> ...
+      } else if (input.startsWith("set light ")) { // <id> <cmd in rgb, speed, interpolation> <value> ...
         input.remove(0,10);
         String tmp = input.substring(0,input.indexOf(' '));
         
@@ -429,7 +429,7 @@ void BobLightUsermod::pollBob() {
         if (light_id == -1) return;
 
         input.remove(0,input.indexOf(' ')+1);
-        if (input.startsWith(F("rgb "))) {
+        if (input.startsWith("rgb ")) {
           input.remove(0,4);
           tmp = input.substring(0,input.indexOf(' '));
           uint8_t red = (uint8_t)(255.0f*tmp.toFloat());
@@ -447,7 +447,7 @@ void BobLightUsermod::pollBob() {
         BobSync();
       } else {
         // Client sent gibberish
-        DEBUG_PRINTLN(F("Client sent gibberish."));
+        DEBUG_PRINTLN("Client sent gibberish.");
         bobClient.stop();
         bobClient = bob->available();
         BobClear();

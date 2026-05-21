@@ -13,10 +13,10 @@ float UsermodTemperature::readDallas() {
     oneWire->read_bytes(data, 9);         // first 2 bytes contain temperature
     #ifdef WLED_DEBUG
     if (OneWire::crc8(data,8) != data[8]) {
-      DEBUG_PRINTLN(F("CRC error reading temperature."));
-      for (unsigned i=0; i < 9; i++) DEBUG_PRINTF_P(PSTR("0x%02X "), data[i]);
-      DEBUG_PRINT(F(" => "));
-      DEBUG_PRINTF_P(PSTR("0x%02X\n"), OneWire::crc8(data,8));
+      DEBUG_PRINTLN("CRC error reading temperature.");
+      for (unsigned i=0; i < 9; i++) DEBUG_PRINTF_P("0x%02X ", data[i]);
+      DEBUG_PRINT(" => ");
+      DEBUG_PRINTF_P("0x%02X\n", OneWire::crc8(data,8));
     }
     #endif
     switch(sensorFound) {
@@ -41,7 +41,7 @@ float UsermodTemperature::readDallas() {
 }
 
 void UsermodTemperature::requestTemperatures() {
-  DEBUG_PRINTLN(F("Requesting temperature."));
+  DEBUG_PRINTLN("Requesting temperature.");
   oneWire->reset();
   oneWire->skip();                        // skip ROM
   oneWire->write(0x44,parasite);          // request new temperature reading
@@ -55,19 +55,19 @@ void UsermodTemperature::readTemperature() {
   temperature = readDallas();
   lastMeasurement = millis();
   waitingForConversion = false;
-  //DEBUG_PRINTF_P(PSTR("Read temperature %2.1f.\n"), temperature); // does not work properly on 8266
-  DEBUG_PRINT(F("Read temperature "));
+  //DEBUG_PRINTF_P("Read temperature %2.1f.\n", temperature); // does not work properly on 8266
+  DEBUG_PRINT("Read temperature ");
   DEBUG_PRINTLN(temperature);
 }
 
 bool UsermodTemperature::findSensor() {
-  DEBUG_PRINTLN(F("Searching for sensor..."));
+  DEBUG_PRINTLN("Searching for sensor...");
   uint8_t deviceAddress[8] = {0,0,0,0,0,0,0,0};
   // find out if we have DS18xxx sensor attached
   oneWire->reset_search();
   delay(10);
   while (oneWire->search(deviceAddress)) {
-    DEBUG_PRINTLN(F("Found something..."));
+    DEBUG_PRINTLN("Found something...");
     if (oneWire->crc8(deviceAddress, 7) == deviceAddress[7]) {
       switch (deviceAddress[0]) {
         case 0x10:  // DS18S20
@@ -75,14 +75,14 @@ bool UsermodTemperature::findSensor() {
         case 0x28:  // DS18B20
         case 0x3B:  // DS1825
         case 0x42:  // DS28EA00
-          DEBUG_PRINTLN(F("Sensor found."));
+          DEBUG_PRINTLN("Sensor found.");
           sensorFound = deviceAddress[0];
-          DEBUG_PRINTF_P(PSTR("0x%02X\n"), sensorFound);
+          DEBUG_PRINTF_P("0x%02X\n", sensorFound);
           return true;
       }
     }
   }
-  DEBUG_PRINTLN(F("Sensor NOT found."));
+  DEBUG_PRINTLN("Sensor NOT found.");
   return false;
 }
 
@@ -94,17 +94,17 @@ void UsermodTemperature::publishHomeAssistantAutodiscovery() {
   size_t payload_size;
   StaticJsonDocument<1024> json;
 
-  sprintf_P(buf, PSTR("%s Temperature"), serverDescription);
-  json[F("name")] = buf;
+  sprintf(buf, "%s Temperature", serverDescription);
+  json["name"] = buf;
   strcpy(buf, mqttDeviceTopic);
-  strcat_P(buf, _Temperature);
-  json[F("state_topic")] = buf;
-  json[F("device_class")] = FPSTR(_temperature);
-  json[F("unique_id")] = escapedMac.c_str();
-  json[F("unit_of_measurement")] = F("°C");
+  strcat(buf, _Temperature);
+  json["state_topic"] = buf;
+  json["device_class"] = _temperature;
+  json["unique_id"] = escapedMac.c_str();
+  json["unit_of_measurement"] = "°C";
   payload_size = serializeJson(json, json_str);
 
-  sprintf_P(buf, PSTR("homeassistant/sensor/%s/config"), escapedMac.c_str());
+  sprintf(buf, "homeassistant/sensor/%s/config", escapedMac.c_str());
   mqtt->publish(buf, 0, true, json_str, payload_size);
   HApublished = true;
 }
@@ -116,7 +116,7 @@ void UsermodTemperature::setup() {
   temperature = -127.0f; // default to -127, DS18B20 only goes down to -50C
   if (enabled) {
     // config says we are enabled
-    DEBUG_PRINTLN(F("Allocating temperature pin..."));
+    DEBUG_PRINTLN("Allocating temperature pin...");
     // pin retrieved from cfg.json (readFromConfig()) prior to running setup()
     if (temperaturePin >= 0 && PinManager::allocatePin(temperaturePin, true, PinOwner::UM_Temperature)) {
       oneWire = new OneWire(temperaturePin);
@@ -133,7 +133,7 @@ void UsermodTemperature::setup() {
       }
     } else {
       if (temperaturePin >= 0) {
-        DEBUG_PRINTLN(F("Temperature pin allocation failed."));
+        DEBUG_PRINTLN("Temperature pin allocation failed.");
       }
       temperaturePin = -1;  // allocation failed
     }
@@ -179,16 +179,16 @@ void UsermodTemperature::loop() {
         // dont publish super low temperature as the graph will get messed up
         // the DallasTemperature library returns -127C or -196.6F when problem
         // reading the sensor
-        strcat_P(subuf, _Temperature);
+        strcat(subuf, _Temperature);
         mqtt->publish(subuf, 0, false, String(getTemperatureC()).c_str());
-        strcat_P(subuf, PSTR("_f"));
+        strcat(subuf, "_f");
         mqtt->publish(subuf, 0, false, String(getTemperatureF()).c_str());
         if (idx > 0) {
           StaticJsonDocument <128> msg;
-          msg[F("idx")]    = idx;
-          msg[F("RSSI")]   = WiFi.RSSI();
-          msg[F("nvalue")] = 0;
-          msg[F("svalue")] = String(getTemperatureC());
+          msg["idx"]    = idx;
+          msg["RSSI"]   = WiFi.RSSI();
+          msg["nvalue"] = 0;
+          msg["svalue"] = String(getTemperatureC());
           serializeJson(msg, subuf, 127);
           mqtt->publish("domoticz/in", 0, false, subuf);
         }
@@ -231,20 +231,20 @@ void UsermodTemperature::addToJsonInfo(JsonObject& root) {
   JsonObject user = root["u"];
   if (user.isNull()) user = root.createNestedObject("u");
 
-  JsonArray temp = user.createNestedArray(FPSTR(_name));
+  JsonArray temp = user.createNestedArray(_name);
 
   if (temperature <= -100.0f) {
     temp.add(0);
-    temp.add(F(" Sensor Error!"));
+    temp.add(" Sensor Error!");
     return;
   }
 
   temp.add(getTemperature());
   temp.add(getTemperatureUnit());
 
-  JsonObject sensor = root[FPSTR(_sensor)];
-  if (sensor.isNull()) sensor = root.createNestedObject(FPSTR(_sensor));
-  temp = sensor.createNestedArray(FPSTR(_temperature));
+  JsonObject sensor = root[_sensor];
+  if (sensor.isNull()) sensor = root.createNestedObject(_sensor);
+  temp = sensor.createNestedArray(_temperature);
   temp.add(getTemperature());
   temp.add(getTemperatureUnit());
 }
@@ -271,16 +271,16 @@ void UsermodTemperature::addToJsonInfo(JsonObject& root) {
  */
 void UsermodTemperature::addToConfig(JsonObject &root) {
   // we add JSON object: {"Temperature": {"pin": 0, "degC": true}}
-  JsonObject top = root.createNestedObject(FPSTR(_name)); // usermodname
-  top[FPSTR(_enabled)] = enabled;
+  JsonObject top = root.createNestedObject(_name); // usermodname
+  top[_enabled] = enabled;
   top["pin"]  = temperaturePin;     // usermodparam
-  top[F("degC")] = degC;  // usermodparam
-  top[FPSTR(_readInterval)] = readingInterval / 1000;
-  top[FPSTR(_parasite)] = parasite;
-  top[FPSTR(_parasitePin)] = parasitePin;
-  top[FPSTR(_domoticzIDX)] = idx;
-  top[FPSTR(_resolution)] = resolution;
-  DEBUG_PRINTLN(F("Temperature config saved."));
+  top["degC"] = degC;  // usermodparam
+  top[_readInterval] = readingInterval / 1000;
+  top[_parasite] = parasite;
+  top[_parasitePin] = parasitePin;
+  top[_domoticzIDX] = idx;
+  top[_resolution] = resolution;
+  DEBUG_PRINTLN("Temperature config saved.");
 }
 
 /**
@@ -291,33 +291,33 @@ void UsermodTemperature::addToConfig(JsonObject &root) {
 bool UsermodTemperature::readFromConfig(JsonObject &root) {
   // we look for JSON object: {"Temperature": {"pin": 0, "degC": true}}
   int8_t newTemperaturePin = temperaturePin;
-  DEBUG_PRINT(FPSTR(_name));
+  DEBUG_PRINT(_name);
 
-  JsonObject top = root[FPSTR(_name)];
+  JsonObject top = root[_name];
   if (top.isNull()) {
-    DEBUG_PRINTLN(F(": No config found. (Using defaults.)"));
+    DEBUG_PRINTLN(": No config found. (Using defaults.)");
     return false;
   }
 
-  enabled           = top[FPSTR(_enabled)] | enabled;
+  enabled           = top[_enabled] | enabled;
   newTemperaturePin = top["pin"] | newTemperaturePin;
-  degC              = top[F("degC")] | degC;
-  readingInterval   = top[FPSTR(_readInterval)] | readingInterval/1000;
+  degC              = top["degC"] | degC;
+  readingInterval   = top[_readInterval] | readingInterval/1000;
   readingInterval   = min(120,max(10,(int)readingInterval)) * 1000;  // convert to ms
-  parasite          = top[FPSTR(_parasite)] | parasite;
-  parasitePin       = top[FPSTR(_parasitePin)] | parasitePin;
-  idx               = top[FPSTR(_domoticzIDX)] | idx;
-  resolution        = top[FPSTR(_resolution)] | resolution;
+  parasite          = top[_parasite] | parasite;
+  parasitePin       = top[_parasitePin] | parasitePin;
+  idx               = top[_domoticzIDX] | idx;
+  resolution        = top[_resolution] | resolution;
 
   if (!initDone) {
     // first run: reading from cfg.json
     temperaturePin = newTemperaturePin;
-    DEBUG_PRINTLN(F(" config loaded."));
+    DEBUG_PRINTLN(" config loaded.");
   } else {
-    DEBUG_PRINTLN(F(" config (re)loaded."));
+    DEBUG_PRINTLN(" config (re)loaded.");
     // changing paramters from settings page
     if (newTemperaturePin != temperaturePin) {
-      DEBUG_PRINTLN(F("Re-init temperature."));
+      DEBUG_PRINTLN("Re-init temperature.");
       // deallocate pin and release memory
       delete oneWire;
       PinManager::deallocatePin(temperaturePin, PinOwner::UM_Temperature);
@@ -328,22 +328,22 @@ bool UsermodTemperature::readFromConfig(JsonObject &root) {
     }
   }
   // use "return !top["newestParameter"].isNull();" when updating Usermod with new features
-  return !top[FPSTR(_resolution)].isNull();
+  return !top[_resolution].isNull();
 }
 
 void UsermodTemperature::appendConfigData() {
-  oappend(F("addInfo('")); oappend(String(FPSTR(_name)).c_str()); oappend(F(":")); oappend(String(FPSTR(_parasite)).c_str());
-  oappend(F("',1,'<i>(if no Vcc connected)</i>');"));  // 0 is field type, 1 is actual field
-  oappend(F("addInfo('")); oappend(String(FPSTR(_name)).c_str()); oappend(F(":")); oappend(String(FPSTR(_parasitePin)).c_str());
-  oappend(F("',1,'<i>(for external MOSFET)</i>');"));  // 0 is field type, 1 is actual field
-  oappend(F("dd=addDD('")); oappend(String(FPSTR(_name)).c_str()); 
-    oappend(F("','")); oappend(String(FPSTR(_resolution)).c_str()); oappend(F("');"));
-  oappend(F("addO(dd,'0.5 °C (9-bit)',0);"));
-  oappend(F("addO(dd,'0.25°C (10-bit)',1);"));
-  oappend(F("addO(dd,'0.125°C (11-bit)',2);"));
-  oappend(F("addO(dd,'0.0625°C (12-bit)',3);"));
-  oappend(F("addInfo('")); oappend(String(FPSTR(_name)).c_str()); oappend(F(":")); oappend(String(FPSTR(_resolution)).c_str());
-  oappend(F("',1,'<i>(ignored on DS18S20)</i>');"));  // 0 is field type, 1 is actual field
+  oappend("addInfo('"); oappend(String(_name).c_str()); oappend(":"); oappend(String(_parasite).c_str());
+  oappend("',1,'<i>(if no Vcc connected)</i>');");  // 0 is field type, 1 is actual field
+  oappend("addInfo('"); oappend(String(_name).c_str()); oappend(":"); oappend(String(_parasitePin).c_str());
+  oappend("',1,'<i>(for external MOSFET)</i>');");  // 0 is field type, 1 is actual field
+  oappend("dd=addDD('"); oappend(String(_name).c_str()); 
+    oappend("','"); oappend(String(_resolution).c_str()); oappend("');");
+  oappend("addO(dd,'0.5 °C (9-bit)',0);");
+  oappend("addO(dd,'0.25°C (10-bit)',1);");
+  oappend("addO(dd,'0.125°C (11-bit)',2);");
+  oappend("addO(dd,'0.0625°C (12-bit)',3);");
+  oappend("addInfo('"); oappend(String(_name).c_str()); oappend(":"); oappend(String(_resolution).c_str());
+  oappend("',1,'<i>(ignored on DS18S20)</i>');");  // 0 is field type, 1 is actual field
 }
 
 float UsermodTemperature::getTemperature() {

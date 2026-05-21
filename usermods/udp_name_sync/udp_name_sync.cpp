@@ -43,7 +43,7 @@ class UdpNameSync : public Usermod {
       if (segmentName[0] != '\0' && !mainseg.name) { // name cleared
         notifierUdp.beginPacket(broadcastIp, udpPort);
         segmentName[0] = '\0';
-        DEBUG_PRINTLN(F("UdpNameSync: sending empty name"));
+        DEBUG_PRINTLN("UdpNameSync: sending empty name");
         udpOut[1] = 0; // explicit empty string
         notifierUdp.write(udpOut, 2);
         notifierUdp.endPacket();
@@ -51,20 +51,20 @@ class UdpNameSync : public Usermod {
       }
 
       notifierUdp.beginPacket(broadcastIp, udpPort);
-      DEBUG_PRINT(F("UdpNameSync: saving segment name "));
+      DEBUG_PRINT("UdpNameSync: saving segment name ");
       DEBUG_PRINTLN(curName);
       strlcpy(segmentName, curName, sizeof(segmentName));
       strlcpy((char *)&udpOut[1], segmentName, sizeof(udpOut) - 1); // leave room for header byte
       size_t nameLen = strnlen((char *)&udpOut[1], sizeof(udpOut) - 1);
       notifierUdp.write(udpOut, 2 + nameLen);
       notifierUdp.endPacket();
-      DEBUG_PRINT(F("UdpNameSync: Sent segment name : "));
+      DEBUG_PRINT("UdpNameSync: Sent segment name : ");
       DEBUG_PRINTLN(segmentName);
       return;
     }
 
     bool onUdpPacket(uint8_t * payload, size_t len) override {
-      DEBUG_PRINT(F("UdpNameSync: Received packet"));
+      DEBUG_PRINT("UdpNameSync: Received packet");
       if (!enabled) return false;
       if (receiveDirect) return false;
       if (len < 2) return false;                 // need type + at least 1 byte for name (can be 0)
@@ -76,7 +76,7 @@ class UdpNameSync : public Usermod {
       memcpy(tmp, &payload[1], copyLen);
       tmp[copyLen] = '\0';
       mainseg.setName(tmp);
-      DEBUG_PRINT(F("UdpNameSync: set segment name"));
+      DEBUG_PRINT("UdpNameSync: set segment name");
       return true;
      }
 };

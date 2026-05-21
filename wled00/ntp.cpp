@@ -178,7 +178,7 @@ void handleTime() {
   if (toki.isTick()) //true only in the first loop after a new second started
   {
     #ifdef WLED_DEBUG_NTP
-    Serial.print(F("TICK! "));
+    Serial.print("TICK! ");
     toki.printTime(toki.getTime());
     #endif
     updateLocalTime();
@@ -204,7 +204,7 @@ void handleNetworkTime()
         AsyncDNS::result res = ntpDNSlookup ? ntpDNSlookup->status() : AsyncDNS::result::Idle;
         switch (res) {
           case AsyncDNS::result::Idle:
-            //DEBUG_PRINTF_P(PSTR("Resolving NTP server name: %s\n"), ntpServerName);
+            //DEBUG_PRINTF_P("Resolving NTP server name: %s\n", ntpServerName);
             ntpDNSlookup = AsyncDNS::query(ntpServerName, ntpDNSlookup); // start dnslookup asynchronously
             return;
 
@@ -213,13 +213,13 @@ void handleNetworkTime()
 
           case AsyncDNS::result::Success:
             ntpServerIP = ntpDNSlookup->getIP();
-            DEBUG_PRINTF_P(PSTR("NTP IP resolved: %s\n"), ntpServerIP.toString().c_str());
+            DEBUG_PRINTF_P("NTP IP resolved: %s\n", ntpServerIP.toString().c_str());
             sendNTPPacket();
             ntpDNSlookup.reset();
             break;
 
           case AsyncDNS::result::Error:
-            DEBUG_PRINTLN(F("NTP DNS failed"));
+            DEBUG_PRINTLN("NTP DNS failed");
             if (ntpDNSlookup->getErrorCount() > 6) {
               // after 6 failed attempts (30min), reset network connection as dns is probably stuck (TODO: IDF bug, should be fixed in V5)
               if (offMode) forceReconnect = true; // do not disturb while LEDs are running
@@ -245,7 +245,7 @@ void handleNetworkTime()
 static void sendNTPPacket()
 {
 
-  DEBUG_PRINTLN(F("send NTP"));
+  DEBUG_PRINTLN("send NTP");
   byte pbuf[NTP_PACKET_SIZE];
   memset(pbuf, 0, NTP_PACKET_SIZE);
 
@@ -292,7 +292,7 @@ static bool checkNTPResponse()
   }
 
   uint32_t ntpPacketReceivedTime = millis();
-  DEBUG_PRINTF_P(PSTR("NTP recv, l=%d\n"), cb);
+  DEBUG_PRINTF_P("NTP recv, l=%d\n", cb);
   byte pbuf[NTP_PACKET_SIZE];
   ntpUdp.read(pbuf, NTP_PACKET_SIZE); // read the packet into the buffer
   if (!isValidNtpResponse(pbuf)) return false;  // verify we have a valid response to client
@@ -347,10 +347,10 @@ void getTimeString(char* out)
     if (hr > 11) hr -= 12;
     if (hr == 0) hr  = 12;
   }
-  sprintf_P(out,PSTR("%i-%i-%i, %02d:%02d:%02d"),year(localTime), month(localTime), day(localTime), hr, minute(localTime), second(localTime));
+  sprintf(out,"%i-%i-%i, %02d:%02d:%02d",year(localTime), month(localTime), day(localTime), hr, minute(localTime), second(localTime));
   if (useAMPM)
   {
-    strcat_P(out,PSTR(" "));
+    strcat(out," ");
     strcat(out,(hour(localTime) > 11)? "PM":"AM");
   }
 }
@@ -417,7 +417,7 @@ void checkTimers()
   if (lastTimerMinute != minute(localTime)) {
     lastTimerMinute = minute(localTime);
     if (!hour(localTime) && minute(localTime)==1) calculateSunriseAndSunset();
-    DEBUG_PRINTF_P(PSTR("Local time: %02d:%02d\n"), hour(localTime), minute(localTime));
+    DEBUG_PRINTF_P("Local time: %02d:%02d\n", hour(localTime), minute(localTime));
     for (size_t i = 0; i < timers.size(); i++) {
       const Timer& t = timers[i];
       if (!t.isEnabled()) continue;
@@ -444,9 +444,9 @@ void checkTimers()
         if (!isTodayInDateRange(t.monthStart, t.dayStart, t.monthEnd, t.dayEnd)) continue;
         applyPreset(t.preset);
         #ifdef WLED_DEBUG
-        if (t.isSunrise()) DEBUG_PRINTF_P(PSTR("Sunrise timer %d offset %d\n"), t.preset, t.minute);
-        else if (t.isSunset()) DEBUG_PRINTF_P(PSTR("Sunset timer %d offset %d\n"), t.preset, t.minute);
-        else DEBUG_PRINTF_P(PSTR("Timer %d: preset %d\n"), i, t.preset);
+        if (t.isSunrise()) DEBUG_PRINTF_P("Sunrise timer %d offset %d\n", t.preset, t.minute);
+        else if (t.isSunset()) DEBUG_PRINTF_P("Sunset timer %d offset %d\n", t.preset, t.minute);
+        else DEBUG_PRINTF_P("Timer %d: preset %d\n", i, t.preset);
         #endif
       }
     }
@@ -525,7 +525,7 @@ void calculateSunriseAndSunset() {
     do {
       time_t theDay = localTime - retryCount * 86400; // one day back = 86400 seconds
       minUTC = getSunriseUTC(year(theDay), month(theDay), day(theDay), latitude, longitude, false);
-      DEBUG_PRINTF_P(PSTR("* sunrise (minutes from UTC) = %d\n"), minUTC);
+      DEBUG_PRINTF_P("* sunrise (minutes from UTC) = %d\n", minUTC);
       retryCount ++;
     } while ((abs(minUTC) > SUNSET_MAX)  && (retryCount <= 3));
 
@@ -535,7 +535,7 @@ void calculateSunriseAndSunset() {
       tim_0.tm_hour = minUTC / 60;
       tim_0.tm_min = minUTC % 60;
       sunrise = tz->toLocal(mktime(&tim_0) + utcOffsetSecs);
-      DEBUG_PRINTF_P(PSTR("Sunrise: %02d:%02d\n"), hour(sunrise), minute(sunrise));
+      DEBUG_PRINTF_P("Sunrise: %02d:%02d\n", hour(sunrise), minute(sunrise));
     } else {
       sunrise = 0;
     }
@@ -544,7 +544,7 @@ void calculateSunriseAndSunset() {
     do {
       time_t theDay = localTime - retryCount * 86400; // one day back = 86400 seconds
       minUTC = getSunriseUTC(year(theDay), month(theDay), day(theDay), latitude, longitude, true);
-      DEBUG_PRINTF_P(PSTR("* sunset  (minutes from UTC) = %d\n"), minUTC);
+      DEBUG_PRINTF_P("* sunset  (minutes from UTC) = %d\n", minUTC);
       retryCount ++;
     } while ((abs(minUTC) > SUNSET_MAX)  && (retryCount <= 3));
 
@@ -554,7 +554,7 @@ void calculateSunriseAndSunset() {
       tim_0.tm_hour = minUTC / 60;
       tim_0.tm_min = minUTC % 60;
       sunset = tz->toLocal(mktime(&tim_0) + utcOffsetSecs);
-      DEBUG_PRINTF_P(PSTR("Sunset: %02d:%02d\n"), hour(sunset), minute(sunset));
+      DEBUG_PRINTF_P("Sunset: %02d:%02d\n", hour(sunset), minute(sunset));
     } else {
       sunset = 0;
     }
@@ -580,33 +580,33 @@ void setTimeFromAPI(uint32_t timein) {
 void addTimer(uint8_t preset, uint8_t hour, int8_t minute, uint8_t weekdays,
               uint8_t monthStart, uint8_t monthEnd, uint8_t dayStart, uint8_t dayEnd) {
   if (hour > 24 && hour != TH_SUNSET && hour != TH_SUNRISE) {
-    DEBUG_PRINTLN(F("Timer: Invalid hour value"));
+    DEBUG_PRINTLN("Timer: Invalid hour value");
     return;
   }
   if (hour == TH_SUNRISE || hour == TH_SUNSET) {
     if (minute < -120 || minute > 120) {
-      DEBUG_PRINTLN(F("Timer: Clamping sunrise/sunset offset to [-120,120]"));
+      DEBUG_PRINTLN("Timer: Clamping sunrise/sunset offset to [-120,120]");
       if (minute < -120) minute = -120;
       else if (minute > 120) minute = 120;
     }
   } else {
     if (minute < 0 || minute > 59) {
-      DEBUG_PRINTLN(F("Timer: Invalid minute value"));
+      DEBUG_PRINTLN("Timer: Invalid minute value");
       return;
     }
   }
   if ((monthStart != 0 && monthStart > 12) ||
       (monthEnd != 0 && monthEnd > 12)) {
-    DEBUG_PRINTLN(F("Timer: Invalid month range"));
+    DEBUG_PRINTLN("Timer: Invalid month range");
     return;
   }
   if ((dayStart != 0 && dayStart > 31) ||
       (dayEnd != 0 && dayEnd > 31)) {
-    DEBUG_PRINTLN(F("Timer: Invalid day range"));
+    DEBUG_PRINTLN("Timer: Invalid day range");
     return;
   }
   if (timers.size() >= WLED_MAX_TIMERS) {
-    DEBUG_PRINTLN(F("Timer: Maximum number of timers reached"));
+    DEBUG_PRINTLN("Timer: Maximum number of timers reached");
     return;
   }
   Timer t(preset, hour, minute, weekdays, monthStart, monthEnd, dayStart, dayEnd);
@@ -623,7 +623,7 @@ void removeTimer(size_t index) {
 
 void clearTimers() {
   timers.clear();
-  DEBUG_PRINTLN(F("All timers cleared"));
+  DEBUG_PRINTLN("All timers cleared");
 }
 
 size_t getTimerCount() {

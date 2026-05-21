@@ -1106,7 +1106,7 @@ static void mode_morsecode(void) {
 
   if (SEGMENT.name) len = strlen(SEGMENT.name);
   if (len == 0) {
-    strcpy_P(text, PSTR("I Love WLED!"));
+    strcpy(text, "I Love WLED!");
   } else {
     strcpy(text, SEGMENT.name);
   }
@@ -1291,12 +1291,12 @@ class UserFxUsermod : public Usermod {
 
   // void addToConfig(JsonObject& root) override
   // {
-  //   JsonObject top = root.createNestedObject(FPSTR("User FX"));
+  //   JsonObject top = root.createNestedObject("User FX");
   //   top["myConfigValue"] = myConfigValue;
   // }
   // bool readFromConfig(JsonObject& root) override
   // {
-  //   JsonObject top = root[FPSTR("User FX")];
+  //   JsonObject top = root["User FX"];
   //   bool configComplete = !top.isNull();
   //   configComplete &= getJsonValue(top["myConfigValue"], myConfigValue);
   //   return configComplete;

@@ -6395,9 +6395,9 @@ void mode_2Dscrollingtext(void) {
   if (useAMPM) {
     if (AmPmHour > 11) { AmPmHour -= 12; isitAM = false; }
     if (AmPmHour == 0) { AmPmHour  = 12; }
-    sprintf_P(sec, PSTR(" %2s"), (isitAM ? "AM" : "PM"));
+    sprintf(sec, " %2s", (isitAM ? "AM" : "PM"));
   } else {
-    sprintf_P(sec, PSTR(":%02d"), second(localTime));
+    sprintf(sec, ":%02d", second(localTime));
   }
 
   // prepare text string from segment name
@@ -6405,7 +6405,7 @@ void mode_2Dscrollingtext(void) {
   if (SEGMENT.name) len = strlen(SEGMENT.name); // note: SEGMENT.name is limited to WLED_MAX_SEGNAME_LEN
   if (len == 0) {
     // fallback if empty segment name: display date and time "#MON #DD #YYYY #TIME"
-    sprintf_P(text, PSTR("%s %d, %d %d:%02d%s"), monthShortStr(month(localTime)), day(localTime), year(localTime), AmPmHour, minute(localTime), sec);
+    sprintf(text, "%s %d, %d %d:%02d%s", monthShortStr(month(localTime)), day(localTime), year(localTime), AmPmHour, minute(localTime), sec);
     fontManager.cacheNumbers(true); // cache all numbers when using clock to avoid frequent re-caching
   } else {
     size_t i = 0;
@@ -6425,22 +6425,22 @@ void mode_2Dscrollingtext(void) {
 
         // Process token
         char temp[32];
-        if      (!strncmp_P(token,PSTR("#DATE"),5))  sprintf_P(temp, zero?PSTR("%02d.%02d.%04d"):PSTR("%d.%d.%d"),   day(localTime),   month(localTime),  year(localTime));
-        else if (!strncmp_P(token,PSTR("#DDMM"),5))  sprintf_P(temp, zero?PSTR("%02d.%02d")     :PSTR("%d.%d"),      day(localTime),   month(localTime));
-        else if (!strncmp_P(token,PSTR("#MMDD"),5))  sprintf_P(temp, zero?PSTR("%02d/%02d")     :PSTR("%d/%d"),      month(localTime), day(localTime));
-        else if (!strncmp_P(token,PSTR("#TIME"),5))  sprintf_P(temp, zero?PSTR("%02d:%02d%s")   :PSTR("%2d:%02d%s"), AmPmHour,         minute(localTime), sec);
-        else if (!strncmp_P(token,PSTR("#HHMM"),5))  sprintf_P(temp, zero?PSTR("%02d:%02d")     :PSTR("%d:%02d"),    AmPmHour,         minute(localTime));
-        else if (!strncmp_P(token,PSTR("#YYYY"),5))  sprintf_P(temp,          PSTR("%04d")                 ,         year(localTime));
-        else if (!strncmp_P(token,PSTR("#MONL"),5))  sprintf  (temp,          ("%s")                       ,         monthStr(month(localTime)));
-        else if (!strncmp_P(token,PSTR("#DDDD"),5))  sprintf  (temp,          ("%s")                       ,         dayStr(weekday(localTime)));
-        else if (!strncmp_P(token,PSTR("#YY"),3))  { sprintf  (temp,          ("%02d")                     ,         year(localTime)%100); advance = 3; }
-        else if (!strncmp_P(token,PSTR("#HH"),3))  { sprintf  (temp, zero?    ("%02d")          :    ("%d"),         AmPmHour); advance = 3; }
-        else if (!strncmp_P(token,PSTR("#MM"),3))  { sprintf  (temp, zero?    ("%02d")          :    ("%d"),         minute(localTime)); advance = 3; }
-        else if (!strncmp_P(token,PSTR("#SS"),3))  { sprintf  (temp, zero?    ("%02d")          :    ("%d"),         second(localTime)); advance = 3; }
-        else if (!strncmp_P(token,PSTR("#MON"),4)) { sprintf  (temp,          ("%s")                       ,         monthShortStr(month(localTime))); advance = 4; }
-        else if (!strncmp_P(token,PSTR("#MO"),3))  { sprintf  (temp, zero?    ("%02d")          :    ("%d"),         month(localTime)); advance = 3; }
-        else if (!strncmp_P(token,PSTR("#DAY"),4)) { sprintf  (temp,          ("%s")                       ,         dayShortStr(weekday(localTime))); advance = 4; }
-        else if (!strncmp_P(token,PSTR("#DD"),3))  { sprintf  (temp, zero?    ("%02d")          :    ("%d"),         day(localTime)); advance = 3; }
+        if      (!strncmp(token,"#DATE",5))  sprintf(temp, zero?"%02d.%02d.%04d":"%d.%d.%d",   day(localTime),   month(localTime),  year(localTime));
+        else if (!strncmp(token,"#DDMM",5))  sprintf(temp, zero?"%02d.%02d"     :"%d.%d",      day(localTime),   month(localTime));
+        else if (!strncmp(token,"#MMDD",5))  sprintf(temp, zero?"%02d/%02d"     :"%d/%d",      month(localTime), day(localTime));
+        else if (!strncmp(token,"#TIME",5))  sprintf(temp, zero?"%02d:%02d%s"   :"%2d:%02d%s", AmPmHour,         minute(localTime), sec);
+        else if (!strncmp(token,"#HHMM",5))  sprintf(temp, zero?"%02d:%02d"     :"%d:%02d",    AmPmHour,         minute(localTime));
+        else if (!strncmp(token,"#YYYY",5))  sprintf(temp,          "%04d"                 ,         year(localTime));
+        else if (!strncmp(token,"#MONL",5))  sprintf  (temp,          ("%s")                       ,         monthStr(month(localTime)));
+        else if (!strncmp(token,"#DDDD",5))  sprintf  (temp,          ("%s")                       ,         dayStr(weekday(localTime)));
+        else if (!strncmp(token,"#YY",3))  { sprintf  (temp,          ("%02d")                     ,         year(localTime)%100); advance = 3; }
+        else if (!strncmp(token,"#HH",3))  { sprintf  (temp, zero?    ("%02d")          :    ("%d"),         AmPmHour); advance = 3; }
+        else if (!strncmp(token,"#MM",3))  { sprintf  (temp, zero?    ("%02d")          :    ("%d"),         minute(localTime)); advance = 3; }
+        else if (!strncmp(token,"#SS",3))  { sprintf  (temp, zero?    ("%02d")          :    ("%d"),         second(localTime)); advance = 3; }
+        else if (!strncmp(token,"#MON",4)) { sprintf  (temp,          ("%s")                       ,         monthShortStr(month(localTime))); advance = 4; }
+        else if (!strncmp(token,"#MO",3))  { sprintf  (temp, zero?    ("%02d")          :    ("%d"),         month(localTime)); advance = 3; }
+        else if (!strncmp(token,"#DAY",4)) { sprintf  (temp,          ("%s")                       ,         dayShortStr(weekday(localTime))); advance = 4; }
+        else if (!strncmp(token,"#DD",3))  { sprintf  (temp, zero?    ("%02d")          :    ("%d"),         day(localTime)); advance = 3; }
         else { temp[0] = '#'; temp[1] = '\0'; zero = false; advance = 1; } // Unknown token, just copy the #
 
         if(zero) advance++; // skip the '0' suffix

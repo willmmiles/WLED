@@ -132,32 +132,32 @@ class UsermodBattery : public Usermod
       StaticJsonDocument<600> doc;
       char uid[128], json_str[1024], buf[128];
 
-      doc[F("name")] = name;
-      doc[F("stat_t")] = topic;
-      sprintf_P(uid, PSTR("%s_%s_%s"), escapedMac.c_str(), stringToLower(name).c_str(), type);
-      doc[F("uniq_id")] = uid;
-      doc[F("dev_cla")] = deviceClass;
-      doc[F("exp_aft")] = 1800;
+      doc["name"] = name;
+      doc["stat_t"] = topic;
+      sprintf(uid, "%s_%s_%s", escapedMac.c_str(), stringToLower(name).c_str(), type);
+      doc["uniq_id"] = uid;
+      doc["dev_cla"] = deviceClass;
+      doc["exp_aft"] = 1800;
 
       if(type == "binary_sensor") {
-        doc[F("pl_on")]  = "on";
-        doc[F("pl_off")] = "off";
+        doc["pl_on"]  = "on";
+        doc["pl_off"] = "off";
       }
 
       if(unitOfMeasurement != "")
-        doc[F("unit_of_measurement")] = unitOfMeasurement;
+        doc["unit_of_measurement"] = unitOfMeasurement;
 
       if(isDiagnostic)
-        doc[F("entity_category")] = "diagnostic";
+        doc["entity_category"] = "diagnostic";
 
-      JsonObject device = doc.createNestedObject(F("device")); // attach the sensor to the same device
-      device[F("name")] = serverDescription;
-      device[F("ids")]  = String(F("wled-sensor-")) + mqttClientID;
-      device[F("mf")]   = F(WLED_BRAND);
-      device[F("mdl")]  = F(WLED_PRODUCT_NAME);
-      device[F("sw")]   = versionString;
+      JsonObject device = doc.createNestedObject("device"); // attach the sensor to the same device
+      device["name"] = serverDescription;
+      device["ids"]  = String("wled-sensor-") + mqttClientID;
+      device["mf"]   = WLED_BRAND;
+      device["mdl"]  = WLED_PRODUCT_NAME;
+      device["sw"]   = versionString;
 
-      sprintf_P(buf, PSTR("homeassistant/%s/%s/%s/config"), type, mqttClientID, uid);
+      sprintf(buf, "homeassistant/%s/%s/%s/config", type, mqttClientID, uid);
       DEBUG_PRINTLN(buf);
       size_t payload_size = serializeJson(doc, json_str);
       DEBUG_PRINTLN(json_str);
@@ -169,7 +169,7 @@ class UsermodBattery : public Usermod
     {
       if (WLED_MQTT_CONNECTED) {
         char buf[128];
-        snprintf_P(buf, 127, PSTR("%s/%s"), mqttDeviceTopic, topic);
+        snprintf(buf, 127, "%s/%s", mqttDeviceTopic, topic);
         mqtt->publish(buf, 0, false, state);
       }
     }
@@ -196,15 +196,15 @@ class UsermodBattery : public Usermod
 
       #ifdef ARDUINO_ARCH_ESP32
         bool success = false;
-        DEBUG_PRINTLN(F("Allocating battery pin..."));
+        DEBUG_PRINTLN("Allocating battery pin...");
         if (batteryPin >= 0 && digitalPinToAnalogChannel(batteryPin) >= 0) 
           if (PinManager::allocatePin(batteryPin, false, PinOwner::UM_Battery)) {
-            DEBUG_PRINTLN(F("Battery pin allocation succeeded."));
+            DEBUG_PRINTLN("Battery pin allocation succeeded.");
             success = true;
           }
 
         if (!success) {
-          DEBUG_PRINTLN(F("Battery pin allocation failed."));
+          DEBUG_PRINTLN("Battery pin allocation failed.");
           batteryPin = -1;  // allocation failed
         } else {
           pinMode(batteryPin, INPUT);
@@ -300,82 +300,82 @@ class UsermodBattery : public Usermod
       if (user.isNull()) user = root.createNestedObject("u");
 
       if (batteryPin < 0) {
-        JsonArray infoVoltage = user.createNestedArray(F("Battery voltage"));
-        infoVoltage.add(F("n/a"));
-        infoVoltage.add(F(" invalid GPIO"));
+        JsonArray infoVoltage = user.createNestedArray("Battery voltage");
+        infoVoltage.add("n/a");
+        infoVoltage.add(" invalid GPIO");
         return;  // no GPIO - nothing to report
       }
 
       // info modal display names
-      JsonArray infoPercentage = user.createNestedArray(F("Battery level"));
-      JsonArray infoVoltage = user.createNestedArray(F("Battery voltage"));
-      JsonArray infoNextUpdate = user.createNestedArray(F("Next update"));
+      JsonArray infoPercentage = user.createNestedArray("Battery level");
+      JsonArray infoVoltage = user.createNestedArray("Battery voltage");
+      JsonArray infoNextUpdate = user.createNestedArray("Next update");
 
       infoNextUpdate.add((nextReadTime - millis()) / 1000);
-      infoNextUpdate.add(F(" sec"));
+      infoNextUpdate.add(" sec");
       
       if (initializing) {
-        infoPercentage.add(FPSTR(_init));
-        infoVoltage.add(FPSTR(_init));
+        infoPercentage.add(_init);
+        infoVoltage.add(_init);
         return;
       }
 
       if (bat->getLevel() < 0) {
-        infoPercentage.add(F("invalid"));
+        infoPercentage.add("invalid");
       } else {
         infoPercentage.add(bat->getLevel());
       }
-      infoPercentage.add(F(" %"));
+      infoPercentage.add(" %");
 
       if (bat->getVoltage() < 0) {
-        infoVoltage.add(F("invalid"));
+        infoVoltage.add("invalid");
       } else {
         infoVoltage.add(dot2round(bat->getVoltage()));
       }
-      infoVoltage.add(F(" V"));
+      infoVoltage.add(" V");
     }
 
     void addBatteryToJsonObject(JsonObject& battery, bool forJsonState)
     {
-      if(forJsonState) { battery[F("type")] = cfg.type; } else {battery[F("type")] = (String)cfg.type; }  // has to be a String otherwise it won't get converted to a Dropdown
-      battery[F("min-voltage")] = bat->getMinVoltage();
-      battery[F("max-voltage")] = bat->getMaxVoltage();
-      battery[F("calibration")] = bat->getCalibration();
-      battery[F("voltage-multiplier")] = bat->getVoltageMultiplier();
-      battery[FPSTR(_readInterval)] = readingInterval;
-      battery[FPSTR(_haDiscovery)] = HomeAssistantDiscovery;
+      if(forJsonState) { battery["type"] = cfg.type; } else {battery["type"] = (String)cfg.type; }  // has to be a String otherwise it won't get converted to a Dropdown
+      battery["min-voltage"] = bat->getMinVoltage();
+      battery["max-voltage"] = bat->getMaxVoltage();
+      battery["calibration"] = bat->getCalibration();
+      battery["voltage-multiplier"] = bat->getVoltageMultiplier();
+      battery[_readInterval] = readingInterval;
+      battery[_haDiscovery] = HomeAssistantDiscovery;
 
-      JsonObject ao = battery.createNestedObject(F("auto-off"));  // auto off section
-      ao[FPSTR(_enabled)] = autoOffEnabled;
-      ao[FPSTR(_threshold)] = autoOffThreshold;
+      JsonObject ao = battery.createNestedObject("auto-off");  // auto off section
+      ao[_enabled] = autoOffEnabled;
+      ao[_threshold] = autoOffThreshold;
 
-      JsonObject lp = battery.createNestedObject(F("indicator")); // low power section
-      lp[FPSTR(_enabled)] = lowPowerIndicatorEnabled;
-      lp[FPSTR(_preset)] = lowPowerIndicatorPreset; // dropdown trickery (String)lowPowerIndicatorPreset; 
-      lp[FPSTR(_threshold)] = lowPowerIndicatorThreshold;
-      lp[FPSTR(_duration)] = lowPowerIndicatorDuration;
+      JsonObject lp = battery.createNestedObject("indicator"); // low power section
+      lp[_enabled] = lowPowerIndicatorEnabled;
+      lp[_preset] = lowPowerIndicatorPreset; // dropdown trickery (String)lowPowerIndicatorPreset; 
+      lp[_threshold] = lowPowerIndicatorThreshold;
+      lp[_duration] = lowPowerIndicatorDuration;
     }
 
     void getUsermodConfigFromJsonObject(JsonObject& battery)
     {
-      getJsonValue(battery[F("type")], cfg.type);
-      getJsonValue(battery[F("min-voltage")], cfg.minVoltage);
-      getJsonValue(battery[F("max-voltage")], cfg.maxVoltage);
-      getJsonValue(battery[F("calibration")], cfg.calibration);
-      getJsonValue(battery[F("voltage-multiplier")], cfg.voltageMultiplier);
-      setReadingInterval(battery[FPSTR(_readInterval)] | readingInterval);
-      setHomeAssistantDiscovery(battery[FPSTR(_haDiscovery)] | HomeAssistantDiscovery);
+      getJsonValue(battery["type"], cfg.type);
+      getJsonValue(battery["min-voltage"], cfg.minVoltage);
+      getJsonValue(battery["max-voltage"], cfg.maxVoltage);
+      getJsonValue(battery["calibration"], cfg.calibration);
+      getJsonValue(battery["voltage-multiplier"], cfg.voltageMultiplier);
+      setReadingInterval(battery[_readInterval] | readingInterval);
+      setHomeAssistantDiscovery(battery[_haDiscovery] | HomeAssistantDiscovery);
 
-      JsonObject ao = battery[F("auto-off")];
-      setAutoOffEnabled(ao[FPSTR(_enabled)] | autoOffEnabled);
-      setAutoOffThreshold(ao[FPSTR(_threshold)] | autoOffThreshold);
+      JsonObject ao = battery["auto-off"];
+      setAutoOffEnabled(ao[_enabled] | autoOffEnabled);
+      setAutoOffThreshold(ao[_threshold] | autoOffThreshold);
 
-      JsonObject lp = battery[F("indicator")];
-      setLowPowerIndicatorEnabled(lp[FPSTR(_enabled)] | lowPowerIndicatorEnabled);
-      setLowPowerIndicatorPreset(lp[FPSTR(_preset)] | lowPowerIndicatorPreset);
-      setLowPowerIndicatorThreshold(lp[FPSTR(_threshold)] | lowPowerIndicatorThreshold);
+      JsonObject lp = battery["indicator"];
+      setLowPowerIndicatorEnabled(lp[_enabled] | lowPowerIndicatorEnabled);
+      setLowPowerIndicatorPreset(lp[_preset] | lowPowerIndicatorPreset);
+      setLowPowerIndicatorThreshold(lp[_threshold] | lowPowerIndicatorThreshold);
       lowPowerIndicatorReactivationThreshold = lowPowerIndicatorThreshold+10;
-      setLowPowerIndicatorDuration(lp[FPSTR(_duration)] | lowPowerIndicatorDuration);
+      setLowPowerIndicatorDuration(lp[_duration] | lowPowerIndicatorDuration);
       
       if(initDone) 
         bat->update(cfg);
@@ -387,14 +387,14 @@ class UsermodBattery : public Usermod
      */
     void addToJsonState(JsonObject& root)
     {
-      JsonObject battery = root.createNestedObject(FPSTR(_name));
+      JsonObject battery = root.createNestedObject(_name);
 
       if (battery.isNull())
-        battery = root.createNestedObject(FPSTR(_name));
+        battery = root.createNestedObject(_name);
       
       addBatteryToJsonObject(battery, true);
       
-      DEBUG_PRINTLN(F("Battery state exposed in JSON API."));
+      DEBUG_PRINTLN("Battery state exposed in JSON API.");
     }
 
 
@@ -407,12 +407,12 @@ class UsermodBattery : public Usermod
     {
       if (!initDone) return;  // prevent crash on boot applyPreset()
 
-      JsonObject battery = root[FPSTR(_name)];
+      JsonObject battery = root[_name];
 
       if (!battery.isNull()) {
         getUsermodConfigFromJsonObject(battery);
       
-        DEBUG_PRINTLN(F("Battery state read from JSON API."));
+        DEBUG_PRINTLN("Battery state read from JSON API.");
       }
     }
     */
@@ -455,14 +455,14 @@ class UsermodBattery : public Usermod
      */
     void addToConfig(JsonObject& root)
     {
-      JsonObject battery = root.createNestedObject(FPSTR(_name));
+      JsonObject battery = root.createNestedObject(_name);
       
       if (battery.isNull()) {
-        battery = root.createNestedObject(FPSTR(_name));
+        battery = root.createNestedObject(_name);
       }
 
       #ifdef ARDUINO_ARCH_ESP32
-        battery[F("pin")] = batteryPin;
+        battery["pin"] = batteryPin;
       #endif
       
       addBatteryToJsonObject(battery, false);
@@ -470,35 +470,35 @@ class UsermodBattery : public Usermod
       // read voltage in case calibration or voltage multiplier changed to see immediate effect
       bat->setVoltage(readVoltage());
 
-      DEBUG_PRINTLN(F("Battery config saved."));
+      DEBUG_PRINTLN("Battery config saved.");
     }
 
     void appendConfigData()
     {
       // Total: 462 Bytes
-      oappend(F("td=addDropdown('Battery','type');"));              // 34 Bytes
-      oappend(F("addOption(td,'Unkown','0');"));                    // 28 Bytes
-      oappend(F("addOption(td,'LiPo','1');"));                      // 26 Bytes
-      oappend(F("addOption(td,'LiOn','2');"));                      // 26 Bytes
-      oappend(F("addInfo('Battery:type',1,'<small style=\"color:orange\">requires reboot</small>');")); // 81 Bytes
-      oappend(F("addInfo('Battery:min-voltage',1,'v');"));          // 38 Bytes
-      oappend(F("addInfo('Battery:max-voltage',1,'v');"));          // 38 Bytes
-      oappend(F("addInfo('Battery:interval',1,'ms');"));            // 36 Bytes
-      oappend(F("addInfo('Battery:HA-discovery',1,'');"));          // 38 Bytes
-      oappend(F("addInfo('Battery:auto-off:threshold',1,'%');"));   // 45 Bytes
-      oappend(F("addInfo('Battery:indicator:threshold',1,'%');"));  // 46 Bytes
-      oappend(F("addInfo('Battery:indicator:duration',1,'s');"));   // 45 Bytes
+      oappend("td=addDropdown('Battery','type');");              // 34 Bytes
+      oappend("addOption(td,'Unkown','0');");                    // 28 Bytes
+      oappend("addOption(td,'LiPo','1');");                      // 26 Bytes
+      oappend("addOption(td,'LiOn','2');");                      // 26 Bytes
+      oappend("addInfo('Battery:type',1,'<small style=\"color:orange\">requires reboot</small>');"); // 81 Bytes
+      oappend("addInfo('Battery:min-voltage',1,'v');");          // 38 Bytes
+      oappend("addInfo('Battery:max-voltage',1,'v');");          // 38 Bytes
+      oappend("addInfo('Battery:interval',1,'ms');");            // 36 Bytes
+      oappend("addInfo('Battery:HA-discovery',1,'');");          // 38 Bytes
+      oappend("addInfo('Battery:auto-off:threshold',1,'%');");   // 45 Bytes
+      oappend("addInfo('Battery:indicator:threshold',1,'%');");  // 46 Bytes
+      oappend("addInfo('Battery:indicator:duration',1,'s');");   // 45 Bytes
       
       // this option list would exeed the oappend() buffer
       // a list of all presets to select one from
-      // oappend(F("bd=addDropdown('Battery:low-power-indicator', 'preset');"));
-      // the loop generates: oappend(F("addOption(bd, 'preset name', preset id);"));
+      // oappend("bd=addDropdown('Battery:low-power-indicator', 'preset');");
+      // the loop generates: oappend("addOption(bd, 'preset name', preset id);");
       // for(int8_t i=1; i < 42; i++) {
-      //   oappend(F("addOption(bd, 'Preset#"));
+      //   oappend("addOption(bd, 'Preset#");
       //   oappendi(i);
-      //   oappend(F("',"));
+      //   oappend("',");
       //   oappendi(i);
-      //   oappend(F(");"));
+      //   oappend(");");
       // }
     }
 
@@ -524,23 +524,23 @@ class UsermodBattery : public Usermod
         int8_t newBatteryPin = batteryPin;
       #endif
       
-      JsonObject battery = root[FPSTR(_name)];
+      JsonObject battery = root[_name];
       if (battery.isNull()) 
       {
-        DEBUG_PRINT(FPSTR(_name));
-        DEBUG_PRINTLN(F(": No config found. (Using defaults.)"));
+        DEBUG_PRINT(_name);
+        DEBUG_PRINTLN(": No config found. (Using defaults.)");
         return false;
       }
 
       #ifdef ARDUINO_ARCH_ESP32
-        newBatteryPin     = battery[F("pin")] | newBatteryPin;
+        newBatteryPin     = battery["pin"] | newBatteryPin;
       #endif
-      setMinBatteryVoltage(battery[F("min-voltage")] | bat->getMinVoltage());
-      setMaxBatteryVoltage(battery[F("max-voltage")] | bat->getMaxVoltage());
-      setCalibration(battery[F("calibration")] | bat->getCalibration());
-      setVoltageMultiplier(battery[F("voltage-multiplier")] | bat->getVoltageMultiplier());
-      setReadingInterval(battery[FPSTR(_readInterval)] | readingInterval);
-      setHomeAssistantDiscovery(battery[FPSTR(_haDiscovery)] | HomeAssistantDiscovery);
+      setMinBatteryVoltage(battery["min-voltage"] | bat->getMinVoltage());
+      setMaxBatteryVoltage(battery["max-voltage"] | bat->getMaxVoltage());
+      setCalibration(battery["calibration"] | bat->getCalibration());
+      setVoltageMultiplier(battery["voltage-multiplier"] | bat->getVoltageMultiplier());
+      setReadingInterval(battery[_readInterval] | readingInterval);
+      setHomeAssistantDiscovery(battery[_haDiscovery] | HomeAssistantDiscovery);
 
       getUsermodConfigFromJsonObject(battery);
 
@@ -549,11 +549,11 @@ class UsermodBattery : public Usermod
         {
           // first run: reading from cfg.json
           batteryPin = newBatteryPin;
-          DEBUG_PRINTLN(F(" config loaded."));
+          DEBUG_PRINTLN(" config loaded.");
         } 
         else 
         {
-          DEBUG_PRINTLN(F(" config (re)loaded."));
+          DEBUG_PRINTLN(" config (re)loaded.");
 
           // changing parameters from settings page
           if (newBatteryPin != batteryPin) 
@@ -567,7 +567,7 @@ class UsermodBattery : public Usermod
         }
       #endif
 
-      return !battery[FPSTR(_readInterval)].isNull();
+      return !battery[_readInterval].isNull();
     }
 
 #ifndef WLED_DISABLE_MQTT
@@ -579,13 +579,13 @@ class UsermodBattery : public Usermod
 
       // battery percentage
       char mqttBatteryTopic[128];
-      snprintf_P(mqttBatteryTopic, 127, PSTR("%s/battery"), mqttDeviceTopic);
-      this->addMqttSensor(F("Battery"), "sensor", mqttBatteryTopic, "battery", "%", true);
+      snprintf(mqttBatteryTopic, 127, "%s/battery", mqttDeviceTopic);
+      this->addMqttSensor("Battery", "sensor", mqttBatteryTopic, "battery", "%", true);
 
       // voltage
       char mqttVoltageTopic[128];
-      snprintf_P(mqttVoltageTopic, 127, PSTR("%s/voltage"), mqttDeviceTopic);
-      this->addMqttSensor(F("Voltage"), "sensor", mqttVoltageTopic, "voltage", "V", true);
+      snprintf(mqttVoltageTopic, 127, "%s/voltage", mqttDeviceTopic);
+      this->addMqttSensor("Voltage", "sensor", mqttVoltageTopic, "voltage", "V", true);
     }
 #endif   
 

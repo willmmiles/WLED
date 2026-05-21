@@ -53,7 +53,7 @@ class UsermodVL53L0XGestures : public Usermod {
       sensor.setTimeout(150);
       if (!sensor.init())
       {
-        DEBUG_PRINTLN(F("Failed to detect and initialize VL53L0X sensor!"));
+        DEBUG_PRINTLN("Failed to detect and initialize VL53L0X sensor!");
       } else {
         sensor.setMeasurementTimingBudget(20000); // set high speed mode
       }
@@ -94,7 +94,7 @@ class UsermodVL53L0XGestures : public Usermod {
         } else if (wasMotionBefore) { //released
           if (!isLongMotion)
           { //short press
-            DEBUG_PRINTLN(F("shortPressAction..."));
+            DEBUG_PRINTLN("shortPressAction...");
             shortPressAction();
           }
           wasMotionBefore = false;

@@ -36,26 +36,26 @@ static void onMqttConnect(bool sessionPresent)
 
   if (mqttDeviceTopic[0] != 0) {
     mqtt->subscribe(mqttDeviceTopic, 0);
-    snprintf_P(subuf, sizeof(subuf)-1, sTopicFormat, MQTT_MAX_TOPIC_LEN, mqttDeviceTopic, "col");
+    snprintf(subuf, sizeof(subuf)-1, sTopicFormat, MQTT_MAX_TOPIC_LEN, mqttDeviceTopic, "col");
     mqtt->subscribe(subuf, 0);
-    snprintf_P(subuf, sizeof(subuf)-1, sTopicFormat, MQTT_MAX_TOPIC_LEN, mqttDeviceTopic, "api");
+    snprintf(subuf, sizeof(subuf)-1, sTopicFormat, MQTT_MAX_TOPIC_LEN, mqttDeviceTopic, "api");
     mqtt->subscribe(subuf, 0);
   }
 
   if (mqttGroupTopic[0] != 0) {
     mqtt->subscribe(mqttGroupTopic, 0);
-    snprintf_P(subuf, sizeof(subuf)-1, sTopicFormat, MQTT_MAX_TOPIC_LEN, mqttGroupTopic, "col");
+    snprintf(subuf, sizeof(subuf)-1, sTopicFormat, MQTT_MAX_TOPIC_LEN, mqttGroupTopic, "col");
     mqtt->subscribe(subuf, 0);
-    snprintf_P(subuf, sizeof(subuf)-1, sTopicFormat, MQTT_MAX_TOPIC_LEN, mqttGroupTopic, "api");
+    snprintf(subuf, sizeof(subuf)-1, sTopicFormat, MQTT_MAX_TOPIC_LEN, mqttGroupTopic, "api");
     mqtt->subscribe(subuf, 0);
   }
 
   UsermodManager::onMqttConnect(sessionPresent);
 
-  DEBUG_PRINTLN(F("MQTT ready"));
+  DEBUG_PRINTLN("MQTT ready");
 
 #ifndef USERMOD_SMARTNEST
-  snprintf_P(subuf, sizeof(subuf)-1, sTopicFormat, MQTT_MAX_TOPIC_LEN, mqttDeviceTopic, "status");
+  snprintf(subuf, sizeof(subuf)-1, sTopicFormat, MQTT_MAX_TOPIC_LEN, mqttDeviceTopic, "status");
   mqtt->publish(subuf, 0, true, "online"); // retain message for a LWT
 #endif
 
@@ -66,11 +66,11 @@ static void onMqttConnect(bool sessionPresent)
 static void onMqttMessage(char* topic, char* payload, AsyncMqttClientMessageProperties properties, size_t len, size_t index, size_t total) {
   static char *payloadStr;
 
-  DEBUG_PRINTF_P(PSTR("MQTT msg: %s\n"), topic);
+  DEBUG_PRINTF_P("MQTT msg: %s\n", topic);
 
   // paranoia check to avoid npe if no payload
   if (payload==nullptr) {
-    DEBUG_PRINTLN(F("no payload -> leave"));
+    DEBUG_PRINTLN("no payload -> leave");
     return;
   }
 
@@ -86,7 +86,7 @@ static void onMqttMessage(char* topic, char* payload, AsyncMqttClientMessageProp
   if (index + len >= total) { // at end
     payloadStr[total] = '\0'; // terminate c style string
   } else {
-    DEBUG_PRINTLN(F("MQTT partial packet received."));
+    DEBUG_PRINTLN("MQTT partial packet received.");
     return; // process next packet
   }
   DEBUG_PRINTLN(payloadStr);
@@ -109,10 +109,10 @@ static void onMqttMessage(char* topic, char* payload, AsyncMqttClientMessageProp
 
   //Prefix is stripped from the topic at this point
 
-  if (strcmp_P(topic, PSTR("/col")) == 0) {
+  if (strcmp(topic, "/col") == 0) {
     colorFromDecOrHexString(colPri, payloadStr);
     colorUpdated(CALL_MODE_DIRECT_CHANGE);
-  } else if (strcmp_P(topic, PSTR("/api")) == 0) {
+  } else if (strcmp(topic, "/api") == 0) {
     if (requestJSONBufferLock(JSON_LOCK_MQTT)) {
       if (payloadStr[0] == '{') { //JSON API
         deserializeJson(*pDoc, payloadStr);
@@ -165,28 +165,28 @@ class bufferPrint : public Print {
 void publishMqtt()
 {
   if (!WLED_MQTT_CONNECTED) return;
-  DEBUG_PRINTLN(F("Publish MQTT"));
+  DEBUG_PRINTLN("Publish MQTT");
 
   #ifndef USERMOD_SMARTNEST
   char s[10];
   char subuf[MQTT_MAX_TOPIC_LEN + 16];
 
-  sprintf_P(s, PSTR("%u"), bri);
-  snprintf_P(subuf, sizeof(subuf)-1, sTopicFormat, MQTT_MAX_TOPIC_LEN, mqttDeviceTopic, "g");
+  sprintf(s, "%u", bri);
+  snprintf(subuf, sizeof(subuf)-1, sTopicFormat, MQTT_MAX_TOPIC_LEN, mqttDeviceTopic, "g");
   mqtt->publish(subuf, 0, retainMqttMsg, s);         // optionally retain message (#2263)
 
-  sprintf_P(s, PSTR("#%06X"), (colPri[3] << 24) | (colPri[0] << 16) | (colPri[1] << 8) | (colPri[2]));
-  snprintf_P(subuf, sizeof(subuf)-1, sTopicFormat, MQTT_MAX_TOPIC_LEN, mqttDeviceTopic, "c");
+  sprintf(s, "#%06X", (colPri[3] << 24) | (colPri[0] << 16) | (colPri[1] << 8) | (colPri[2]));
+  snprintf(subuf, sizeof(subuf)-1, sTopicFormat, MQTT_MAX_TOPIC_LEN, mqttDeviceTopic, "c");
   mqtt->publish(subuf, 0, retainMqttMsg, s);         // optionally retain message (#2263)
 
-  snprintf_P(subuf, sizeof(subuf)-1, sTopicFormat, MQTT_MAX_TOPIC_LEN, mqttDeviceTopic, "status");
+  snprintf(subuf, sizeof(subuf)-1, sTopicFormat, MQTT_MAX_TOPIC_LEN, mqttDeviceTopic, "status");
   mqtt->publish(subuf, 0, true, "online");  // retain message for a LWT
 
   // TODO: use a DynamicBufferList.  Requires a list-read-capable MQTT client API.
   DynamicBuffer buf(1024);
   bufferPrint pbuf(buf.data(), buf.size());
   XML_response(pbuf);
-  snprintf_P(subuf, sizeof(subuf)-1, sTopicFormat, MQTT_MAX_TOPIC_LEN, mqttDeviceTopic, "v");
+  snprintf(subuf, sizeof(subuf)-1, sTopicFormat, MQTT_MAX_TOPIC_LEN, mqttDeviceTopic, "v");
   mqtt->publish(subuf, 0, retainMqttMsg, buf.data(), pbuf.size());   // optionally retain message (#2263)
   #endif
 }
@@ -207,7 +207,7 @@ bool initMqtt()
   }
   if (mqtt->connected()) return true;
 
-  DEBUG_PRINTLN(F("Reconnecting MQTT"));
+  DEBUG_PRINTLN("Reconnecting MQTT");
   IPAddress mqttIP;
   if (mqttIP.fromString(mqttServer)) //see if server is IP or domain
   {
@@ -216,7 +216,7 @@ bool initMqtt()
     #ifdef ARDUINO_ARCH_ESP32
     String mqttMDNS = mqttServer;
     mqttMDNS.toLowerCase(); // make sure we have a lowercase hostname
-    int pos = mqttMDNS.indexOf(F(".local"));
+    int pos = mqttMDNS.indexOf(".local");
     if (pos > 0) mqttMDNS.remove(pos); // remove .local domain if present (and anything following it)
     if (strlen(cmDNS) > 0 && mqttMDNS.length() > 0 && mqttMDNS.indexOf('.') < 0) { // if mDNS is enabled and server does not have domain
       mqttIP = MDNS.queryHost(mqttMDNS.c_str());
@@ -232,7 +232,7 @@ bool initMqtt()
   if (mqttUser[0] && mqttPass[0]) mqtt->setCredentials(mqttUser, mqttPass);
 
   #ifndef USERMOD_SMARTNEST
-  snprintf_P(mqttStatusTopic, sizeof(mqttStatusTopic)-1, sTopicFormat, MQTT_MAX_TOPIC_LEN, mqttDeviceTopic, "status");
+  snprintf(mqttStatusTopic, sizeof(mqttStatusTopic)-1, sTopicFormat, MQTT_MAX_TOPIC_LEN, mqttDeviceTopic, "status");
   mqtt->setWill(mqttStatusTopic, 0, true, "offline"); // LWT message
   #endif
   mqtt->setKeepAlive(MQTT_KEEP_ALIVE_TIME);

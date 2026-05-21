@@ -34,7 +34,7 @@ void handleHue()
 void reconnectHue()
 {
   if (!WLED_CONNECTED || !huePollingEnabled) return;
-  DEBUG_PRINTLN(F("Hue reconnect"));
+  DEBUG_PRINTLN("Hue reconnect");
   if (hueClient == nullptr) {
     hueClient = new AsyncClient();
     hueClient->onConnect(&onHueConnect, hueClient);
@@ -47,13 +47,13 @@ void reconnectHue()
 
 void onHueError(void* arg, AsyncClient* client, int8_t error)
 {
-  DEBUG_PRINTLN(F("Hue err"));
+  DEBUG_PRINTLN("Hue err");
   hueError = HUE_ERROR_TIMEOUT;
 }
 
 void onHueConnect(void* arg, AsyncClient* client)
 {
-  DEBUG_PRINTLN(F("Hue connect"));
+  DEBUG_PRINTLN("Hue connect");
   sendHuePoll();
 }
 
@@ -63,16 +63,16 @@ void sendHuePoll()
   String req = "";
   if (hueAuthRequired)
   {
-    req += F("POST /api HTTP/1.1\r\nHost: ");
+    req += "POST /api HTTP/1.1\r\nHost: ";
     req += hueIP.toString();
-    req += F("\r\nContent-Length: 25\r\n\r\n{\"devicetype\":\"wled#esp\"}");
+    req += "\r\nContent-Length: 25\r\n\r\n{\"devicetype\":\"wled#esp\"}";
   } else
   {
-    req += F("GET /api/");
+    req += "GET /api/";
     req += hueApiKey;
-    req += F("/lights/");
+    req += "/lights/";
     req += String(huePollLightId);
-    req += F(" HTTP/1.1\r\nHost: ");
+    req += " HTTP/1.1\r\nHost: ";
     req += hueIP.toString();
     req += "\r\n\r\n";
   }
@@ -101,7 +101,7 @@ void onHueData(void* arg, AsyncClient* client, void *data, size_t len)
       hueError = HUE_ERROR_JSON_PARSING; return;
     }
 
-    int hueErrorCode = root[0][F("error")]["type"];
+    int hueErrorCode = root[0]["error"]["type"];
     if (hueErrorCode)//hue bridge returned error
     {
       hueError = hueErrorCode;
@@ -116,7 +116,7 @@ void onHueData(void* arg, AsyncClient* client, void *data, size_t len)
 
     if (hueAuthRequired)
     {
-      const char* apikey = root[0][F("success")][F("username")];
+      const char* apikey = root[0]["success"]["username"];
       if (apikey != nullptr && strlen(apikey) < sizeof(hueApiKey))
       {
         strlcpy(hueApiKey, apikey, sizeof(hueApiKey));
@@ -147,7 +147,7 @@ void onHueData(void* arg, AsyncClient* client, void *data, size_t len)
     {
       hueBri = root["bri"];
       hueBri++;
-      const char* cm =root[F("colormode")];
+      const char* cm =root["colormode"];
       if (cm != nullptr) //Color device
       {
         if (strstr(cm,("ct")) != nullptr) //ct mode
@@ -162,7 +162,7 @@ void onHueData(void* arg, AsyncClient* client, void *data, size_t len)
         } else //hs mode
         {
           hueHue = root["hue"];
-          hueSat = root[F("sat")];
+          hueSat = root["sat"];
           hueColormode = 2;
         }
       }

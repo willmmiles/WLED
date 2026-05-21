@@ -564,7 +564,7 @@ void ParticleSystem2D::pointAttractor(const uint32_t particleindex, PSparticle &
 // firemode is only used for PS Fire FX
 void ParticleSystem2D::render() {
   if (framebuffer == nullptr) {
-    PSPRINTLN(F("PS render: no framebuffer!"));
+    PSPRINTLN("PS render: no framebuffer!");
     return;
   }
   CRGBW baseRGB;
@@ -1042,11 +1042,11 @@ void ParticleSystem2D::updatePSpointers(bool isadvanced, bool sizecontrol) {
     }
   }
 #ifdef DEBUG_PS
-  Serial.printf_P(PSTR(" particles %p "), particles);
-  Serial.printf_P(PSTR(" sources %p "), sources);
-  Serial.printf_P(PSTR(" adv. props %p "), advPartProps);
-  Serial.printf_P(PSTR(" adv. ctrl %p "), advPartSize);
-  Serial.printf_P(PSTR("end %p\n"), PSdataEnd);
+  Serial.printf(" particles %p ", particles);
+  Serial.printf(" sources %p ", sources);
+  Serial.printf(" adv. props %p ", advPartProps);
+  Serial.printf(" adv. ctrl %p ", advPartSize);
+  Serial.printf("end %p\n", PSdataEnd);
   #endif
 
 }
@@ -1112,21 +1112,21 @@ bool initParticleSystem2D(ParticleSystem2D *&PartSys, uint32_t requestedsources,
   bool allocsuccess = false;
   while(numparticles >= 5) { // make sure we have at least 5 particles or quit
     if (allocateParticleSystemMemory2D(numparticles, numsources, advanced, sizecontrol, additionalbytes)) {
-      PSPRINTLN(F("PS 2D alloc succeeded"));
+      PSPRINTLN("PS 2D alloc succeeded");
       allocsuccess = true;
       break; // allocation succeeded
     }
     numparticles = ((numparticles / 2) + 3) & ~0x03; // cut number of particles in half and try again, must be 4 byte aligned
-    PSPRINTLN(F("PS 2D alloc failed, trying with less particles..."));
+    PSPRINTLN("PS 2D alloc failed, trying with less particles...");
   }
   if (!allocsuccess) {
-    PSPRINTLN(F("PS 2D alloc failed, not enough memory!"));
+    PSPRINTLN("PS 2D alloc failed, not enough memory!");
     return false; // allocation failed
   }
 
   PartSys = new (SEGENV.data) ParticleSystem2D(cols, rows, numparticles, numsources, advanced, sizecontrol); // particle system constructor
 
-  PSPRINTLN(F("2D PS init done"));
+  PSPRINTLN("2D PS init done");
   return true;
 }
 
@@ -1429,7 +1429,7 @@ void ParticleSystem1D::applyFriction(int32_t coefficient) {
 // warning: do not render out of bounds particles or system will crash! rendering does not check if particle is out of bounds
 void ParticleSystem1D::render() {
   if (framebuffer == nullptr) {
-    PSPRINTLN(F("PS render: no framebuffer!"));
+    PSPRINTLN("PS render: no framebuffer!");
     return;
   }
   CRGBW baseRGB;
@@ -1854,15 +1854,15 @@ bool initParticleSystem1D(ParticleSystem1D *&PartSys, const uint32_t requestedso
   bool allocsuccess = false;
   while(numparticles >= 10) { // make sure we have at least 10 particles or quit
     if (allocateParticleSystemMemory1D(numparticles, numsources, advanced, additionalbytes)) {
-      PSPRINT(F("PS 1D alloc succeeded"));
+      PSPRINT("PS 1D alloc succeeded");
       allocsuccess = true;
       break; // allocation succeeded
     }
     numparticles = ((numparticles / 2) + 3) & ~0x03; // cut number of particles in half and try again, must be 4 byte aligned
-    PSPRINTLN(F("PS 1D alloc failed, trying with less particles..."));
+    PSPRINTLN("PS 1D alloc failed, trying with less particles...");
   }
   if (!allocsuccess) {
-    PSPRINTLN(F("PS init failed: memory depleted"));
+    PSPRINTLN("PS init failed: memory depleted");
     return false; // allocation failed
   }
   PartSys = new (SEGENV.data) ParticleSystem1D(SEGMENT.virtualLength(), numparticles, numsources, advanced); // particle system constructor

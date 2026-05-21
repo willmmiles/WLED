@@ -65,7 +65,7 @@ class DeepSleepUsermod : public Usermod {
           return true;
       }
     #endif
-      DEBUG_PRINTLN(F("Error: unsupported deep sleep wake-up pin"));
+      DEBUG_PRINTLN("Error: unsupported deep sleep wake-up pin");
       return false;
     }
 
@@ -171,7 +171,7 @@ class DeepSleepUsermod : public Usermod {
         }
         return;
       }
-      DEBUG_PRINTLN(F("DeepSleep UM: entering deep sleep..."));
+      DEBUG_PRINTLN("DeepSleep UM: entering deep sleep...");
       powerup = false; // turn leds on in all subsequent bootups (overrides Turn LEDs on after power up/reset' at reboot)
       if (!pin_is_valid(wakeupPin)) return;
       esp_err_t halerror = ESP_OK;
@@ -240,15 +240,15 @@ class DeepSleepUsermod : public Usermod {
     #endif
       WiFi.mode(WIFI_OFF);  // Completely shut down the Wi-Fi module
       if (halerror == ESP_OK) esp_deep_sleep_start(); // go into deep sleep
-      else DEBUG_PRINTLN(F("sleep failed"));
+      else DEBUG_PRINTLN("sleep failed");
     }
 
     //void connected() {} //unused, this is called every time the WiFi is (re)connected
 
     void addToConfig(JsonObject& root) override
     {
-      JsonObject top = root.createNestedObject(FPSTR(_name));
-      top[FPSTR(_enabled)] = enabled;
+      JsonObject top = root.createNestedObject(_name);
+      top[_enabled] = enabled;
       //save these vars persistently whenever settings are saved
       top["gpio"] = wakeupPin;
       top["wakeWhen"] = wakeWhenHigh;
@@ -266,10 +266,10 @@ class DeepSleepUsermod : public Usermod {
     {
       // default settings values could be set here (or below using the 3-argument getJsonValue()) instead of in the class definition or constructor
       // setting them inside readFromConfig() is slightly more robust, handling the rare but plausible use case of single value being missing after boot (e.g. if the cfg.json was manually edited and a value was removed)
-      JsonObject top = root[FPSTR(_name)];
+      JsonObject top = root[_name];
       bool configComplete = !top.isNull();
 
-      configComplete &= getJsonValue(top[FPSTR(_enabled)], enabled);
+      configComplete &= getJsonValue(top[_enabled], enabled);
       configComplete &= getJsonValue(top["gpio"], wakeupPin, DEEPSLEEP_WAKEUPPIN);
       if (!pin_is_valid(wakeupPin)) {
           wakeupPin = 0; // set to 0 if invalid

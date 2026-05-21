@@ -188,18 +188,18 @@ bool initEthernet()
   static bool successfullyConfiguredEthernet = false;
 
   if (successfullyConfiguredEthernet) {
-    // DEBUG_PRINTLN(F("initE: ETH already successfully configured, ignoring"));
+    // DEBUG_PRINTLN("initE: ETH already successfully configured, ignoring");
     return false;
   }
   if (ethernetType == WLED_ETH_NONE) {
     return false;
   }
   if (ethernetType >= WLED_NUM_ETH_TYPES) {
-    DEBUG_PRINTF_P(PSTR("initE: Ignoring attempt for invalid ethernetType (%d)\n"), ethernetType);
+    DEBUG_PRINTF_P("initE: Ignoring attempt for invalid ethernetType (%d)\n", ethernetType);
     return false;
   }
 
-  DEBUG_PRINTF_P(PSTR("initE: Attempting ETH config: %d\n"), ethernetType);
+  DEBUG_PRINTF_P("initE: Attempting ETH config: %d\n", ethernetType);
 
   // Ethernet initialization should only succeed once -- else reboot required
   ethernet_settings es = ethernetBoards[ethernetType];
@@ -230,12 +230,12 @@ bool initEthernet()
     pinsToAllocate[9].pin = 17;
     pinsToAllocate[9].isOutput = true;
   } else {
-    DEBUG_PRINTF_P(PSTR("initE: Failing due to invalid eth_clk_mode (%d)\n"), es.eth_clk_mode);
+    DEBUG_PRINTF_P("initE: Failing due to invalid eth_clk_mode (%d)\n", es.eth_clk_mode);
     return false;
   }
 
   if (!PinManager::allocateMultiplePins(pinsToAllocate, 10, PinOwner::Ethernet)) {
-    DEBUG_PRINTLN(F("initE: Failed to allocate ethernet pins"));
+    DEBUG_PRINTLN("initE: Failed to allocate ethernet pins");
     return false;
   }
 
@@ -265,7 +265,7 @@ bool initEthernet()
                 (eth_phy_type_t)   es.eth_type,
                 (eth_clock_mode_t) es.eth_clk_mode
                 )) {
-    DEBUG_PRINTLN(F("initE: ETH.begin() failed"));
+    DEBUG_PRINTLN("initE: ETH.begin() failed");
     // de-allocate the allocated pins
     for (managed_pin_type mpt : pinsToAllocate) {
       PinManager::deallocatePin(mpt.pin, PinOwner::Ethernet);
@@ -281,7 +281,7 @@ bool initEthernet()
   }
 
   successfullyConfiguredEthernet = true;
-  DEBUG_PRINTLN(F("initE: *** Ethernet successfully configured! ***"));
+  DEBUG_PRINTLN("initE: *** Ethernet successfully configured! ***");
   return true;
 }
 #endif
@@ -309,7 +309,7 @@ int getSignalQuality(int rssi)
 
 
 void fillMAC2Str(char *str, const uint8_t *mac) {
-  sprintf_P(str, PSTR("%02x%02x%02x%02x%02x%02x"), MAC2STR(mac));
+  sprintf(str, "%02x%02x%02x%02x%02x%02x", MAC2STR(mac));
   byte nul = 0;
   for (int i = 0; i < 6; i++) nul |= *mac++;  // do we have 0
   if (!nul) str[0] = '\0';                    // empty string
@@ -327,21 +327,21 @@ void fillStr2MAC(uint8_t *mac, const char *str) {
 // returns configured WiFi ID with the strongest signal (or default if no configured networks available)
 int findWiFi(bool doScan) {
   if (multiWiFi.size() <= 1) {
-    DEBUG_PRINTF_P(PSTR("WiFi: Default SSID (%s) used.\n"), multiWiFi[0].clientSSID);
+    DEBUG_PRINTF_P("WiFi: Default SSID (%s) used.\n", multiWiFi[0].clientSSID);
     return 0;
   }
 
   int status = WiFi.scanComplete(); // complete scan may take as much as several seconds (usually <6s with not very crowded air)
 
   if (doScan || status == WIFI_SCAN_FAILED) {
-    DEBUG_PRINTF_P(PSTR("WiFi: Scan started. @ %lus\n"), millis()/1000);
+    DEBUG_PRINTF_P("WiFi: Scan started. @ %lus\n", millis()/1000);
     WiFi.scanNetworks(true);  // start scanning in asynchronous mode (will delete old scan)
   } else if (status >= 0) {   // status contains number of found networks (including duplicate SSIDs with different BSSID)
-    DEBUG_PRINTF_P(PSTR("WiFi: Found %d SSIDs. @ %lus\n"), status, millis()/1000);
+    DEBUG_PRINTF_P("WiFi: Found %d SSIDs. @ %lus\n", status, millis()/1000);
     int rssi = -9999;
     int selected = selectedWiFi;
     for (int o = 0; o < status; o++) {
-      DEBUG_PRINTF_P(PSTR(" SSID: %s (BSSID: %s) RSSI: %ddB\n"), WiFi.SSID(o).c_str(), WiFi.BSSIDstr(o).c_str(), WiFi.RSSI(o));
+      DEBUG_PRINTF_P(" SSID: %s (BSSID: %s) RSSI: %ddB\n", WiFi.SSID(o).c_str(), WiFi.BSSIDstr(o).c_str(), WiFi.RSSI(o));
       for (unsigned n = 0; n < multiWiFi.size(); n++)
         if (!strcmp(WiFi.SSID(o).c_str(), multiWiFi[n].clientSSID)) {
           bool foundBSSID = memcmp(multiWiFi[n].bssid, WiFi.BSSID(o), 6) == 0;
@@ -353,16 +353,16 @@ int findWiFi(bool doScan) {
           break;
         }
     }
-    DEBUG_PRINTF_P(PSTR("WiFi: Selected SSID: %s RSSI: %ddB\n"), multiWiFi[selected].clientSSID, rssi);
+    DEBUG_PRINTF_P("WiFi: Selected SSID: %s RSSI: %ddB\n", multiWiFi[selected].clientSSID, rssi);
     return selected;
   }
-  //DEBUG_PRINT(F("WiFi scan running."));
+  //DEBUG_PRINT("WiFi scan running.");
   return status; // scan is still running or there was an error
 }
 
 
 bool isWiFiConfigured() {
-  return multiWiFi.size() > 1 || (strlen(multiWiFi[0].clientSSID) >= 1 && strcmp_P(multiWiFi[0].clientSSID, PSTR(DEFAULT_CLIENT_SSID)) != 0);
+  return multiWiFi.size() > 1 || (strlen(multiWiFi[0].clientSSID) >= 1 && strcmp(multiWiFi[0].clientSSID, DEFAULT_CLIENT_SSID) != 0);
 }
 
 #if defined(ESP8266)
@@ -422,24 +422,24 @@ void WiFiEvent(WiFiEvent_t event)
     case ARDUINO_EVENT_WIFI_AP_STADISCONNECTED:
       // AP client disconnected
       if (--apClients == 0 && isWiFiConfigured()) forceReconnect = true; // no clients reconnect WiFi if awailable
-      DEBUG_PRINTF_P(PSTR("WiFi-E: AP Client Disconnected (%d) @ %lus.\n"), (int)apClients, millis()/1000);
+      DEBUG_PRINTF_P("WiFi-E: AP Client Disconnected (%d) @ %lus.\n", (int)apClients, millis()/1000);
       break;
     case ARDUINO_EVENT_WIFI_AP_STACONNECTED:
       // AP client connected
       apClients++;
-      DEBUG_PRINTF_P(PSTR("WiFi-E: AP Client Connected (%d) @ %lus.\n"), (int)apClients, millis()/1000);
+      DEBUG_PRINTF_P("WiFi-E: AP Client Connected (%d) @ %lus.\n", (int)apClients, millis()/1000);
       break;
     case ARDUINO_EVENT_WIFI_STA_GOT_IP:
-      DEBUG_PRINT(F("WiFi-E: IP address: ")); DEBUG_PRINTLN(Network.localIP());
+      DEBUG_PRINT("WiFi-E: IP address: "); DEBUG_PRINTLN(Network.localIP());
       break;
     case ARDUINO_EVENT_WIFI_STA_CONNECTED:
       // followed by IDLE and SCAN_DONE
-      DEBUG_PRINTF_P(PSTR("WiFi-E: Connected! @ %lus\n"), millis()/1000);
+      DEBUG_PRINTF_P("WiFi-E: Connected! @ %lus\n", millis()/1000);
       wasConnected = true;
       break;
     case ARDUINO_EVENT_WIFI_STA_DISCONNECTED:
       if (wasConnected && interfacesInited) {
-        DEBUG_PRINTF_P(PSTR("WiFi-E: Disconnected! @ %lus\n"), millis()/1000);
+        DEBUG_PRINTF_P("WiFi-E: Disconnected! @ %lus\n", millis()/1000);
         if (interfacesInited && multiWiFi.size() > 1 && WiFi.scanComplete() >= 0) {
           findWiFi(true); // reinit WiFi scan
           forceReconnect = true;
@@ -450,21 +450,21 @@ void WiFiEvent(WiFiEvent_t event)
   #ifdef ARDUINO_ARCH_ESP32
     case ARDUINO_EVENT_WIFI_SCAN_DONE:
       // also triggered when connected to selected SSID
-      DEBUG_PRINTLN(F("WiFi-E: SSID scan completed."));
+      DEBUG_PRINTLN("WiFi-E: SSID scan completed.");
       break;
     case ARDUINO_EVENT_WIFI_AP_START:
-      DEBUG_PRINTLN(F("WiFi-E: AP Started"));
+      DEBUG_PRINTLN("WiFi-E: AP Started");
       break;
     case ARDUINO_EVENT_WIFI_AP_STOP:
-      DEBUG_PRINTLN(F("WiFi-E: AP Stopped"));
+      DEBUG_PRINTLN("WiFi-E: AP Stopped");
       break;
     #if defined(WLED_USE_ETHERNET)
     case ARDUINO_EVENT_ETH_START:
-      DEBUG_PRINTLN(F("ETH-E: Started"));
+      DEBUG_PRINTLN("ETH-E: Started");
       break;
     case ARDUINO_EVENT_ETH_CONNECTED:
       {
-      DEBUG_PRINTLN(F("ETH-E: Connected"));
+      DEBUG_PRINTLN("ETH-E: Connected");
       if (!apActive) {
         WiFi.disconnect(true); // disable WiFi entirely
       }
@@ -475,7 +475,7 @@ void WiFiEvent(WiFiEvent_t event)
       break;
       }
     case ARDUINO_EVENT_ETH_DISCONNECTED:
-      DEBUG_PRINTLN(F("ETH-E: Disconnected"));
+      DEBUG_PRINTLN("ETH-E: Disconnected");
       // This doesn't really affect ethernet per se,
       // as it's only configured once.  Rather, it
       // may be necessary to reconnect the WiFi when
@@ -487,7 +487,7 @@ void WiFiEvent(WiFiEvent_t event)
     #endif
   #endif
     default:
-      DEBUG_PRINTF_P(PSTR("WiFi-E: Event %d\n"), (int)event);
+      DEBUG_PRINTF_P("WiFi-E: Event %d\n", (int)event);
       break;
   }
 }

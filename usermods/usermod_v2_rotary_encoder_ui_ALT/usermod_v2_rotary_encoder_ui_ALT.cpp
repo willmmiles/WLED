@@ -394,19 +394,19 @@ byte RotaryEncoderUIUsermod::readPin(uint8_t pin) {
  * modes_alpha_indexes and palettes_alpha_indexes.
  */
 void RotaryEncoderUIUsermod::sortModesAndPalettes() {
-  DEBUG_PRINT(F("Sorting modes: ")); DEBUG_PRINTLN(strip.getModeCount());
+  DEBUG_PRINT("Sorting modes: "); DEBUG_PRINTLN(strip.getModeCount());
   //modes_qstrings = re_findModeStrings(JSON_mode_names, strip.getModeCount());
   modes_qstrings = strip.getModeDataSrc();
   modes_alpha_indexes = re_initIndexArray(strip.getModeCount());
   re_sortModes(modes_qstrings, modes_alpha_indexes, strip.getModeCount(), MODE_SORT_SKIP_COUNT);
 
-  DEBUG_PRINT(F("Sorting palettes: ")); DEBUG_PRINT(getPaletteCount()); DEBUG_PRINT('/'); DEBUG_PRINTLN(customPalettes.size());
+  DEBUG_PRINT("Sorting palettes: "); DEBUG_PRINT(getPaletteCount()); DEBUG_PRINT('/'); DEBUG_PRINTLN(customPalettes.size());
   palettes_qstrings = re_findModeStrings(JSON_palette_names, getPaletteCount()); // allocates memory for all palette names
   palettes_alpha_indexes = re_initIndexArray(getPaletteCount()); // allocates memory for all palette indexes
   if (customPalettes.size()) {
     for (int i=0; i<customPalettes.size(); i++) {
       palettes_alpha_indexes[FIXED_PALETTE_COUNT+i] = 255-i;
-      palettes_qstrings[FIXED_PALETTE_COUNT+i] = PSTR("~Custom~");
+      palettes_qstrings[FIXED_PALETTE_COUNT+i] = "~Custom~";
     }
   }
   // How many palette names start with '*' and should not be sorted?
@@ -437,7 +437,7 @@ const char **RotaryEncoderUIUsermod::re_findModeStrings(const char json[], int n
 
   // Find the mode name in JSON
   bool complete = false;
-  for (size_t i = 0; i < strlen_P(json); i++) {
+  for (size_t i = 0; i < strlen(json); i++) {
     singleJsonSymbol = pgm_read_byte_near(json + i);
     if (singleJsonSymbol == '\0') break;
     switch (singleJsonSymbol) {
@@ -483,20 +483,20 @@ void RotaryEncoderUIUsermod::re_sortModes(const char **modeNames, byte *indexes,
   */
 void RotaryEncoderUIUsermod::setup()
 {
-  DEBUG_PRINTLN(F("Usermod Rotary Encoder init."));
+  DEBUG_PRINTLN("Usermod Rotary Encoder init.");
 
   if (usePcf8574) {
     if (i2c_sda < 0 || i2c_scl < 0 || pinA < 0 || pinB < 0 || pinC < 0) {
-      DEBUG_PRINTLN(F("I2C and/or PCF8574 pins unused, disabling."));
+      DEBUG_PRINTLN("I2C and/or PCF8574 pins unused, disabling.");
       enabled = false;
       return;
     } else {
       if (pinIRQ >= 0 && PinManager::allocatePin(pinIRQ, false, PinOwner::UM_RotaryEncoderUI)) {
         pinMode(pinIRQ, INPUT_PULLUP);
         attachInterrupt(pinIRQ, i2cReadingISR, FALLING); // RISING, FALLING, CHANGE, ONLOW, ONHIGH
-        DEBUG_PRINTLN(F("Interrupt attached."));
+        DEBUG_PRINTLN("Interrupt attached.");
       } else {
-        DEBUG_PRINTLN(F("Unable to allocate interrupt pin, disabling."));
+        DEBUG_PRINTLN("Unable to allocate interrupt pin, disabling.");
         pinIRQ = -1;
         enabled = false;
         return;
@@ -564,7 +564,7 @@ void RotaryEncoderUIUsermod::loop()
   }
 
   if (modes_alpha_indexes[effectCurrentIndex] != effectCurrent || palettes_alpha_indexes[effectPaletteIndex] != effectPalette) {
-    DEBUG_PRINTLN(F("Current mode or palette changed."));
+    DEBUG_PRINTLN("Current mode or palette changed.");
     currentEffectAndPaletteInitialized = false;
   }
 
@@ -600,18 +600,18 @@ void RotaryEncoderUIUsermod::loop()
       do {
         // find new state
         switch (newState) {
-          case  0: strcpy_P(lineBuffer, PSTR("Brightness")); changedState = true; break;
+          case  0: strcpy(lineBuffer, "Brightness"); changedState = true; break;
           case  1: if (!extractModeSlider(effectCurrent, 0, lineBuffer, 63)) newState++; else changedState = true; break; // speed
           case  2: if (!extractModeSlider(effectCurrent, 1, lineBuffer, 63)) newState++; else changedState = true; break; // intensity
-          case  3: strcpy_P(lineBuffer, PSTR("Color Palette")); changedState = true; break;
-          case  4: strcpy_P(lineBuffer, PSTR("Effect")); changedState = true; break;
-          case  5: strcpy_P(lineBuffer, PSTR("Main Color")); changedState = true; break;
-          case  6: strcpy_P(lineBuffer, PSTR("Saturation")); changedState = true; break;
+          case  3: strcpy(lineBuffer, "Color Palette"); changedState = true; break;
+          case  4: strcpy(lineBuffer, "Effect"); changedState = true; break;
+          case  5: strcpy(lineBuffer, "Main Color"); changedState = true; break;
+          case  6: strcpy(lineBuffer, "Saturation"); changedState = true; break;
           case  7: 
             if (!(strip.getSegment(applyToAll ? strip.getFirstSelectedSegId() : strip.getMainSegmentId()).getLightCapabilities() & 0x04)) newState++;
-            else { strcpy_P(lineBuffer, PSTR("CCT")); changedState = true; }
+            else { strcpy(lineBuffer, "CCT"); changedState = true; }
             break;
-          case  8: if (presetHigh==0 || presetLow == 0) newState++; else { strcpy_P(lineBuffer, PSTR("Preset")); changedState = true; } break;
+          case  8: if (presetHigh==0 || presetLow == 0) newState++; else { strcpy(lineBuffer, "Preset"); changedState = true; } break;
           case  9:
           case 10:
           case 11: if (!extractModeSlider(effectCurrent, newState-7, lineBuffer, 63)) newState++; else changedState = true; break; // custom
@@ -683,19 +683,19 @@ void RotaryEncoderUIUsermod::loop()
 
 void RotaryEncoderUIUsermod::displayNetworkInfo() {
   #ifdef USERMOD_FOUR_LINE_DISPLAY
-  display->networkOverlay(PSTR("NETWORK INFO"), 10000);
+  display->networkOverlay("NETWORK INFO", 10000);
   #endif
 }
 
 void RotaryEncoderUIUsermod::findCurrentEffectAndPalette() {
-  DEBUG_PRINTLN(F("Finding current mode and palette."));
+  DEBUG_PRINTLN("Finding current mode and palette.");
   currentEffectAndPaletteInitialized = true;
 
   effectCurrentIndex = 0;
   for (int i = 0; i < strip.getModeCount(); i++) {
     if (modes_alpha_indexes[i] == effectCurrent) {
       effectCurrentIndex = i;
-      DEBUG_PRINTLN(F("Found current mode."));
+      DEBUG_PRINTLN("Found current mode.");
       break;
     }
   }
@@ -705,7 +705,7 @@ void RotaryEncoderUIUsermod::findCurrentEffectAndPalette() {
   for (unsigned i = 0; i < getPaletteCount()+customPalettes.size(); i++) {
     if (palettes_alpha_indexes[i] == effectPalette) {
       effectPaletteIndex = i;
-      DEBUG_PRINTLN(F("Found palette."));
+      DEBUG_PRINTLN("Found palette.");
       break;
     }
   }
@@ -983,15 +983,15 @@ void RotaryEncoderUIUsermod::changePreset(bool increase) {
   if (presetHigh && presetLow && presetHigh > presetLow) {
     StaticJsonDocument<64> root;
     char str[64];
-    sprintf_P(str, PSTR("%d~%d~%s"), presetLow, presetHigh, increase?"":"-");
+    sprintf(str, "%d~%d~%s", presetLow, presetHigh, increase?"":"-");
     root["ps"] = str;
     deserializeState(root.as<JsonObject>(), CALL_MODE_BUTTON_PRESET);
 /*
-    String apireq = F("win&PL=~");
+    String apireq = "win&PL=~";
     if (!increase) apireq += '-';
-    apireq += F("&P1=");
+    apireq += "&P1=";
     apireq += presetLow;
-    apireq += F("&P2=");
+    apireq += "&P2=";
     apireq += presetHigh;
     handleSet(nullptr, apireq, false);
 */
@@ -1068,7 +1068,7 @@ void RotaryEncoderUIUsermod::addToJsonState(JsonObject &root)
 void RotaryEncoderUIUsermod::readFromJsonState(JsonObject &root)
 {
   //userVar0 = root["user0"] | userVar0; //if "user0" key exists in JSON, update, else keep old value
-  //if (root["bri"] == 255) Serial.println(F("Don't burn down your garage!"));
+  //if (root["bri"] == 255) Serial.println("Don't burn down your garage!");
 }
 */
 
@@ -1077,23 +1077,23 @@ void RotaryEncoderUIUsermod::readFromJsonState(JsonObject &root)
  */
 void RotaryEncoderUIUsermod::addToConfig(JsonObject &root) {
   // we add JSON object: {"Rotary-Encoder":{"DT-pin":12,"CLK-pin":14,"SW-pin":13}}
-  JsonObject top = root.createNestedObject(FPSTR(_name)); // usermodname
-  top[FPSTR(_enabled)] = enabled;
-  top[FPSTR(_DT_pin)]  = pinA;
-  top[FPSTR(_CLK_pin)] = pinB;
-  top[FPSTR(_SW_pin)]  = pinC;
-  top[FPSTR(_presetLow)]  = presetLow;
-  top[FPSTR(_presetHigh)] = presetHigh;
-  top[FPSTR(_applyToAll)] = applyToAll;
-  top[FPSTR(_pcf8574)]    = usePcf8574;
-  top[FPSTR(_pcfAddress)] = addrPcf8574;
-  top[FPSTR(_pcfINTpin)]  = pinIRQ;
-  DEBUG_PRINTLN(F("Rotary Encoder config saved."));
+  JsonObject top = root.createNestedObject(_name); // usermodname
+  top[_enabled] = enabled;
+  top[_DT_pin]  = pinA;
+  top[_CLK_pin] = pinB;
+  top[_SW_pin]  = pinC;
+  top[_presetLow]  = presetLow;
+  top[_presetHigh] = presetHigh;
+  top[_applyToAll] = applyToAll;
+  top[_pcf8574]    = usePcf8574;
+  top[_pcfAddress] = addrPcf8574;
+  top[_pcfINTpin]  = pinIRQ;
+  DEBUG_PRINTLN("Rotary Encoder config saved.");
 }
 
 void RotaryEncoderUIUsermod::appendConfigData() {
-  oappend(F("addInfo('Rotary-Encoder:PCF8574-address',1,'<i>(not hex!)</i>');"));
-  oappend(F("d.extra.push({'Rotary-Encoder':{pin:[['P0',100],['P1',101],['P2',102],['P3',103],['P4',104],['P5',105],['P6',106],['P7',107]]}});"));
+  oappend("addInfo('Rotary-Encoder:PCF8574-address',1,'<i>(not hex!)</i>');");
+  oappend("d.extra.push({'Rotary-Encoder':{pin:[['P0',100],['P1',101],['P2',102],['P3',103],['P4',104],['P5',105],['P6',106],['P7',107]]}});");
 }
 
 /**
@@ -1103,52 +1103,52 @@ void RotaryEncoderUIUsermod::appendConfigData() {
  */
 bool RotaryEncoderUIUsermod::readFromConfig(JsonObject &root) {
   // we look for JSON object: {"Rotary-Encoder":{"DT-pin":12,"CLK-pin":14,"SW-pin":13}}
-  JsonObject top = root[FPSTR(_name)];
+  JsonObject top = root[_name];
   if (top.isNull()) {
-    DEBUG_PRINT(FPSTR(_name));
-    DEBUG_PRINTLN(F(": No config found. (Using defaults.)"));
+    DEBUG_PRINT(_name);
+    DEBUG_PRINTLN(": No config found. (Using defaults.)");
     return false;
   }
-  int8_t newDTpin  = top[FPSTR(_DT_pin)]  | pinA;
-  int8_t newCLKpin = top[FPSTR(_CLK_pin)] | pinB;
-  int8_t newSWpin  = top[FPSTR(_SW_pin)]  | pinC;
-  int8_t newIRQpin = top[FPSTR(_pcfINTpin)] | pinIRQ;
+  int8_t newDTpin  = top[_DT_pin]  | pinA;
+  int8_t newCLKpin = top[_CLK_pin] | pinB;
+  int8_t newSWpin  = top[_SW_pin]  | pinC;
+  int8_t newIRQpin = top[_pcfINTpin] | pinIRQ;
   bool   oldPcf8574 = usePcf8574;
 
-  presetHigh = top[FPSTR(_presetHigh)] | presetHigh;
-  presetLow  = top[FPSTR(_presetLow)]  | presetLow;
+  presetHigh = top[_presetHigh] | presetHigh;
+  presetLow  = top[_presetLow]  | presetLow;
   presetHigh = MIN(250,MAX(0,presetHigh));
   presetLow  = MIN(250,MAX(0,presetLow));
 
-  enabled    = top[FPSTR(_enabled)] | enabled;
-  applyToAll = top[FPSTR(_applyToAll)] | applyToAll;
+  enabled    = top[_enabled] | enabled;
+  applyToAll = top[_applyToAll] | applyToAll;
 
-  usePcf8574 = top[FPSTR(_pcf8574)] | usePcf8574;
-  addrPcf8574 = top[FPSTR(_pcfAddress)] | addrPcf8574;
+  usePcf8574 = top[_pcf8574] | usePcf8574;
+  addrPcf8574 = top[_pcfAddress] | addrPcf8574;
 
-  DEBUG_PRINT(FPSTR(_name));
+  DEBUG_PRINT(_name);
   if (!initDone) {
     // first run: reading from cfg.json
     pinA = newDTpin;
     pinB = newCLKpin;
     pinC = newSWpin;
-    DEBUG_PRINTLN(F(" config loaded."));
+    DEBUG_PRINTLN(" config loaded.");
   } else {
-    DEBUG_PRINTLN(F(" config (re)loaded."));
+    DEBUG_PRINTLN(" config (re)loaded.");
     // changing parameters from settings page
     if (pinA!=newDTpin || pinB!=newCLKpin || pinC!=newSWpin || pinIRQ!=newIRQpin) {
       if (oldPcf8574) {
         if (pinIRQ >= 0) {
           detachInterrupt(pinIRQ);
           PinManager::deallocatePin(pinIRQ, PinOwner::UM_RotaryEncoderUI);
-          DEBUG_PRINTLN(F("Deallocated old IRQ pin."));
+          DEBUG_PRINTLN("Deallocated old IRQ pin.");
         }
         pinIRQ = newIRQpin<100 ? newIRQpin : -1; // ignore PCF8574 pins
       } else {
         PinManager::deallocatePin(pinA, PinOwner::UM_RotaryEncoderUI);
         PinManager::deallocatePin(pinB, PinOwner::UM_RotaryEncoderUI);
         PinManager::deallocatePin(pinC, PinOwner::UM_RotaryEncoderUI);
-        DEBUG_PRINTLN(F("Deallocated old pins."));
+        DEBUG_PRINTLN("Deallocated old pins.");
       }
       pinA = newDTpin;
       pinB = newCLKpin;
@@ -1161,7 +1161,7 @@ bool RotaryEncoderUIUsermod::readFromConfig(JsonObject &root) {
     }
   }
   // use "return !top["newestParameter"].isNull();" when updating Usermod with new features
-  return !top[FPSTR(_pcfINTpin)].isNull();
+  return !top[_pcfINTpin].isNull();
 }
 
 

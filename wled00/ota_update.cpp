@@ -85,7 +85,7 @@ static bool validateOTA(const uint8_t* binaryData, size_t dataSize, char* errorM
   } else {
     // No custom description - this could be a legacy binary
     if (errorMessage && errorMessageLen > 0) {
-      strncpy_P(errorMessage, PSTR("This firmware file is missing compatibility metadata."), errorMessageLen - 1);
+      strncpy(errorMessage, "This firmware file is missing compatibility metadata.", errorMessageLen - 1);
       errorMessage[errorMessageLen - 1] = '\0';
     }
     return false;
@@ -131,7 +131,7 @@ static bool unzipFlash(uint32_t flashBase, uint8_t* outBuf, char* errorMessage, 
 
   bool ok = false;
   if (uzlib_gzip_parse_header(&uncomp_ctx) != TINF_OK) {
-    strncpy_P(errorMessage, PSTR("Invalid gzip header in OTA firmware"), errorMessageLen - 1);
+    strncpy(errorMessage, "Invalid gzip header in OTA firmware", errorMessageLen - 1);
     errorMessage[errorMessageLen - 1] = '\0';
   } else {
     uncomp_ctx.dest_start = uncomp_ctx.dest = outBuf;
@@ -141,7 +141,7 @@ static bool unzipFlash(uint32_t flashBase, uint8_t* outBuf, char* errorMessage, 
     if (uncomp_ctx.dest >= uncomp_ctx.dest_limit) {
       ok = true;
     } else {
-      strncpy_P(errorMessage, PSTR("Not enough decompressed data for validation"), errorMessageLen - 1);
+      strncpy(errorMessage, "Not enough decompressed data for validation", errorMessageLen - 1);
       errorMessage[errorMessageLen - 1] = '\0';
     }
   }
@@ -162,31 +162,31 @@ static void validateGzippedOTA(UpdateContext* context) {
   char errorMessage[128];
   bool ok = unzipFlash(flashBase, compressionBuf, errorMessage, sizeof(errorMessage));
   if (!ok) {
-    DEBUG_PRINTF_P(PSTR("OTA unzip failed: %s\n"), errorMessage);
+    DEBUG_PRINTF_P("OTA unzip failed: %s\n", errorMessage);
     context->errorMessage = errorMessage;
     return;
   }
 
   ok = validateOTA(compressionBuf, GZIP_DECOMPRESSED_SIZE, errorMessage, sizeof(errorMessage));
   if (!ok) {
-    DEBUG_PRINTF_P(PSTR("OTA declined: %s\n"), errorMessage);
+    DEBUG_PRINTF_P("OTA declined: %s\n", errorMessage);
     context->errorMessage = errorMessage;
-    context->errorMessage += F(" Enable 'Ignore firmware validation' to proceed anyway.");
+    context->errorMessage += " Enable 'Ignore firmware validation' to proceed anyway.";
     return;
   }
 
-  DEBUG_PRINTLN(F("OTA allowed: Release compatibility check passed (gzipped)"));
+  DEBUG_PRINTLN("OTA allowed: Release compatibility check passed (gzipped)");
   context->releaseCheckPassed = true;
 
   // Write the final block
   if (!Update.hasError()) {
     const auto& buf = context->releaseMetadataBuffer;
     if (Update.write(const_cast<uint8_t*>(buf.data()), buf.size()) != buf.size()) {
-      DEBUG_PRINTF_P(PSTR("OTA write failed on final chunk: %s\n"), Update.UPDATE_ERROR());
+      DEBUG_PRINTF_P("OTA write failed on final chunk: %s\n", Update.UPDATE_ERROR());
     }
   }
 
-  DEBUG_PRINTLN(F("OTA Update End")); // for symmetry with the non-gzip path
+  DEBUG_PRINTLN("OTA Update End"); // for symmetry with the non-gzip path
   context->uploadComplete = true;   // Final block was passed to Update.write()
 }
 #endif
@@ -195,7 +195,7 @@ static void endOTA(AsyncWebServerRequest *request) {
   UpdateContext* context = reinterpret_cast<UpdateContext*>(request->_tempObject);
   request->_tempObject = nullptr;
 
-  DEBUG_PRINTF_P(PSTR("EndOTA %x --> %x (%d)\n"), (uintptr_t)request,(uintptr_t) context, context ? context->uploadComplete : 0);
+  DEBUG_PRINTF_P("EndOTA %x --> %x (%d)\n", (uintptr_t)request,(uintptr_t) context, context ? context->uploadComplete : 0);
   if (context) {
     if (context->updateStarted) {  // We initialized the update
       // We use Update.end() because not all forms of Update() support an abort.
@@ -243,19 +243,19 @@ static bool beginOTA(AsyncWebServerRequest *request, UpdateContext* context)
   strip.resetSegments();  // free as much memory as you can
   context->needsRestart = true;
 
-  DEBUG_PRINTF_P(PSTR("OTA Update Start, %x --> %x\n"), (uintptr_t)request,(uintptr_t) context);
+  DEBUG_PRINTF_P("OTA Update Start, %x --> %x\n", (uintptr_t)request,(uintptr_t) context);
 
   auto skipValidationParam = request->getParam("skipValidation", true);
   if (skipValidationParam && (skipValidationParam->value() == "1")) {
     context->releaseCheckPassed = true;
-    DEBUG_PRINTLN(F("OTA validation skipped by user"));
+    DEBUG_PRINTLN("OTA validation skipped by user");
   }
 
   // Begin update with the firmware size from content length
   size_t updateSize = request->contentLength() > 0 ? request->contentLength() : ((ESP.getFreeSketchSpace() - 0x1000) & 0xFFFFF000);
   if (!Update.begin(updateSize)) {
     context->errorMessage = Update.UPDATE_ERROR();
-    DEBUG_PRINTF_P(PSTR("OTA Failed to begin: %s\n"), context->errorMessage.c_str());
+    DEBUG_PRINTF_P("OTA Failed to begin: %s\n", context->errorMessage.c_str());
     return false;
   }
 
@@ -273,7 +273,7 @@ bool initOTA(AsyncWebServerRequest *request) {
     request->onDisconnect([=]() { endOTA(request); });  // ensures we restart on failure
   };
 
-  DEBUG_PRINTF_P(PSTR("OTA Update init, %x --> %x\n"), (uintptr_t)request,(uintptr_t) context);
+  DEBUG_PRINTF_P("OTA Update init, %x --> %x\n", (uintptr_t)request,(uintptr_t) context);
   return (context != nullptr);
 }
 
@@ -289,7 +289,7 @@ void setOTAReplied(AsyncWebServerRequest *request) {
 // Ready:    result available; empty string = success (200), non-empty = failure (500).
 std::pair<OTAResultStatus, String> getOTAResult(AsyncWebServerRequest* request) {
   UpdateContext* context = reinterpret_cast<UpdateContext*>(request->_tempObject);
-  if (!context) return { OTAResultStatus::Ready, F("OTA context unexpectedly missing") };
+  if (!context) return { OTAResultStatus::Ready, "OTA context unexpectedly missing" };
   if (context->replySent) return { OTAResultStatus::Replied, {} };
 
   #ifdef SUPPORT_GZIPPED_OTA
@@ -314,7 +314,7 @@ std::pair<OTAResultStatus, String> getOTAResult(AsyncWebServerRequest* request) 
   }
 
   // Should never happen
-  return { OTAResultStatus::Ready, F("Internal software failure") };
+  return { OTAResultStatus::Ready, "Internal software failure" };
 }
 
 
@@ -325,7 +325,7 @@ void handleOTAData(AsyncWebServerRequest *request, size_t index, uint8_t *data, 
   UpdateContext* context = reinterpret_cast<UpdateContext*>(request->_tempObject);
   if (!context) return;
 
-  //DEBUG_PRINTF_P(PSTR("HandleOTAData: %d %d %d\n"), index, len, isFinal);
+  //DEBUG_PRINTF_P("HandleOTAData: %d %d %d\n", index, len, isFinal);
 
   if (context->replySent || (context->errorMessage.length())) return;
 
@@ -334,7 +334,7 @@ void handleOTAData(AsyncWebServerRequest *request, size_t index, uint8_t *data, 
 
     #ifdef SUPPORT_GZIPPED_OTA
     if (len >= 2 && data[0] == 0x1F && data[1] == 0x8B) {
-      DEBUG_PRINTLN(F("OTA: gzipped firmware detected"));
+      DEBUG_PRINTLN("OTA: gzipped firmware detected");
       context->gzipDetected = true;
     }
     #endif
@@ -351,7 +351,7 @@ void handleOTAData(AsyncWebServerRequest *request, size_t index, uint8_t *data, 
       // Current chunk contains the metadata offset
       size_t availableDataAfterOffset = (index + len) - METADATA_OFFSET;
 
-      DEBUG_PRINTF_P(PSTR("OTA metadata check: %d in buffer, %d received, %d available\n"), context->releaseMetadataBuffer.size(), len, availableDataAfterOffset);
+      DEBUG_PRINTF_P("OTA metadata check: %d in buffer, %d received, %d available\n", context->releaseMetadataBuffer.size(), len, availableDataAfterOffset);
 
       if (availableDataAfterOffset >= METADATA_SEARCH_RANGE) {
         // We have enough data to validate, one way or another
@@ -374,12 +374,12 @@ void handleOTAData(AsyncWebServerRequest *request, size_t index, uint8_t *data, 
         context->releaseMetadataBuffer = decltype(context->releaseMetadataBuffer){};
 
         if (!OTA_ok) {
-          DEBUG_PRINTF_P(PSTR("OTA declined: %s\n"), errorMessage);
+          DEBUG_PRINTF_P("OTA declined: %s\n", errorMessage);
           context->errorMessage = errorMessage;
-          context->errorMessage += F(" Enable 'Ignore firmware validation' to proceed anyway.");
+          context->errorMessage += " Enable 'Ignore firmware validation' to proceed anyway.";
           return;
         } else {
-          DEBUG_PRINTLN(F("OTA allowed: Release compatibility check passed"));
+          DEBUG_PRINTLN("OTA allowed: Release compatibility check passed");
           context->releaseCheckPassed = true;
         }
       } else {
@@ -401,19 +401,19 @@ void handleOTAData(AsyncWebServerRequest *request, size_t index, uint8_t *data, 
   // Check if validation was still pending (shouldn't happen normally)
   // This is done before writing the last chunk, so endOTA can abort
   if (isFinal && !context->releaseCheckPassed) {
-    DEBUG_PRINTLN(F("OTA failed: Validation never completed"));
-    context->errorMessage = F("Release check data never arrived?");
+    DEBUG_PRINTLN("OTA failed: Validation never completed");
+    context->errorMessage = "Release check data never arrived?";
     return;
   }
 
   if (!Update.hasError()) {
     if (Update.write(data, len) != len) {
-      DEBUG_PRINTF_P(PSTR("OTA write failed on chunk %zu: %s\n"), index, Update.UPDATE_ERROR());
+      DEBUG_PRINTF_P("OTA write failed on chunk %zu: %s\n", index, Update.UPDATE_ERROR());
     }
   }
 
   if (isFinal) {
-    DEBUG_PRINTLN(F("OTA Update End"));
+    DEBUG_PRINTLN("OTA Update End");
     context->uploadComplete = true;
   }
 }
@@ -425,7 +425,7 @@ void markOTAvalid() {
   if (esp_ota_get_state_partition(running, &ota_state) == ESP_OK) {
     if (ota_state == ESP_OTA_IMG_PENDING_VERIFY) {
       esp_ota_mark_app_valid_cancel_rollback(); // only needs to be called once, it marks the ota_state as ESP_OTA_IMG_VALID
-      DEBUG_PRINTLN(F("Current firmware validated"));
+      DEBUG_PRINTLN("Current firmware validated");
     }
   }
   #endif
@@ -636,7 +636,7 @@ static bool verifyBootloaderImage(const uint8_t* &buffer, size_t &len, String& b
   if (len > BOOTLOADER_OFFSET + MIN_IMAGE_HEADER_SIZE &&
       buffer[BOOTLOADER_OFFSET] == ESP_IMAGE_HEADER_MAGIC &&
       buffer[0] != ESP_IMAGE_HEADER_MAGIC) {
-    DEBUG_PRINTF_P(PSTR("Bootloader detected at offset\n"));
+    DEBUG_PRINTF_P("Bootloader detected at offset\n");
     // Adjust buffer pointer to start at the actual bootloader
     buffer = buffer + BOOTLOADER_OFFSET;
     len = len - BOOTLOADER_OFFSET;
@@ -687,7 +687,7 @@ static bool verifyBootloaderImage(const uint8_t* &buffer, size_t &len, String& b
     return false;
   }
 
-  DEBUG_PRINTF_P(PSTR("Bootloader validation: %d segments, actual size %d bytes (buffer size %d bytes, hash_appended=%d)\n"),
+  DEBUG_PRINTF_P("Bootloader validation: %d segments, actual size %d bytes (buffer size %d bytes, hash_appended=%d)\n",
                  imageHeader.segment_count, actualBootloaderSize, len, imageHeader.hash_appended);
 
   // Update len to reflect actual bootloader size (including hash and checksum, with alignment)
@@ -716,7 +716,7 @@ static void endBootloaderOTA(AsyncWebServerRequest *request) {
   BootloaderUpdateContext* context = reinterpret_cast<BootloaderUpdateContext*>(request->_tempObject);
   request->_tempObject = nullptr;
 
-  DEBUG_PRINTF_P(PSTR("EndBootloaderOTA %x --> %x\n"), (uintptr_t)request, (uintptr_t)context);
+  DEBUG_PRINTF_P("EndBootloaderOTA %x --> %x\n", (uintptr_t)request, (uintptr_t)context);
   if (context) {
     if (context->buffer) {
       free(context->buffer);
@@ -743,17 +743,17 @@ bool initBootloaderOTA(AsyncWebServerRequest *request) {
 
   BootloaderUpdateContext* context = new BootloaderUpdateContext();
   if (!context) {
-    DEBUG_PRINTLN(F("Failed to allocate bootloader OTA context"));
+    DEBUG_PRINTLN("Failed to allocate bootloader OTA context");
     return false;
   }
   request->_tempObject = context;
   request->onDisconnect([=]() { endBootloaderOTA(request); });  // ensures cleanup on disconnect
 
 #ifdef BOOTLOADER_OTA_UNSUPPORTED
-  context->errorMessage = F("Bootloader update not supported on this chip");
+  context->errorMessage = "Bootloader update not supported on this chip";
   return false;
 #else
-  DEBUG_PRINTLN(F("Bootloader Update Start - initializing buffer"));
+  DEBUG_PRINTLN("Bootloader Update Start - initializing buffer");
   #if WLED_WATCHDOG_TIMEOUT > 0
   WLED::instance().disableWatchdog();
   #endif
@@ -762,12 +762,12 @@ bool initBootloaderOTA(AsyncWebServerRequest *request) {
   strip.resetSegments();
 
   // Check available heap before attempting allocation
-  DEBUG_PRINTF_P(PSTR("Free heap before bootloader buffer allocation: %d bytes (need %d bytes)\n"), getContiguousFreeHeap(), context->maxBootloaderSize);
+  DEBUG_PRINTF_P("Free heap before bootloader buffer allocation: %d bytes (need %d bytes)\n", getContiguousFreeHeap(), context->maxBootloaderSize);
 
   context->buffer = (uint8_t*)malloc(context->maxBootloaderSize);
   if (!context->buffer) {
     size_t freeHeapNow = getContiguousFreeHeap();
-    DEBUG_PRINTF_P(PSTR("Failed to allocate %d byte bootloader buffer! Contiguous heap: %d bytes\n"), context->maxBootloaderSize, freeHeapNow);
+    DEBUG_PRINTF_P("Failed to allocate %d byte bootloader buffer! Contiguous heap: %d bytes\n", context->maxBootloaderSize, freeHeapNow);
     context->errorMessage = "Out of memory! Contiguous heap: " + String(freeHeapNow) + " bytes, need: " + String(context->maxBootloaderSize) + " bytes";
     strip.resume();
     #if WLED_WATCHDOG_TIMEOUT > 0
@@ -794,7 +794,7 @@ std::pair<bool, String> getBootloaderOTAResult(AsyncWebServerRequest *request) {
   BootloaderUpdateContext* context = reinterpret_cast<BootloaderUpdateContext*>(request->_tempObject);
 
   if (!context) {
-    return std::make_pair(true, String(F("Internal error: No bootloader OTA context")));
+    return std::make_pair(true, String("Internal error: No bootloader OTA context"));
   }
 
   bool needsReply = !context->replySent;
@@ -814,7 +814,7 @@ std::pair<bool, String> getBootloaderOTAResult(AsyncWebServerRequest *request) {
   }
 
   // Should never happen
-  return std::make_pair(true, String(F("Internal software failure")));
+  return std::make_pair(true, String("Internal software failure"));
 }
 
 // Handle bootloader OTA data
@@ -822,7 +822,7 @@ void handleBootloaderOTAData(AsyncWebServerRequest *request, size_t index, uint8
   BootloaderUpdateContext* context = reinterpret_cast<BootloaderUpdateContext*>(request->_tempObject);
 
   if (!context) {
-    DEBUG_PRINTLN(F("No bootloader OTA context - ignoring data"));
+    DEBUG_PRINTLN("No bootloader OTA context - ignoring data");
     return;
   }
 
@@ -834,21 +834,21 @@ void handleBootloaderOTAData(AsyncWebServerRequest *request, size_t index, uint8
   if (context->buffer && context->bytesBuffered + len <= context->maxBootloaderSize) {
     memcpy(context->buffer + context->bytesBuffered, data, len);
     context->bytesBuffered += len;
-    DEBUG_PRINTF_P(PSTR("Bootloader buffer progress: %d / %d bytes\n"), context->bytesBuffered, context->maxBootloaderSize);
+    DEBUG_PRINTF_P("Bootloader buffer progress: %d / %d bytes\n", context->bytesBuffered, context->maxBootloaderSize);
   } else if (!context->buffer) {
-    DEBUG_PRINTLN(F("Bootloader buffer not allocated!"));
+    DEBUG_PRINTLN("Bootloader buffer not allocated!");
     context->errorMessage = "Internal error: Bootloader buffer not allocated";
     return;
   } else {
     size_t totalSize = context->bytesBuffered + len;
-    DEBUG_PRINTLN(F("Bootloader size exceeds maximum!"));
+    DEBUG_PRINTLN("Bootloader size exceeds maximum!");
     context->errorMessage = "Bootloader file too large: " + String(totalSize) + " bytes (max: " + String(context->maxBootloaderSize) + " bytes)";
     return;
   }
 
   // Only write to flash when upload is complete
   if (isFinal) {
-    DEBUG_PRINTLN(F("Bootloader Upload Complete - validating and flashing"));
+    DEBUG_PRINTLN("Bootloader Upload Complete - validating and flashing");
 
     if (context->buffer && context->bytesBuffered > 0) {
       // Prepare pointers for verification (may be adjusted if bootloader at offset)
@@ -859,7 +859,7 @@ void handleBootloaderOTAData(AsyncWebServerRequest *request, size_t index, uint8
       // Note: verifyBootloaderImage may adjust bootloaderData pointer and bootloaderSize
       // for validation purposes only
       if (!verifyBootloaderImage(bootloaderData, bootloaderSize, context->errorMessage)) {
-        DEBUG_PRINTLN(F("Bootloader validation failed!"));
+        DEBUG_PRINTLN("Bootloader validation failed!");
         // Error message already set by verifyBootloaderImage
       } else {
         // Calculate offset to write to flash
@@ -875,10 +875,10 @@ void handleBootloaderOTAData(AsyncWebServerRequest *request, size_t index, uint8
           size_t partitionTableSize = bootloaderData - context->buffer;
           dataToWrite = bootloaderData;
           bytesToWrite = bootloaderSize;
-          DEBUG_PRINTF_P(PSTR("Skipping %d bytes of partition table data\n"), partitionTableSize);
+          DEBUG_PRINTF_P("Skipping %d bytes of partition table data\n", partitionTableSize);
         }
 
-        DEBUG_PRINTF_P(PSTR("Bootloader validation passed - writing %d bytes to flash at 0x%04X\n"),
+        DEBUG_PRINTF_P("Bootloader validation passed - writing %d bytes to flash at 0x%04X\n",
                        bytesToWrite, flashOffset);
 
         // Calculate erase size (must be multiple of 4KB)
@@ -888,19 +888,19 @@ void handleBootloaderOTAData(AsyncWebServerRequest *request, size_t index, uint8
         }
 
         // Erase bootloader region
-        DEBUG_PRINTF_P(PSTR("Erasing %d bytes at 0x%04X...\n"), eraseSize, flashOffset);
+        DEBUG_PRINTF_P("Erasing %d bytes at 0x%04X...\n", eraseSize, flashOffset);
         esp_err_t err = esp_flash_erase_region(NULL, flashOffset, eraseSize);
         if (err != ESP_OK) {
-          DEBUG_PRINTF_P(PSTR("Bootloader erase error: %d\n"), err);
+          DEBUG_PRINTF_P("Bootloader erase error: %d\n", err);
           context->errorMessage = "Flash erase failed (error code: " + String(err) + ")";
         } else {
           // Write the validated bootloader data to flash
           err = esp_flash_write(NULL, dataToWrite, flashOffset, bytesToWrite);
           if (err != ESP_OK) {
-            DEBUG_PRINTF_P(PSTR("Bootloader flash write error: %d\n"), err);
+            DEBUG_PRINTF_P("Bootloader flash write error: %d\n", err);
             context->errorMessage = "Flash write failed (error code: " + String(err) + ")";
           } else {
-            DEBUG_PRINTF_P(PSTR("Bootloader Update Success - %d bytes written to 0x%04X\n"),
+            DEBUG_PRINTF_P("Bootloader Update Success - %d bytes written to 0x%04X\n",
                            bytesToWrite, flashOffset);
             // Invalidate cached bootloader hash
             invalidateBootloaderSHA256Cache();

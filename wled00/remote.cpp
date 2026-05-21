@@ -125,17 +125,17 @@ static bool remoteJson(int button)
 
   if (!requestJSONBufferLock(JSON_LOCK_REMOTE)) return false;
 
-  sprintf_P(objKey, PSTR("\"%d\":"), button);
+  sprintf(objKey, "\"%d\":", button);
 
   unsigned long start = millis();
   while (strip.isUpdating() && millis()-start < ESPNOW_BUSWAIT_TIMEOUT) yield(); // wait for strip to finish updating, accessing FS during sendout causes glitches
 
   // attempt to read command from remote.json
-  readObjectFromFile(PSTR("/remote.json"), objKey, pDoc);
+  readObjectFromFile("/remote.json", objKey, pDoc);
   JsonObject fdo = pDoc->as<JsonObject>();
   if (fdo.isNull()) {
     // the received button does not exist
-    //if (!WLED_FS.exists(F("/remote.json"))) errorFlag = ERR_FS_RMLOAD; //warn if file itself doesn't exist
+    //if (!WLED_FS.exists("/remote.json")) errorFlag = ERR_FS_RMLOAD; //warn if file itself doesn't exist
     releaseJSONBufferLock();
     return parsed;
   }
@@ -147,13 +147,13 @@ static bool remoteJson(int button)
   {
     if (cmdStr.startsWith("!")) {
       // call limited set of C functions
-      if (cmdStr.startsWith(F("!incBri"))) {
+      if (cmdStr.startsWith("!incBri")) {
         brightnessUp();
         parsed = true;
-      } else if (cmdStr.startsWith(F("!decBri"))) {
+      } else if (cmdStr.startsWith("!decBri")) {
         brightnessDown();
         parsed = true;
-      } else if (cmdStr.startsWith(F("!presetF"))) { //!presetFallback
+      } else if (cmdStr.startsWith("!presetF")) { //!presetFallback
         uint8_t p1 = fdo["PL"] | 1;
         uint8_t p2 = fdo["FX"] | hw_random8(strip.getModeCount() -1);
         uint8_t p3 = fdo["FP"] | 0;
@@ -165,9 +165,9 @@ static bool remoteJson(int button)
       String apireq = "win"; apireq += '&';                        // reduce flash string usage
       //if (cmdStr.indexOf("~") || fdo["rpt"]) lastValidCode = code; // repeatable action
       if (!cmdStr.startsWith(apireq)) cmdStr = apireq + cmdStr;    // if no "win&" prefix
-      if (!irApplyToAllSelected && cmdStr.indexOf(F("SS="))<0) {
+      if (!irApplyToAllSelected && cmdStr.indexOf("SS=")<0) {
         char tmp[10];
-        sprintf_P(tmp, PSTR("&SS=%d"), strip.getMainSegmentId());
+        sprintf(tmp, "&SS=%d", strip.getMainSegmentId());
         cmdStr += tmp;
       }
       fdo.clear();                                                 // clear JSON buffer (it is no longer needed)
@@ -189,7 +189,7 @@ void handleWiZdata(uint8_t *incomingData, size_t len) {
   message_structure_t *incoming = reinterpret_cast<message_structure_t *>(incomingData);
 
   if (len != sizeof(message_structure_t)) {
-    DEBUG_PRINTF_P(PSTR("Unknown incoming ESP Now message received of length %u\n"), len);
+    DEBUG_PRINTF_P("Unknown incoming ESP Now message received of length %u\n", len);
     return;
   }
 
@@ -198,11 +198,11 @@ void handleWiZdata(uint8_t *incomingData, size_t len) {
     return;
   }
 
-  DEBUG_PRINT(F("Incoming ESP Now Packet ["));
+  DEBUG_PRINT("Incoming ESP Now Packet [");
   DEBUG_PRINT(cur_seq);
-  DEBUG_PRINT(F("] from sender ["));
+  DEBUG_PRINT("] from sender [");
   DEBUG_PRINT(last_signal_src);
-  DEBUG_PRINT(F("] button: "));
+  DEBUG_PRINT("] button: ");
   DEBUG_PRINTLN(incoming->button);
 
   ESPNowButton = incoming->button; // save state, do not process in callback (can cause glitches)

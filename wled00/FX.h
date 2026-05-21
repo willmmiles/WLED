@@ -30,7 +30,7 @@
   #define DEBUGFX_PRINT(x) DEBUGOUT.print(x)
   #define DEBUGFX_PRINTLN(x) DEBUGOUT.println(x)
   #define DEBUGFX_PRINTF(x...) DEBUGOUT.printf(x)
-  #define DEBUGFX_PRINTF_P(x...) DEBUGOUT.printf_P(x)
+  #define DEBUGFX_PRINTF_P(x...) DEBUGOUT.printf(x)
 #else
   #define DEBUGFX_PRINT(x)
   #define DEBUGFX_PRINTLN(x)
@@ -524,7 +524,7 @@ class Segment {
       , _cct(0)
       {}
       ~Transition() {
-        //DEBUGFX_PRINTF_P(PSTR("-- Destroying transition: %p\n"), this);
+        //DEBUGFX_PRINTF_P("-- Destroying transition: %p\n", this);
         if (_oldSegment) delete _oldSegment;
       }
     } *_t;
@@ -595,11 +595,11 @@ class Segment {
     , _capabilities(0)
     , _t(nullptr)
     {
-      DEBUGFX_PRINTF_P(PSTR("-- Creating segment: %p [%d,%d:%d,%d]\n"), this, (int)start, (int)stop, (int)startY, (int)stopY);
+      DEBUGFX_PRINTF_P("-- Creating segment: %p [%d,%d:%d,%d]\n", this, (int)start, (int)stop, (int)startY, (int)stopY);
       // allocate render buffer (always entire segment), prefer PSRAM if DRAM is running low. Note: impact on FPS with PSRAM buffer is low (<2% with QSPI PSRAM)
       pixels = static_cast<uint32_t*>(allocate_buffer(length() * sizeof(uint32_t), BFRALLOC_PREFER_PSRAM | BFRALLOC_NOBYTEACCESS | BFRALLOC_CLEAR));
       if (!pixels) {
-        DEBUGFX_PRINTLN(F("!!! Not enough RAM for pixel buffer !!!"));
+        DEBUGFX_PRINTLN("!!! Not enough RAM for pixel buffer !!!");
         extern byte errorFlag;
         errorFlag = ERR_NORAM_PX;
         stop = 0; // mark segment as inactive/invalid
@@ -611,10 +611,10 @@ class Segment {
 
     ~Segment() {
       #ifdef WLED_DEBUG
-      DEBUGFX_PRINTF_P(PSTR("-- Destroying segment: %p [%d,%d:%d,%d]"), this, (int)start, (int)stop, (int)startY, (int)stopY);
-      if (name) DEBUGFX_PRINTF_P(PSTR(" %s (%p)"), name, name);
-      if (data) DEBUGFX_PRINTF_P(PSTR(" %u->(%p)"), _dataLen, data);
-      DEBUGFX_PRINTF_P(PSTR(" T[%p]"), _t);
+      DEBUGFX_PRINTF_P("-- Destroying segment: %p [%d,%d:%d,%d]", this, (int)start, (int)stop, (int)startY, (int)stopY);
+      if (name) DEBUGFX_PRINTF_P(" %s (%p)", name, name);
+      if (data) DEBUGFX_PRINTF_P(" %u->(%p)", _dataLen, data);
+      DEBUGFX_PRINTF_P(" T[%p]", _t);
       DEBUGFX_PRINTLN();
       #endif
       clearName();
@@ -957,7 +957,7 @@ class WS2812FX {
     inline uint32_t getPixelColorNoMap(unsigned n) const { return (n < getLengthTotal()) ? _pixels[n] : 0; } // ignores mapping table
     inline uint32_t getLastShow() const             { return _lastShow; }                 // returns millis() timestamp of last strip.show() call
 
-    const char *getModeData(unsigned id = 0) const  { return (id && id < _modeCount) ? _modeData[id] : PSTR("Solid"); }
+    const char *getModeData(unsigned id = 0) const  { return (id && id < _modeCount) ? _modeData[id] : "Solid"; }
     inline const char **getModeDataSrc()            { return &(_modeData[0]); }           // vectors use arrays for underlying data
 
     Segment&        getSegment(unsigned id);

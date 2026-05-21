@@ -285,8 +285,8 @@ private:
       
     char buffer[64];
     char valBuffer[12];
-    sprintf_P(buffer, PSTR("%s/%S/%S"), mqttDeviceTopic, _str_name, subTopic);
-    sprintf_P(valBuffer, PSTR("%d"), value);
+    sprintf(buffer, "%s/%S/%S", mqttDeviceTopic, _str_name, subTopic);
+    sprintf(valBuffer, "%d", value);
     mqtt->publish(buffer, 2, true, valBuffer);
   }
 
@@ -294,13 +294,13 @@ private:
   {
     if(mqtt == NULL) return;
     char buffer[64];
-    sprintf_P(buffer, PSTR("%s/%S/%S"), mqttDeviceTopic, _str_name, subTopic);
+    sprintf(buffer, "%s/%S/%S", mqttDeviceTopic, _str_name, subTopic);
     mqtt->publish(buffer, 2, true, Value.c_str(), Value.length());
   }
 
   bool _cmpIntSetting_P(char *topic, char *payload, const char *setting, void *value)
   {
-    if (strcmp_P(topic, setting) == 0)
+    if (strcmp(topic, setting) == 0)
     {
       *((int *)value) = strtol(payload, NULL, 10);
       _publishMQTTint_P(setting, *((int *)value));
@@ -325,7 +325,7 @@ private:
     if (_cmpIntSetting_P(topic, payload, _str_leadingZero, &umSSDRLeadingZero)) {
       return true;
     }
-    if (strcmp_P(topic, _str_displayMask) == 0) {
+    if (strcmp(topic, _str_displayMask) == 0) {
       umSSDRDisplayMask = String(payload);
       _publishMQTTstr_P(_str_displayMask, umSSDRDisplayMask);
       return true;
@@ -355,26 +355,26 @@ private:
   }
 
   void _addJSONObject(JsonObject& root) {
-    JsonObject ssdrObj = root[FPSTR(_str_name)];
+    JsonObject ssdrObj = root[_str_name];
     if (ssdrObj.isNull()) {
-      ssdrObj = root.createNestedObject(FPSTR(_str_name));
+      ssdrObj = root.createNestedObject(_str_name);
     }
 
-    ssdrObj[FPSTR(_str_timeEnabled)] = umSSDRDisplayTime;
-    ssdrObj[FPSTR(_str_ldrEnabled)] = umSSDREnableLDR;
-    ssdrObj[FPSTR(_str_inverted)] = umSSDRInverted;
-    ssdrObj[FPSTR(_str_colonblink)] = umSSDRColonblink;
-    ssdrObj[FPSTR(_str_leadingZero)] = umSSDRLeadingZero;
-    ssdrObj[FPSTR(_str_displayMask)] = umSSDRDisplayMask;
-    ssdrObj[FPSTR(_str_hours)] = umSSDRHours;
-    ssdrObj[FPSTR(_str_minutes)] = umSSDRMinutes;
-    ssdrObj[FPSTR(_str_seconds)] = umSSDRSeconds;
-    ssdrObj[FPSTR(_str_colons)] = umSSDRColons;
-    ssdrObj[FPSTR(_str_days)] = umSSDRDays;
-    ssdrObj[FPSTR(_str_months)] = umSSDRMonths;
-    ssdrObj[FPSTR(_str_years)] = umSSDRYears;
-    ssdrObj[FPSTR(_str_minBrightness)] = umSSDRBrightnessMin;
-    ssdrObj[FPSTR(_str_maxBrightness)] = umSSDRBrightnessMax;
+    ssdrObj[_str_timeEnabled] = umSSDRDisplayTime;
+    ssdrObj[_str_ldrEnabled] = umSSDREnableLDR;
+    ssdrObj[_str_inverted] = umSSDRInverted;
+    ssdrObj[_str_colonblink] = umSSDRColonblink;
+    ssdrObj[_str_leadingZero] = umSSDRLeadingZero;
+    ssdrObj[_str_displayMask] = umSSDRDisplayMask;
+    ssdrObj[_str_hours] = umSSDRHours;
+    ssdrObj[_str_minutes] = umSSDRMinutes;
+    ssdrObj[_str_seconds] = umSSDRSeconds;
+    ssdrObj[_str_colons] = umSSDRColons;
+    ssdrObj[_str_days] = umSSDRDays;
+    ssdrObj[_str_months] = umSSDRMonths;
+    ssdrObj[_str_years] = umSSDRYears;
+    ssdrObj[_str_minBrightness] = umSSDRBrightnessMin;
+    ssdrObj[_str_maxBrightness] = umSSDRBrightnessMax;
   }
 
 public:
@@ -399,7 +399,7 @@ public:
     #ifdef USERMOD_BH1750
       bh1750 = (Usermod_BH1750*) UsermodManager::lookup(USERMOD_ID_BH1750);
     #endif
-    DEBUG_PRINTLN(F("Setup done"));
+    DEBUG_PRINTLN("Setup done");
   }
 
   /*
@@ -450,9 +450,9 @@ public:
   * Below it is shown how this could be used for e.g. a light sensor
   */
   void addToJsonInfo(JsonObject& root) {
-    JsonObject user = root[F("u")];
+    JsonObject user = root["u"];
     if (user.isNull()) {
-      user = root.createNestedObject(F("u"));
+      user = root.createNestedObject("u");
     }
     JsonArray enabled = user.createNestedArray("Time enabled");
     enabled.add(umSSDRDisplayTime);
@@ -472,9 +472,9 @@ public:
   * Values in the state object may be modified by connected clients
   */
   void addToJsonState(JsonObject& root) {
-    JsonObject user = root[F("u")];
+    JsonObject user = root["u"];
     if (user.isNull()) {
-      user = root.createNestedObject(F("u"));
+      user = root.createNestedObject("u");
     }
     _addJSONObject(user);
   }
@@ -484,15 +484,15 @@ public:
   * Values in the state object may be modified by connected clients
   */
   void readFromJsonState(JsonObject& root) {
-    JsonObject user = root[F("u")];
+    JsonObject user = root["u"];
     if (!user.isNull()) {
-      JsonObject ssdrObj = user[FPSTR(_str_name)];
-      umSSDRDisplayTime = ssdrObj[FPSTR(_str_timeEnabled)] | umSSDRDisplayTime;
-      umSSDREnableLDR = ssdrObj[FPSTR(_str_ldrEnabled)] | umSSDREnableLDR;
-      umSSDRInverted = ssdrObj[FPSTR(_str_inverted)] | umSSDRInverted;
-      umSSDRColonblink = ssdrObj[FPSTR(_str_colonblink)] | umSSDRColonblink;
-      umSSDRLeadingZero = ssdrObj[FPSTR(_str_leadingZero)] | umSSDRLeadingZero;
-      umSSDRDisplayMask = ssdrObj[FPSTR(_str_displayMask)] | umSSDRDisplayMask;
+      JsonObject ssdrObj = user[_str_name];
+      umSSDRDisplayTime = ssdrObj[_str_timeEnabled] | umSSDRDisplayTime;
+      umSSDREnableLDR = ssdrObj[_str_ldrEnabled] | umSSDREnableLDR;
+      umSSDRInverted = ssdrObj[_str_inverted] | umSSDRInverted;
+      umSSDRColonblink = ssdrObj[_str_colonblink] | umSSDRColonblink;
+      umSSDRLeadingZero = ssdrObj[_str_leadingZero] | umSSDRLeadingZero;
+      umSSDRDisplayMask = ssdrObj[_str_displayMask] | umSSDRDisplayMask;
     }
   }
 
@@ -502,22 +502,22 @@ public:
     {
       _updateMQTT();
       //subscribe for sevenseg messages on the device topic
-      sprintf_P(subBuffer, PSTR("%s/%S/+/set"), mqttDeviceTopic, _str_name);
+      sprintf(subBuffer, "%s/%S/+/set", mqttDeviceTopic, _str_name);
       mqtt->subscribe(subBuffer, 2);
     }
 
     if (mqttGroupTopic[0] != 0)
     {
       //subscribe for sevenseg messages on the group topic
-      sprintf_P(subBuffer, PSTR("%s/%S/+/set"), mqttGroupTopic, _str_name);
+      sprintf(subBuffer, "%s/%S/+/set", mqttGroupTopic, _str_name);
       mqtt->subscribe(subBuffer, 2);
     }
   }
 
   bool onMqttMessage(char *topic, char *payload) {
     //If topic begins with sevenSeg cut it off, otherwise not our message.
-    size_t topicPrefixLen = strlen_P(PSTR("/wledSS/"));
-    if (strncmp_P(topic, PSTR("/wledSS/"), topicPrefixLen) == 0) {
+    size_t topicPrefixLen = strlen("/wledSS/");
+    if (strncmp(topic, "/wledSS/", topicPrefixLen) == 0) {
       topic += topicPrefixLen;
     } else {
       return false;
@@ -542,33 +542,33 @@ public:
   }
 
   bool readFromConfig(JsonObject &root) {
-    JsonObject top = root[FPSTR(_str_name)];
+    JsonObject top = root[_str_name];
 
     if (top.isNull()) {
-      DEBUG_PRINT(FPSTR(_str_name));
-      DEBUG_PRINTLN(F(": No config found. (Using defaults.)"));
+      DEBUG_PRINT(_str_name);
+      DEBUG_PRINTLN(": No config found. (Using defaults.)");
       return false;
     }
 
-    umSSDRDisplayTime      = (top[FPSTR(_str_timeEnabled)] | umSSDRDisplayTime);
-    umSSDREnableLDR        = (top[FPSTR(_str_ldrEnabled)] | umSSDREnableLDR);
-    umSSDRInverted         = (top[FPSTR(_str_inverted)] | umSSDRInverted);
-    umSSDRColonblink       = (top[FPSTR(_str_colonblink)] | umSSDRColonblink);
-    umSSDRLeadingZero      = (top[FPSTR(_str_leadingZero)] | umSSDRLeadingZero);
+    umSSDRDisplayTime      = (top[_str_timeEnabled] | umSSDRDisplayTime);
+    umSSDREnableLDR        = (top[_str_ldrEnabled] | umSSDREnableLDR);
+    umSSDRInverted         = (top[_str_inverted] | umSSDRInverted);
+    umSSDRColonblink       = (top[_str_colonblink] | umSSDRColonblink);
+    umSSDRLeadingZero      = (top[_str_leadingZero] | umSSDRLeadingZero);
 
-    umSSDRDisplayMask      = top[FPSTR(_str_displayMask)] | umSSDRDisplayMask;
-    umSSDRHours            = top[FPSTR(_str_hours)] | umSSDRHours;
-    umSSDRMinutes          = top[FPSTR(_str_minutes)] | umSSDRMinutes;
-    umSSDRSeconds          = top[FPSTR(_str_seconds)] | umSSDRSeconds;
-    umSSDRColons           = top[FPSTR(_str_colons)] | umSSDRColons;
-    umSSDRDays             = top[FPSTR(_str_days)] | umSSDRDays;
-    umSSDRMonths           = top[FPSTR(_str_months)] | umSSDRMonths;
-    umSSDRYears            = top[FPSTR(_str_years)] | umSSDRYears;
-    umSSDRBrightnessMin    = top[FPSTR(_str_minBrightness)] | umSSDRBrightnessMin;
-    umSSDRBrightnessMax    = top[FPSTR(_str_maxBrightness)] | umSSDRBrightnessMax;
+    umSSDRDisplayMask      = top[_str_displayMask] | umSSDRDisplayMask;
+    umSSDRHours            = top[_str_hours] | umSSDRHours;
+    umSSDRMinutes          = top[_str_minutes] | umSSDRMinutes;
+    umSSDRSeconds          = top[_str_seconds] | umSSDRSeconds;
+    umSSDRColons           = top[_str_colons] | umSSDRColons;
+    umSSDRDays             = top[_str_days] | umSSDRDays;
+    umSSDRMonths           = top[_str_months] | umSSDRMonths;
+    umSSDRYears            = top[_str_years] | umSSDRYears;
+    umSSDRBrightnessMin    = top[_str_minBrightness] | umSSDRBrightnessMin;
+    umSSDRBrightnessMax    = top[_str_maxBrightness] | umSSDRBrightnessMax;
 
-    DEBUG_PRINT(FPSTR(_str_name));
-    DEBUG_PRINTLN(F(" config (re)loaded."));
+    DEBUG_PRINT(_str_name);
+    DEBUG_PRINTLN(" config (re)loaded.");
 
     return true;
   }

@@ -575,15 +575,15 @@ class QuinLEDAnPentaUsermod : public Usermod
 
     void addToConfig(JsonObject &root)
     {
-      JsonObject top = root.createNestedObject(FPSTR(_name)); // usermodname
+      JsonObject top = root.createNestedObject(_name); // usermodname
 
-      top[FPSTR(_enabled)] = enabled;
-      top[FPSTR(_oledEnabled)] = oledEnabled;
-      top[FPSTR(_oledUseProgressBars)] = oledUseProgressBars;
-      top[FPSTR(_oledFlipScreen)] = oledFlipScreen;
-      top[FPSTR(_oledSecondsPerPage)] = oledSecondsPerPage;
-      top[FPSTR(_oledFixBuggedScreen)] = oledFixBuggedScreen;
-      top[FPSTR(_shtEnabled)] = shtEnabled;
+      top[_enabled] = enabled;
+      top[_oledEnabled] = oledEnabled;
+      top[_oledUseProgressBars] = oledUseProgressBars;
+      top[_oledFlipScreen] = oledFlipScreen;
+      top[_oledSecondsPerPage] = oledSecondsPerPage;
+      top[_oledFixBuggedScreen] = oledFixBuggedScreen;
+      top[_shtEnabled] = shtEnabled;
 
       // Update LED pins on config save
       getCurrentUsedLedPins();
@@ -596,7 +596,7 @@ class QuinLEDAnPentaUsermod : public Usermod
      */
     bool readFromConfig(JsonObject &root)
     {
-      JsonObject top = root[FPSTR(_name)];
+      JsonObject top = root[_name];
       if (top.isNull()) {
         DEBUG_PRINTF("[%s] No config found. (Using defaults.)\n", _name);
         return false;
@@ -607,13 +607,13 @@ class QuinLEDAnPentaUsermod : public Usermod
       bool oldOledFlipScreen = oledFlipScreen;
       bool oldShtEnabled = shtEnabled;
 
-      getJsonValue(top[FPSTR(_enabled)], enabled);
-      getJsonValue(top[FPSTR(_oledEnabled)], oledEnabled);
-      getJsonValue(top[FPSTR(_oledUseProgressBars)], oledUseProgressBars);
-      getJsonValue(top[FPSTR(_oledFlipScreen)], oledFlipScreen);
-      getJsonValue(top[FPSTR(_oledSecondsPerPage)], oledSecondsPerPage);
-      getJsonValue(top[FPSTR(_oledFixBuggedScreen)], oledFixBuggedScreen);
-      getJsonValue(top[FPSTR(_shtEnabled)], shtEnabled);
+      getJsonValue(top[_enabled], enabled);
+      getJsonValue(top[_oledEnabled], oledEnabled);
+      getJsonValue(top[_oledUseProgressBars], oledUseProgressBars);
+      getJsonValue(top[_oledFlipScreen], oledFlipScreen);
+      getJsonValue(top[_oledSecondsPerPage], oledSecondsPerPage);
+      getJsonValue(top[_oledFixBuggedScreen], oledFixBuggedScreen);
+      getJsonValue(top[_shtEnabled], shtEnabled);
 
       // First run: reading from cfg.json, nothing to do here, will be all done in setup()
       if (!firstRunDone) {

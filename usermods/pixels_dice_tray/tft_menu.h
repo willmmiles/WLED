@@ -399,7 +399,7 @@ class InfoMenu : public MenuBase {
     }
     if (WLED_MQTT_CONNECTED) {
       char mqtt_topic_buffer[MQTT_MAX_TOPIC_LEN + 16];
-      snprintf(mqtt_topic_buffer, sizeof(mqtt_topic_buffer), PSTR("%s/%s"),
+      snprintf(mqtt_topic_buffer, sizeof(mqtt_topic_buffer), "%s/%s",
                mqttDeviceTopic, "dice/settings->roll_label");
       mqtt->publish(mqtt_topic_buffer, 0, false,
                     GetRollName(settings->roll_label));

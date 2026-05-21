@@ -997,7 +997,7 @@ WLED_GLOBAL volatile uint8_t jsonBufferLock _INIT(0);
   #define DEBUG_PRINT(x) DEBUGOUT.print(x)
   #define DEBUG_PRINTLN(x) DEBUGOUT.println(x)
   #define DEBUG_PRINTF(x...) DEBUGOUT.printf(x)
-  #define DEBUG_PRINTF_P(x...) DEBUGOUT.printf_P(x)
+  #define DEBUG_PRINTF_P(x...) DEBUGOUT.printf(x)
 #else
   #define DEBUG_PRINT(x)
   #define DEBUG_PRINTLN(x)
@@ -1027,14 +1027,14 @@ WLED_GLOBAL volatile uint8_t jsonBufferLock _INIT(0);
 
 #ifndef WLED_AP_SSID_UNIQUE
   #define WLED_SET_AP_SSID() do { \
-    strcpy_P(apSSID, PSTR(WLED_AP_SSID)); \
+    strcpy(apSSID, WLED_AP_SSID); \
   } while(0)
 #else
   #define WLED_SET_AP_SSID() do { \
-    snprintf_P(\
+    snprintf(\
       apSSID, \
       sizeof(apSSID)-1, \
-      PSTR("%s-%s"), \
+      "%s-%s", \
       WLED_BRAND, \
       escapedMac.c_str()+6 \
     ); \
@@ -1042,7 +1042,7 @@ WLED_GLOBAL volatile uint8_t jsonBufferLock _INIT(0);
 #endif
 
 //macro to convert F to const
-#define SET_F(x)  (const char*)F(x)
+#define SET_F(x)  (const char*)x
 
 class WLED {
 public:

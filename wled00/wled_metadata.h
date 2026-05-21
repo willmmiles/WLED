@@ -36,9 +36,9 @@ extern const wled_metadata_t WLED_BUILD_DESCRIPTION;
 // Convenient metdata pointers
 #define versionString (WLED_BUILD_DESCRIPTION.wled_version)   // Build version, WLED_VERSION
 #define releaseString (WLED_BUILD_DESCRIPTION.release_name)   // Release name,  WLED_RELEASE_NAME
-extern const __FlashStringHelper* repoString;                       // Github repository (if available)
-extern const __FlashStringHelper* productString;                    // Product, WLED_PRODUCT_NAME -- deprecated, use WLED_RELEASE_NAME
-extern const __FlashStringHelper* brandString ;                     // Brand
+extern const char* repoString;                       // Github repository (if available)
+extern const char* productString;                    // Product, WLED_PRODUCT_NAME -- deprecated, use WLED_RELEASE_NAME
+extern const char* brandString;                      // Brand
 
 
 // Metadata analysis functions

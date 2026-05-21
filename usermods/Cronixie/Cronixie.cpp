@@ -112,7 +112,7 @@ class UsermodCronixie : public Usermod {
       //W Week of Month | WW Week of Year
       //D Day of Week | DD Day Of Month | DDD Day Of Year
 
-      DEBUG_PRINT(F("cset "));
+      DEBUG_PRINT("cset ");
       DEBUG_PRINTLN(cronixieDisplay);
       
       for (int i = 0; i < 6; i++)
@@ -158,7 +158,7 @@ class UsermodCronixie : public Usermod {
           //case 'v': break; //user var1
         }
       }
-      DEBUG_PRINT(F("result "));
+      DEBUG_PRINT("result ");
       for (int i = 0; i < 5; i++)
       {
         DEBUG_PRINT((int)dP[i]);
@@ -275,7 +275,7 @@ class UsermodCronixie : public Usermod {
 
     void addToConfig(JsonObject& root)
     {
-      JsonObject top = root.createNestedObject(F("Cronixie"));
+      JsonObject top = root.createNestedObject("Cronixie");
       top["backlight"] = backlight;
     }
 
@@ -284,7 +284,7 @@ class UsermodCronixie : public Usermod {
       // default settings values could be set here (or below using the 3-argument getJsonValue()) instead of in the class definition or constructor
       // setting them inside readFromConfig() is slightly more robust, handling the rare but plausible use case of single value being missing after boot (e.g. if the cfg.json was manually edited and a value was removed)
 
-      JsonObject top = root[F("Cronixie")];
+      JsonObject top = root["Cronixie"];
 
       bool configComplete = !top.isNull();
 

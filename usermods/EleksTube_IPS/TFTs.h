@@ -128,7 +128,7 @@ private:
 
     uint16_t magic = read16(bmpFS);
     if (magic != ('B' | ('M' << 8))) { // File not found or not a BMP
-      Serial.println(F("BMP not found!"));
+      Serial.println("BMP not found!");
       bmpFS.close();
       return false;
     }
@@ -143,7 +143,7 @@ private:
     bitDepth = read16(bmpFS);
 
     if (read32(bmpFS) != 0 || (bitDepth != 24 && bitDepth != 1 && bitDepth != 4 && bitDepth != 8)) {
-      Serial.println(F("BMP format not recognized."));
+      Serial.println("BMP format not recognized.");
       bmpFS.close();
       return false;
     }
@@ -237,7 +237,7 @@ private:
     
     magic = read16(bmpFS);
     if (magic != 0x4B43) { // look for "CK" header
-      Serial.print(F("File not a CLK. Magic: "));
+      Serial.print("File not a CLK. Magic: ");
       Serial.println(magic);
       bmpFS.close();
       return false;

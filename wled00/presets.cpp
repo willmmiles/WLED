@@ -37,7 +37,7 @@ static void doSaveState() {
   initPresetsFile(); // just in case if someone deleted presets.json using /edit
   JsonObject sObj = pDoc->to<JsonObject>();
 
-  DEBUG_PRINTLN(F("Serialize current state"));
+  DEBUG_PRINTLN("Serialize current state");
   if (playlistSave) {
     serializePlaylist(sObj);
     if (includeBri) sObj["on"] = true;
@@ -45,12 +45,12 @@ static void doSaveState() {
     serializeState(sObj, true, includeBri, segBounds, selectedOnly);
   }
   if (saveName) sObj["n"] = saveName;
-  else          sObj["n"] = F("Unkonwn preset"); // should not happen, but just in case...
-  if (quickLoad && quickLoad[0]) sObj[F("ql")] = quickLoad;
-  if (saveLedmap >= 0) sObj[F("ledmap")] = saveLedmap;
+  else          sObj["n"] = "Unkonwn preset"; // should not happen, but just in case...
+  if (quickLoad && quickLoad[0]) sObj["ql"] = quickLoad;
+  if (saveLedmap >= 0) sObj["ledmap"] = saveLedmap;
 /*
   #ifdef WLED_DEBUG
-    DEBUG_PRINTLN(F("Serialized preset"));
+    DEBUG_PRINTLN("Serialized preset");
     serializeJson(*pDoc,Serial);
     DEBUG_PRINTLN();
   #endif
@@ -101,7 +101,7 @@ bool getPresetName(byte index, String& name)
 
 void initPresetsFile()
 {
-  char fileName[33]; strncpy_P(fileName, getPresetsFileName(), 32); fileName[32] = 0; //use PROGMEM safe copy as FS.open() does not
+  char fileName[33]; strncpy(fileName, getPresetsFileName(), 32); fileName[32] = 0; //use PROGMEM safe copy as FS.open() does not
   if (WLED_FS.exists(fileName)) return;
 
   StaticJsonDocument<64> doc;
@@ -118,7 +118,7 @@ void initPresetsFile()
 
 bool applyPresetFromPlaylist(byte index)
 {
-  DEBUG_PRINTF_P(PSTR("Request to apply preset: %d\n"), index);
+  DEBUG_PRINTF_P("Request to apply preset: %d\n", index);
   presetToApply = index;
   callModeToApply = CALL_MODE_DIRECT_CHANGE;
   return true;
@@ -127,7 +127,7 @@ bool applyPresetFromPlaylist(byte index)
 bool applyPreset(byte index, byte callMode)
 {
   unloadPlaylist(); // applying a preset unloads the playlist (#3827)
-  DEBUG_PRINTF_P(PSTR("Request to apply preset: %u\n"), index);
+  DEBUG_PRINTF_P("Request to apply preset: %u\n", index);
   presetToApply = index;
   callModeToApply = callMode;
   return true;
@@ -163,7 +163,7 @@ void handlePresets()
   presetToApply = 0; //clear request for preset
   callModeToApply = 0;
 
-  DEBUG_PRINTF_P(PSTR("Applying preset: %u\n"), (unsigned)tmpPreset);
+  DEBUG_PRINTF_P("Applying preset: %u\n", (unsigned)tmpPreset);
 
   #if defined(ARDUINO_ARCH_ESP32S2) || defined(ARDUINO_ARCH_ESP32C3)
   unsigned long maxWait = millis() + strip.getFrameTime();
@@ -187,13 +187,13 @@ void handlePresets()
   const char* httpwin = fdo["win"];
   if (httpwin) {
     String apireq = "win"; // reduce flash string usage
-    apireq += F("&IN&"); // internal call
+    apireq += "&IN&"; // internal call
     apireq += httpwin;
     handleSet(nullptr, apireq, false); // may call applyPreset() via PL=
     setValuesFromFirstSelectedSeg(); // fills legacy values
     changePreset = true;
   } else {
-    if (!fdo["seg"].isNull() || !fdo["on"].isNull() || !fdo["bri"].isNull() || !fdo["nl"].isNull() || !fdo["ps"].isNull() || !fdo[F("playlist")].isNull()) changePreset = true;
+    if (!fdo["seg"].isNull() || !fdo["on"].isNull() || !fdo["bri"].isNull() || !fdo["nl"].isNull() || !fdo["ps"].isNull() || !fdo["playlist"].isNull()) changePreset = true;
     if (!(tmpMode == CALL_MODE_INIT || (tmpMode == CALL_MODE_BUTTON_PRESET && fdo["ps"].is<const char *>() && strchr(fdo["ps"].as<const char *>(),'~') != strrchr(fdo["ps"].as<const char *>(),'~'))))
       fdo.remove("ps"); // remove load request for presets to prevent recursive crash (if not called by boot preset or button which contains preset cycling string "1~5~")
     deserializeState(fdo, CALL_MODE_NO_NOTIFY, tmpPreset); // may change presetToApply by calling applyPreset()
@@ -225,39 +225,39 @@ void savePreset(byte index, const char* pname, JsonObject sObj)
   if (pname) strlcpy(saveName, pname, 33);
   else {
     if (sObj["n"].is<const char*>()) strlcpy(saveName, sObj["n"].as<const char*>(), 33);
-    else                             sprintf_P(saveName, PSTR("Preset %d"), index);
+    else                             sprintf(saveName, "Preset %d", index);
   }
 
-  DEBUG_PRINTF_P(PSTR("Saving preset (%d) %s\n"), index, saveName);
+  DEBUG_PRINTF_P("Saving preset (%d) %s\n", index, saveName);
 
   presetToSave = index;
   playlistSave = false;
-  if (sObj[F("ql")].is<const char*>()) strlcpy(quickLoad, sObj[F("ql")].as<const char*>(), 9); // client limits QL to 2 chars, buffer for 8 bytes to allow unicode
+  if (sObj["ql"].is<const char*>()) strlcpy(quickLoad, sObj["ql"].as<const char*>(), 9); // client limits QL to 2 chars, buffer for 8 bytes to allow unicode
   else quickLoad[0] = 0;
 
-  const char *bootPS = PSTR("bootps");
-  if (!sObj[FPSTR(bootPS)].isNull()) {
-    bootPreset = sObj[FPSTR(bootPS)] | bootPreset;
-    sObj.remove(FPSTR(bootPS));
+  const char *bootPS = "bootps";
+  if (!sObj[bootPS].isNull()) {
+    bootPreset = sObj[bootPS] | bootPreset;
+    sObj.remove(bootPS);
     configNeedsWrite = true;
   }
 
   if (sObj.size()==0 || sObj["o"].isNull()) { // no "o" means not a playlist or custom API call, saving of state is async (not immediately)
     includeBri   = sObj["ib"].as<bool>() || sObj.size()==0 || index==255; // temporary preset needs brightness
     segBounds    = sObj["sb"].as<bool>() || sObj.size()==0 || index==255; // temporary preset needs bounds
-    selectedOnly = sObj[F("sc")].as<bool>();
-    saveLedmap   = sObj[F("ledmap")] | -1;
+    selectedOnly = sObj["sc"].as<bool>();
+    saveLedmap   = sObj["ledmap"] | -1;
   } else {
     // this is a playlist or API call
-    if (sObj[F("playlist")].isNull()) {
+    if (sObj["playlist"].isNull()) {
       // we will save API call immediately (often causes presets.json corruption)
       presetToSave = 0;
       if (index <= 250) { // cannot save API calls to temporary preset (255)
         sObj.remove("o");
         sObj.remove("v");
         sObj.remove("time");
-        sObj.remove(F("error"));
-        sObj.remove(F("psave"));
+        sObj.remove("error");
+        sObj.remove("psave");
         if (sObj["n"].isNull()) sObj["n"] = saveName;
         initPresetsFile(); // just in case if someone deleted presets.json using /edit
         writeObjectToFileUsingId(getPresetsFileName(), index, pDoc);

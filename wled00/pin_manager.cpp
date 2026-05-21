@@ -32,7 +32,7 @@ bool PinManager::deallocatePin(byte gpio, PinOwner tag)
 
   // if a non-zero ownerTag, only allow de-allocation if the owner's tag is provided
   if ((ownerTag[gpio] != PinOwner::None) && (ownerTag[gpio] != tag)) {
-    DEBUG_PRINTF_P(PSTR("PIN DEALLOC: FAIL GPIO %d allocated by 0x%02X, but attempted de-allocation by 0x%02X.\n"), gpio, static_cast<int>(ownerTag[gpio]), static_cast<int>(tag));
+    DEBUG_PRINTF_P("PIN DEALLOC: FAIL GPIO %d allocated by 0x%02X, but attempted de-allocation by 0x%02X.\n", gpio, static_cast<int>(ownerTag[gpio]), static_cast<int>(tag));
     return false;
   }
 
@@ -45,7 +45,7 @@ bool PinManager::deallocatePin(byte gpio, PinOwner tag)
 bool PinManager::deallocateMultiplePins(const uint8_t *pinArray, byte arrayElementCount, PinOwner tag)
 {
   bool shouldFail = false;
-  DEBUG_PRINTLN(F("MULTIPIN DEALLOC"));
+  DEBUG_PRINTLN("MULTIPIN DEALLOC");
   // first verify the pins are OK and allocated by selected owner
   for (int i = 0; i < arrayElementCount; i++) {
     byte gpio = pinArray[i];
@@ -58,7 +58,7 @@ bool PinManager::deallocateMultiplePins(const uint8_t *pinArray, byte arrayEleme
       // if the current pin is allocated by selected owner it is possible to release it
       continue;
     }
-    DEBUG_PRINTF_P(PSTR("PIN DEALLOC: FAIL GPIO %d allocated by 0x%02X, but attempted de-allocation by 0x%02X.\n"), gpio, static_cast<int>(ownerTag[gpio]), static_cast<int>(tag));
+    DEBUG_PRINTF_P("PIN DEALLOC: FAIL GPIO %d allocated by 0x%02X, but attempted de-allocation by 0x%02X.\n", gpio, static_cast<int>(ownerTag[gpio]), static_cast<int>(tag));
     shouldFail = true;
   }
   if (shouldFail) {
@@ -102,14 +102,14 @@ bool PinManager::allocateMultiplePins(const managed_pin_type * mptArray, byte ar
     }
     // allow any GPIO for Ethernet (compile time assigned)
     if (!(isPinOk(gpio, mptArray[i].isOutput) || tag==PinOwner::Ethernet)) {
-      DEBUG_PRINTF_P(PSTR("PIN ALLOC: FAIL Invalid pin attempted to be allocated: GPIO %d as %s\n."), gpio, mptArray[i].isOutput ? PSTR("output"): PSTR("input"));
+      DEBUG_PRINTF_P("PIN ALLOC: FAIL Invalid pin attempted to be allocated: GPIO %d as %s\n.", gpio, mptArray[i].isOutput ? "output": "input");
       shouldFail = true;
     }
     if ((tag==PinOwner::HW_I2C || tag==PinOwner::HW_SPI) && isPinAllocated(gpio, tag)) {
       // allow multiple "allocations" of HW I2C & SPI bus pins
       continue;
     } else if (isPinAllocated(gpio)) {
-      DEBUG_PRINTF_P(PSTR("PIN ALLOC: FAIL GPIO %d already allocated by 0x%02X.\n"), gpio, static_cast<int>(ownerTag[gpio]));
+      DEBUG_PRINTF_P("PIN ALLOC: FAIL GPIO %d already allocated by 0x%02X.\n", gpio, static_cast<int>(ownerTag[gpio]));
       shouldFail = true;
     }
   }
@@ -133,9 +133,9 @@ bool PinManager::allocateMultiplePins(const managed_pin_type * mptArray, byte ar
 
     bitWrite(pinAlloc, gpio, true);
     ownerTag[gpio] = tag;
-    DEBUG_PRINTF_P(PSTR("PIN ALLOC: Pin %d allocated by 0x%02X.\n"), gpio, static_cast<int>(tag));
+    DEBUG_PRINTF_P("PIN ALLOC: Pin %d allocated by 0x%02X.\n", gpio, static_cast<int>(tag));
   }
-  DEBUG_PRINTF_P(PSTR("PIN ALLOC: 0x%014llX.\n"), (unsigned long long)pinAlloc);
+  DEBUG_PRINTF_P("PIN ALLOC: 0x%014llX.\n", (unsigned long long)pinAlloc);
   return true;
 }
 
@@ -154,25 +154,25 @@ bool PinManager::allocatePin(byte gpio, bool output, PinOwner tag)
     #ifdef WLED_DEBUG
     if (gpio < 255) {  // 255 (-1) is the "not defined GPIO"
       if (!isPinOk(gpio, output)) {
-        DEBUG_PRINTF_P(PSTR("PIN ALLOC: FAIL for owner 0x%02X: GPIO %d "), static_cast<int>(tag), gpio);
-        if (output) DEBUG_PRINTLN(F(" cannot be used for i/o on this MCU."));
-        else DEBUG_PRINTLN(F(" cannot be used as input on this MCU."));
+        DEBUG_PRINTF_P("PIN ALLOC: FAIL for owner 0x%02X: GPIO %d ", static_cast<int>(tag), gpio);
+        if (output) DEBUG_PRINTLN(" cannot be used for i/o on this MCU.");
+        else DEBUG_PRINTLN(" cannot be used as input on this MCU.");
       } else {
-        DEBUG_PRINTF_P(PSTR("PIN ALLOC: FAIL GPIO %d - HW I2C & SPI pins have to be allocated using allocateMultiplePins.\n"), gpio);
+        DEBUG_PRINTF_P("PIN ALLOC: FAIL GPIO %d - HW I2C & SPI pins have to be allocated using allocateMultiplePins.\n", gpio);
       }
     }
     #endif
     return false;
   }
   if (isPinAllocated(gpio)) {
-    DEBUG_PRINTF_P(PSTR("PIN ALLOC: FAIL Pin %d already allocated by 0x%02X.\n"), gpio, static_cast<int>(ownerTag[gpio]));
+    DEBUG_PRINTF_P("PIN ALLOC: FAIL Pin %d already allocated by 0x%02X.\n", gpio, static_cast<int>(ownerTag[gpio]));
     return false;
   }
 
   bitWrite(pinAlloc, gpio, true);
   ownerTag[gpio] = tag;
-  DEBUG_PRINTF_P(PSTR("PIN ALLOC: Pin %d successfully allocated by 0x%02X.\n"), gpio, static_cast<int>(ownerTag[gpio]));
-  DEBUG_PRINTF_P(PSTR("PIN ALLOC: 0x%014llX.\n"), (unsigned long long)pinAlloc);
+  DEBUG_PRINTF_P("PIN ALLOC: Pin %d successfully allocated by 0x%02X.\n", gpio, static_cast<int>(ownerTag[gpio]));
+  DEBUG_PRINTF_P("PIN ALLOC: 0x%014llX.\n", (unsigned long long)pinAlloc);
 
   return true;
 }
@@ -234,21 +234,21 @@ bool PinManager::isPinOk(byte gpio, bool output)
     // GPIO46 is input only and pulled down
   #else
 
-    if ((strncmp_P(PSTR("ESP32-U4WDH"), ESP.getChipModel(), 11) == 0) ||    // this is the correct identifier, but....
-        (strncmp_P(PSTR("ESP32-PICO-D"), ESP.getChipModel(), 12) == 0)) {   // https://github.com/espressif/arduino-esp32/issues/10683
+    if ((strncmp("ESP32-U4WDH", ESP.getChipModel(), 11) == 0) ||    // this is the correct identifier, but....
+        (strncmp("ESP32-PICO-D", ESP.getChipModel(), 12) == 0)) {   // https://github.com/espressif/arduino-esp32/issues/10683
       // this chip has 4 MB of internal Flash and different packaging, so available pins are different!
       if ((gpio > 5 && gpio < 9) || gpio == 11) return false;               // U4WDH/PICO-D2 & PICO-D4: GPIO 6, 7, 8, 11 are used for SPI flash; 9 & 10 are free
       if (gpio == 16 || gpio == 17) return false;                           // U4WDH/PICO-D?: GPIO 16 and 17 are used for PSRAM
-    } else if (strncmp_P(PSTR("ESP32-PICO-V3"), ESP.getChipModel(), 13) == 0) {
+    } else if (strncmp("ESP32-PICO-V3", ESP.getChipModel(), 13) == 0) {
       if (gpio == 6 || gpio == 11) return false;                            // PICO-V3: uses GPIO 6 and 11 for flash
-      if (strstr_P(ESP.getChipModel(), PSTR("V3-02")) != nullptr && (gpio == 9 || gpio == 10)) return false; // PICO-V3-02: uses GPIO 9 and 10 for PSRAM; 7, 8 are free
+      if (strstr(ESP.getChipModel(), "V3-02") != nullptr && (gpio == 9 || gpio == 10)) return false; // PICO-V3-02: uses GPIO 9 and 10 for PSRAM; 7, 8 are free
     } else {
       // for classic ESP32 (non-mini) modules, these are the SPI flash pins
       if (gpio > 5 && gpio < 12) return false;      //SPI flash pins
     }
     if (gpio == 16) return !psramFound(); // PSRAM pins on modules with off-package or in-package PSRAM
     if (gpio == 17) {
-      if (strncmp_P(PSTR("ESP32-D0WDR2-V3"), ESP.getChipModel(), 15) == 0) {
+      if (strncmp("ESP32-D0WDR2-V3", ESP.getChipModel(), 15) == 0) {
         return true;
       } else {
         return !psramFound(); // PSRAM pins on modules with in-package PSRAM

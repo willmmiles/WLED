@@ -1,11 +1,15 @@
 # ESP8266 only: relocate C/C++ string literals from DRAM to flash.
 #
-# By default, GCC places string literals in .rodata.str* sections which the
-# ESP8266 linker script maps to DRAM.  This post-script injects those section
-# patterns into the irom0 flash segment before the DRAM .rodata catch-all.
-# Because GNU ld assigns each input section to the first matching output
-# section, the injection alone is sufficient — no removal from the DRAM
-# section is needed.
+# By default, GCC places string literals in .rodata[.<func>].str1.* sections
+# which the ESP8266 linker script maps to DRAM.  This post-script injects
+# those section patterns into the irom0 flash segment before the DRAM
+# .rodata catch-all.  Because GNU ld assigns each input section to the first
+# matching output section, the injection alone is sufficient — no removal
+# from the DRAM section is needed.
+#
+# GCC names per-function string sections .rodata.<mangled_func>.str1.1, so
+# the patterns use a leading wildcard (*) to match both the bare form
+# (.rodata.str1.1) and the function-qualified form.
 #
 # After this patch, function-local string literals are already in flash and
 # PSTR() is redundant for them.  The NON32XFER_HANDLER already required by
@@ -16,8 +20,8 @@ from pathlib import Path
 
 INJECTION = (
     "\n    /* String literals relocated to flash (PSTR no longer required) */\n"
-    "    *(.rodata.str1.*)\n"
-    "    *(.rodata.str4.*)\n"
+    "    *(.rodata*.str1.*)\n"
+    "    *(.rodata*.str4.*)\n"
     "    "
 )
 
@@ -30,12 +34,19 @@ if env.get("PIOPLATFORM") == "espressif8266":
     MARKER = "_irom0_text_end = ABSOLUTE(.);"
 
     def patch_esp8266_ld(target, source, env):
-        original = build_ld.read_text()
-        marker_pos = original.find(MARKER)
+        text = build_ld.read_text()
+        # Remove any previous injection (idempotent re-runs / pattern upgrades)
+        import re as _re
+        text = _re.sub(
+            r'\n\s*/\* String literals relocated to flash[^*]*\*/\n(?:\s*\*\(\.rodata[^\n]*\)\n)+\s*',
+            '\n    ',
+            text,
+        )
+        marker_pos = text.find(MARKER)
         if marker_pos < 0:
             raise RuntimeError(
                 f"esp8266_str_to_flash: marker not found in linker script: {build_ld}"
             )
-        build_ld.write_text(original[:marker_pos] + INJECTION + original[marker_pos:])
+        build_ld.write_text(text[:marker_pos] + INJECTION + text[marker_pos:])
 
     env.AddPostAction(str(build_ld), patch_esp8266_ld)

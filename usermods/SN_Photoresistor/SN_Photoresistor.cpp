@@ -55,12 +55,12 @@ void Usermod_SN_Photoresistor::loop()
     {
       char subuf[45];
       strcpy(subuf, mqttDeviceTopic);
-      strcat_P(subuf, PSTR("/luminance"));
+      strcat(subuf, "/luminance");
       mqtt->publish(subuf, 0, true, String(lastLDRValue).c_str());
     }
     else
     {
-      DEBUG_PRINTLN(F("Missing MQTT connection. Not publishing data"));
+      DEBUG_PRINTLN("Missing MQTT connection. Not publishing data");
     }
   }
 #endif
@@ -69,23 +69,23 @@ void Usermod_SN_Photoresistor::loop()
 
 void Usermod_SN_Photoresistor::addToJsonInfo(JsonObject &root)
 {
-  JsonObject user = root[F("u")];
+  JsonObject user = root["u"];
   if (user.isNull())
-    user = root.createNestedObject(F("u"));
+    user = root.createNestedObject("u");
 
-  JsonArray lux = user.createNestedArray(F("Luminance"));
+  JsonArray lux = user.createNestedArray("Luminance");
 
   if (!getLuminanceComplete)
   {
     // if we haven't read the sensor yet, let the user know
     // that we are still waiting for the first measurement
     lux.add((USERMOD_SN_PHOTORESISTOR_FIRST_MEASUREMENT_AT - millis()) / 1000);
-    lux.add(F(" sec until read"));
+    lux.add(" sec until read");
     return;
   }
 
   lux.add(lastLDRValue);
-  lux.add(F(" lux"));
+  lux.add(" lux");
 }
 
 
@@ -95,15 +95,15 @@ void Usermod_SN_Photoresistor::addToJsonInfo(JsonObject &root)
 void Usermod_SN_Photoresistor::addToConfig(JsonObject &root)
 {
   // we add JSON object.
-  JsonObject top = root.createNestedObject(FPSTR(_name)); // usermodname
-  top[FPSTR(_enabled)] = !disabled;
-  top[FPSTR(_readInterval)] = readingInterval / 1000;
-  top[FPSTR(_referenceVoltage)] = referenceVoltage;
-  top[FPSTR(_resistorValue)] = resistorValue;
-  top[FPSTR(_adcPrecision)] = adcPrecision;
-  top[FPSTR(_offset)] = offset;
+  JsonObject top = root.createNestedObject(_name); // usermodname
+  top[_enabled] = !disabled;
+  top[_readInterval] = readingInterval / 1000;
+  top[_referenceVoltage] = referenceVoltage;
+  top[_resistorValue] = resistorValue;
+  top[_adcPrecision] = adcPrecision;
+  top[_offset] = offset;
 
-  DEBUG_PRINTLN(F("Photoresistor config saved."));
+  DEBUG_PRINTLN("Photoresistor config saved.");
 }
 
 /**
@@ -112,21 +112,21 @@ void Usermod_SN_Photoresistor::addToConfig(JsonObject &root)
 bool Usermod_SN_Photoresistor::readFromConfig(JsonObject &root)
 {
   // we look for JSON object.
-  JsonObject top = root[FPSTR(_name)];
+  JsonObject top = root[_name];
   if (top.isNull()) {
-    DEBUG_PRINT(FPSTR(_name));
-    DEBUG_PRINTLN(F(": No config found. (Using defaults.)"));
+    DEBUG_PRINT(_name);
+    DEBUG_PRINTLN(": No config found. (Using defaults.)");
     return false;
   }
 
-  disabled         = !(top[FPSTR(_enabled)] | !disabled);
-  readingInterval  = (top[FPSTR(_readInterval)] | readingInterval/1000) * 1000; // convert to ms
-  referenceVoltage = top[FPSTR(_referenceVoltage)] | referenceVoltage;
-  resistorValue    = top[FPSTR(_resistorValue)] | resistorValue;
-  adcPrecision     = top[FPSTR(_adcPrecision)] | adcPrecision;
-  offset           = top[FPSTR(_offset)] | offset;
-  DEBUG_PRINT(FPSTR(_name));
-  DEBUG_PRINTLN(F(" config (re)loaded."));
+  disabled         = !(top[_enabled] | !disabled);
+  readingInterval  = (top[_readInterval] | readingInterval/1000) * 1000; // convert to ms
+  referenceVoltage = top[_referenceVoltage] | referenceVoltage;
+  resistorValue    = top[_resistorValue] | resistorValue;
+  adcPrecision     = top[_adcPrecision] | adcPrecision;
+  offset           = top[_offset] | offset;
+  DEBUG_PRINT(_name);
+  DEBUG_PRINTLN(" config (re)loaded.");
 
   // use "return !top["newestParameter"].isNull();" when updating Usermod with new features
   return true;
