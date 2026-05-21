@@ -41,7 +41,7 @@ int fileSizeCallback(void) {
 
 bool openGif(const char *filename) {  // side-effect: updates "file"
   file = WLED_FS.open(filename, "r");
-  DEBUG_PRINTF_P("opening GIF file %s\n", filename);
+  DEBUG_PRINTF("opening GIF file %s\n", filename);
 
   if (!file) return false;
   return true;
@@ -134,13 +134,13 @@ byte renderImageToSegment(Segment &seg) {
     size_t fnameLen = strlen(lastFilename);
     if ((fnameLen < 4) || strcmp(lastFilename + fnameLen - 4, ".gif") != 0) { // empty segment name, name too short, or name not ending in .gif
       gifDecodeFailed = true;
-      DEBUG_PRINTF_P("GIF decoder unsupported file: %s\n", lastFilename);
+      DEBUG_PRINTF("GIF decoder unsupported file: %s\n", lastFilename);
       return IMAGE_ERROR_UNSUPPORTED_FORMAT;
     }
     if (file) file.close();
     if (!openGif(lastFilename)) {
       gifDecodeFailed = true;
-      DEBUG_PRINTF_P("GIF file not found: %s\n", lastFilename);
+      DEBUG_PRINTF("GIF file not found: %s\n", lastFilename);
       return IMAGE_ERROR_FILE_MISSING;
     }
     lastCoordinate = -1;
@@ -169,7 +169,7 @@ byte renderImageToSegment(Segment &seg) {
     DEBUG_PRINTLN("Starting decoding");
     int decoderError = decoder.startDecoding();
     if(decoderError < 0) {
-      DEBUG_PRINTF_P("GIF Decoding error %d in startDecoding().\n", decoderError);
+      DEBUG_PRINTF("GIF Decoding error %d in startDecoding().\n", decoderError);
       errorFlag = ERR_NORAM_PX;
       gifDecodeFailed = true;
       return IMAGE_ERROR_GIF_DECODE;
@@ -179,7 +179,7 @@ byte renderImageToSegment(Segment &seg) {
     decoder.getSize(&gifWidth, &gifHeight);
     if (gifWidth == 0 || gifHeight == 0) {  // bad gif size: prevent division by zero
       gifDecodeFailed = true;
-      DEBUG_PRINTF_P("Invalid GIF dimensions: %dx%d\n", gifWidth, gifHeight);
+      DEBUG_PRINTF("Invalid GIF dimensions: %dx%d\n", gifWidth, gifHeight);
       return IMAGE_ERROR_GIF_DECODE;
     }
     if (activeSeg->is2D()) {
@@ -213,7 +213,7 @@ byte renderImageToSegment(Segment &seg) {
 
   int result = decoder.decodeFrame(false);
   if (result < 0) {
-    DEBUG_PRINTF_P("GIF Decoding error %d in decodeFrame().\n", result);
+    DEBUG_PRINTF("GIF Decoding error %d in decodeFrame().\n", result);
     gifDecodeFailed = true;
     return IMAGE_ERROR_FRAME_DECODE;
   }

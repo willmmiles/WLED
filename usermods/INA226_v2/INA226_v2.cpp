@@ -146,7 +146,7 @@ private:
             DEBUG_PRINTLN("INA226: init failed!");
             return;
         }
-        DEBUG_PRINTF_P("INA226: addr=0x%02X shunt=%luμΩ range=%umA offset=%dmA\n",
+        DEBUG_PRINTF("INA226: addr=0x%02X shunt=%luμΩ range=%umA offset=%dmA\n",
                        _i2cAddress, _shuntResistorUOhm, _currentRangeMa, _currentOffsetMa);
         _ina226->setCorrectionFactor(1.0);
 
@@ -169,7 +169,7 @@ private:
 
         _ina226->setResistorRange(static_cast<float>(_shuntResistorUOhm) / 1000000.0f, static_cast<float>(_currentRangeMa) / 1000.0f);
 
-        DEBUG_PRINTF_P("INA226: mode=%s interval=%lums samples=%u convTime=%uμs\n",
+        DEBUG_PRINTF("INA226: mode=%s interval=%lums samples=%u convTime=%uμs\n",
                        _isTriggeredOperationMode ? "triggered" : "continuous",
                        _checkIntervalMs, _settingInaSamples, _settingInaConversionTimeUs << 2);
     }
@@ -203,7 +203,7 @@ private:
         _lastShuntVoltage = shuntVoltage;
         _lastOverflow = overflow;
 
-        DEBUG_PRINTF_P("INA226: %.3fA %.2fV %.2fW shunt=%.2fmV%s\n",
+        DEBUG_PRINTF("INA226: %.3fA %.2fV %.2fW shunt=%.2fmV%s\n",
                        current, voltage, power, shuntVoltage, overflow ? " OVF" : "");
     }
 

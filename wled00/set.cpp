@@ -212,7 +212,7 @@ void handleSettingsSet(AsyncWebServerRequest *request, byte subPage)
       char ld[4] = "LD"; ld[2] = offset+s; ld[3] = 0; //driver type (RMT=0, I2S=1)
       char hs[4] = "HS"; hs[2] = offset+s; hs[3] = 0; //hostname (for network types, custom text for others)
       if (!request->hasArg(lp)) {
-        DEBUG_PRINTF_P("# of buses: %d\n", s);
+        DEBUG_PRINTF("# of buses: %d\n", s);
         break;
       }
       for (int i = 0; i < 5; i++) {
@@ -327,7 +327,7 @@ void handleSettingsSet(AsyncWebServerRequest *request, byte subPage)
         if ((buttons[i].type == BTN_TYPE_ANALOG) || (buttons[i].type == BTN_TYPE_ANALOG_INVERTED)) {
           if (digitalPinToAnalogChannel(buttons[i].pin) < 0) {
             // not an ADC analog pin
-            DEBUG_PRINTF_P("PIN ALLOC error: GPIO%d for analog button #%d is not an analog pin!\n", buttons[i].pin, i);
+            DEBUG_PRINTF("PIN ALLOC error: GPIO%d for analog button #%d is not an analog pin!\n", buttons[i].pin, i);
             PinManager::deallocatePin(buttons[i].pin, PinOwner::Button);
             buttons[i].type = BTN_TYPE_NONE;
           } else {
@@ -336,7 +336,7 @@ void handleSettingsSet(AsyncWebServerRequest *request, byte subPage)
         } else if ((buttons[i].type == BTN_TYPE_TOUCH || buttons[i].type == BTN_TYPE_TOUCH_SWITCH)) {
           if (digitalPinToTouchChannel(buttons[i].pin) < 0) {
             // not a touch pin
-            DEBUG_PRINTF_P("PIN ALLOC error: GPIO%d for touch button #%d is not an touch pin!\n", buttons[i].pin, i);
+            DEBUG_PRINTF("PIN ALLOC error: GPIO%d for touch button #%d is not an touch pin!\n", buttons[i].pin, i);
             PinManager::deallocatePin(buttons[i].pin, PinOwner::Button);
             buttons[i].type = BTN_TYPE_NONE;
           }
@@ -786,7 +786,7 @@ void handleSettingsSet(AsyncWebServerRequest *request, byte subPage)
       // if the resulting name still contains ":" this means nested object
       JsonObject subObj;
       int umSubObj = name.indexOf(":");
-      DEBUG_PRINTF_P("(%d):",umSubObj);
+      DEBUG_PRINTF("(%d):",umSubObj);
       if (umSubObj>0) {
         subObj = mod[name.substring(0,umSubObj)];
         if (subObj.isNull())
@@ -811,7 +811,7 @@ void handleSettingsSet(AsyncWebServerRequest *request, byte subPage)
           else                         subObj[name].add(value.toInt());    // we may have an int
           j++;
         }
-        DEBUG_PRINTF_P("[%d] = %s\n", j, value.c_str());
+        DEBUG_PRINTF("[%d] = %s\n", j, value.c_str());
       } else {
         // we are using a hidden field with the same name as our parameter (!before the actual parameter!)
         // to describe the type of parameter (text,float,int), for boolean parameters the first field contains "off"
@@ -830,7 +830,7 @@ void handleSettingsSet(AsyncWebServerRequest *request, byte subPage)
           } else if (type == "int")      subObj[name] = value.toInt();
           else                           subObj[name] = value;  // text fields
         }
-        DEBUG_PRINTF_P(" = %s\n", value.c_str());
+        DEBUG_PRINTF(" = %s\n", value.c_str());
       }
     }
     UsermodManager::readFromConfig(um);  // force change of usermod parameters
@@ -893,7 +893,7 @@ bool handleSet(AsyncWebServerRequest *request, const String& req, bool apply)
   if (!(req.indexOf("win") >= 0)) return false;
 
   int pos = 0;
-  DEBUG_PRINTF_P("API req: %s\n", req.c_str());
+  DEBUG_PRINTF("API req: %s\n", req.c_str());
 
   //segment select (sets main segment)
   pos = req.indexOf("SM=");

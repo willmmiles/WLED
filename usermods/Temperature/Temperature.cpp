@@ -14,9 +14,9 @@ float UsermodTemperature::readDallas() {
     #ifdef WLED_DEBUG
     if (OneWire::crc8(data,8) != data[8]) {
       DEBUG_PRINTLN("CRC error reading temperature.");
-      for (unsigned i=0; i < 9; i++) DEBUG_PRINTF_P("0x%02X ", data[i]);
+      for (unsigned i=0; i < 9; i++) DEBUG_PRINTF("0x%02X ", data[i]);
       DEBUG_PRINT(" => ");
-      DEBUG_PRINTF_P("0x%02X\n", OneWire::crc8(data,8));
+      DEBUG_PRINTF("0x%02X\n", OneWire::crc8(data,8));
     }
     #endif
     switch(sensorFound) {
@@ -55,7 +55,7 @@ void UsermodTemperature::readTemperature() {
   temperature = readDallas();
   lastMeasurement = millis();
   waitingForConversion = false;
-  //DEBUG_PRINTF_P("Read temperature %2.1f.\n", temperature); // does not work properly on 8266
+  //DEBUG_PRINTF("Read temperature %2.1f.\n", temperature); // does not work properly on 8266
   DEBUG_PRINT("Read temperature ");
   DEBUG_PRINTLN(temperature);
 }
@@ -77,7 +77,7 @@ bool UsermodTemperature::findSensor() {
         case 0x42:  // DS28EA00
           DEBUG_PRINTLN("Sensor found.");
           sensorFound = deviceAddress[0];
-          DEBUG_PRINTF_P("0x%02X\n", sensorFound);
+          DEBUG_PRINTF("0x%02X\n", sensorFound);
           return true;
       }
     }

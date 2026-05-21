@@ -166,7 +166,7 @@ void getWLEDhostname(char* hostname, size_t maxLen, bool preferMDNS) {
   } else {
     prepareHostname(hostname, maxLen); // use legacy hostname based on "server description" - already sanitized
   }
-  DEBUG_PRINTF_P("getWLEDHostname: '%s'\n", hostname);
+  DEBUG_PRINTF("getWLEDHostname: '%s'\n", hostname);
 }
 
 /* Legacy hostname construction:
@@ -272,7 +272,7 @@ bool requestJSONBufferLock(uint8_t moduleID)
 #endif  
   // If the lock is still held - by us, or by another task
   if (jsonBufferLock) {
-    DEBUG_PRINTF_P("ERROR: Locking JSON buffer (%d) failed! (still locked by %d)\n", moduleID, jsonBufferLock);
+    DEBUG_PRINTF("ERROR: Locking JSON buffer (%d) failed! (still locked by %d)\n", moduleID, jsonBufferLock);
 #ifdef ARDUINO_ARCH_ESP32
     xSemaphoreGiveRecursive(jsonBufferLockMutex);
 #endif
@@ -280,7 +280,7 @@ bool requestJSONBufferLock(uint8_t moduleID)
   }
 
   jsonBufferLock = moduleID ? moduleID : 255;
-  DEBUG_PRINTF_P("JSON buffer locked. (%d)\n", jsonBufferLock);
+  DEBUG_PRINTF("JSON buffer locked. (%d)\n", jsonBufferLock);
   pDoc->clear();
   return true;
 }
@@ -288,7 +288,7 @@ bool requestJSONBufferLock(uint8_t moduleID)
 
 void releaseJSONBufferLock()
 {
-  DEBUG_PRINTF_P("JSON buffer released. (%d)\n", jsonBufferLock);
+  DEBUG_PRINTF("JSON buffer released. (%d)\n", jsonBufferLock);
   jsonBufferLock = 0;
 #ifdef ARDUINO_ARCH_ESP32
   xSemaphoreGiveRecursive(jsonBufferLockMutex);
@@ -928,7 +928,7 @@ void *allocate_buffer(size_t size, uint32_t type) {
   /*
   #if !defined(ESP8266) && defined(WLED_DEBUG)
   if (buffer) {
-    DEBUG_PRINTF_P("*Buffer allocated: size:%d, address:%p", size, (uintptr_t)buffer);
+    DEBUG_PRINTF("*Buffer allocated: size:%d, address:%p", size, (uintptr_t)buffer);
     if ((uintptr_t)buffer > SOC_DRAM_LOW && (uintptr_t)buffer < SOC_DRAM_HIGH)
       DEBUG_PRINTLN(" in DRAM");
     #ifndef CONFIG_IDF_TARGET_ESP32C3
@@ -945,7 +945,7 @@ void *allocate_buffer(size_t size, uint32_t type) {
     else
       DEBUG_PRINTLN(" in ???"); // unknown (check soc.h for other memory regions)
   } else
-    DEBUG_PRINTF_P("Buffer allocation failed: size:%d\n", size);
+    DEBUG_PRINTF("Buffer allocation failed: size:%d\n", size);
   #endif 
   */
   return buffer;
@@ -1062,7 +1062,7 @@ static bool detectBootLoop() {
 }
 
 void handleBootLoop() {
-  DEBUG_PRINTF_P("checking for bootloop: time %d, counter %d, action %d\n", bl_last_boottime, bl_crashcounter, bl_actiontracker);
+  DEBUG_PRINTF("checking for bootloop: time %d, counter %d, action %d\n", bl_last_boottime, bl_crashcounter, bl_actiontracker);
   if (!detectBootLoop()) return; // no bootloop detected
 
   switch(bl_actiontracker) {

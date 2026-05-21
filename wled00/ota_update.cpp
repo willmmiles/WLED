@@ -162,14 +162,14 @@ static void validateGzippedOTA(UpdateContext* context) {
   char errorMessage[128];
   bool ok = unzipFlash(flashBase, compressionBuf, errorMessage, sizeof(errorMessage));
   if (!ok) {
-    DEBUG_PRINTF_P("OTA unzip failed: %s\n", errorMessage);
+    DEBUG_PRINTF("OTA unzip failed: %s\n", errorMessage);
     context->errorMessage = errorMessage;
     return;
   }
 
   ok = validateOTA(compressionBuf, GZIP_DECOMPRESSED_SIZE, errorMessage, sizeof(errorMessage));
   if (!ok) {
-    DEBUG_PRINTF_P("OTA declined: %s\n", errorMessage);
+    DEBUG_PRINTF("OTA declined: %s\n", errorMessage);
     context->errorMessage = errorMessage;
     context->errorMessage += " Enable 'Ignore firmware validation' to proceed anyway.";
     return;
@@ -182,7 +182,7 @@ static void validateGzippedOTA(UpdateContext* context) {
   if (!Update.hasError()) {
     const auto& buf = context->releaseMetadataBuffer;
     if (Update.write(const_cast<uint8_t*>(buf.data()), buf.size()) != buf.size()) {
-      DEBUG_PRINTF_P("OTA write failed on final chunk: %s\n", Update.UPDATE_ERROR());
+      DEBUG_PRINTF("OTA write failed on final chunk: %s\n", Update.UPDATE_ERROR());
     }
   }
 
@@ -195,7 +195,7 @@ static void endOTA(AsyncWebServerRequest *request) {
   UpdateContext* context = reinterpret_cast<UpdateContext*>(request->_tempObject);
   request->_tempObject = nullptr;
 
-  DEBUG_PRINTF_P("EndOTA %x --> %x (%d)\n", (uintptr_t)request,(uintptr_t) context, context ? context->uploadComplete : 0);
+  DEBUG_PRINTF("EndOTA %x --> %x (%d)\n", (uintptr_t)request,(uintptr_t) context, context ? context->uploadComplete : 0);
   if (context) {
     if (context->updateStarted) {  // We initialized the update
       // We use Update.end() because not all forms of Update() support an abort.
@@ -243,7 +243,7 @@ static bool beginOTA(AsyncWebServerRequest *request, UpdateContext* context)
   strip.resetSegments();  // free as much memory as you can
   context->needsRestart = true;
 
-  DEBUG_PRINTF_P("OTA Update Start, %x --> %x\n", (uintptr_t)request,(uintptr_t) context);
+  DEBUG_PRINTF("OTA Update Start, %x --> %x\n", (uintptr_t)request,(uintptr_t) context);
 
   auto skipValidationParam = request->getParam("skipValidation", true);
   if (skipValidationParam && (skipValidationParam->value() == "1")) {
@@ -255,7 +255,7 @@ static bool beginOTA(AsyncWebServerRequest *request, UpdateContext* context)
   size_t updateSize = request->contentLength() > 0 ? request->contentLength() : ((ESP.getFreeSketchSpace() - 0x1000) & 0xFFFFF000);
   if (!Update.begin(updateSize)) {
     context->errorMessage = Update.UPDATE_ERROR();
-    DEBUG_PRINTF_P("OTA Failed to begin: %s\n", context->errorMessage.c_str());
+    DEBUG_PRINTF("OTA Failed to begin: %s\n", context->errorMessage.c_str());
     return false;
   }
 
@@ -273,7 +273,7 @@ bool initOTA(AsyncWebServerRequest *request) {
     request->onDisconnect([=]() { endOTA(request); });  // ensures we restart on failure
   };
 
-  DEBUG_PRINTF_P("OTA Update init, %x --> %x\n", (uintptr_t)request,(uintptr_t) context);
+  DEBUG_PRINTF("OTA Update init, %x --> %x\n", (uintptr_t)request,(uintptr_t) context);
   return (context != nullptr);
 }
 
@@ -325,7 +325,7 @@ void handleOTAData(AsyncWebServerRequest *request, size_t index, uint8_t *data, 
   UpdateContext* context = reinterpret_cast<UpdateContext*>(request->_tempObject);
   if (!context) return;
 
-  //DEBUG_PRINTF_P("HandleOTAData: %d %d %d\n", index, len, isFinal);
+  //DEBUG_PRINTF("HandleOTAData: %d %d %d\n", index, len, isFinal);
 
   if (context->replySent || (context->errorMessage.length())) return;
 
@@ -351,7 +351,7 @@ void handleOTAData(AsyncWebServerRequest *request, size_t index, uint8_t *data, 
       // Current chunk contains the metadata offset
       size_t availableDataAfterOffset = (index + len) - METADATA_OFFSET;
 
-      DEBUG_PRINTF_P("OTA metadata check: %d in buffer, %d received, %d available\n", context->releaseMetadataBuffer.size(), len, availableDataAfterOffset);
+      DEBUG_PRINTF("OTA metadata check: %d in buffer, %d received, %d available\n", context->releaseMetadataBuffer.size(), len, availableDataAfterOffset);
 
       if (availableDataAfterOffset >= METADATA_SEARCH_RANGE) {
         // We have enough data to validate, one way or another
@@ -374,7 +374,7 @@ void handleOTAData(AsyncWebServerRequest *request, size_t index, uint8_t *data, 
         context->releaseMetadataBuffer = decltype(context->releaseMetadataBuffer){};
 
         if (!OTA_ok) {
-          DEBUG_PRINTF_P("OTA declined: %s\n", errorMessage);
+          DEBUG_PRINTF("OTA declined: %s\n", errorMessage);
           context->errorMessage = errorMessage;
           context->errorMessage += " Enable 'Ignore firmware validation' to proceed anyway.";
           return;
@@ -408,7 +408,7 @@ void handleOTAData(AsyncWebServerRequest *request, size_t index, uint8_t *data, 
 
   if (!Update.hasError()) {
     if (Update.write(data, len) != len) {
-      DEBUG_PRINTF_P("OTA write failed on chunk %zu: %s\n", index, Update.UPDATE_ERROR());
+      DEBUG_PRINTF("OTA write failed on chunk %zu: %s\n", index, Update.UPDATE_ERROR());
     }
   }
 
@@ -636,7 +636,7 @@ static bool verifyBootloaderImage(const uint8_t* &buffer, size_t &len, String& b
   if (len > BOOTLOADER_OFFSET + MIN_IMAGE_HEADER_SIZE &&
       buffer[BOOTLOADER_OFFSET] == ESP_IMAGE_HEADER_MAGIC &&
       buffer[0] != ESP_IMAGE_HEADER_MAGIC) {
-    DEBUG_PRINTF_P("Bootloader detected at offset\n");
+    DEBUG_PRINTF("Bootloader detected at offset\n");
     // Adjust buffer pointer to start at the actual bootloader
     buffer = buffer + BOOTLOADER_OFFSET;
     len = len - BOOTLOADER_OFFSET;
@@ -687,7 +687,7 @@ static bool verifyBootloaderImage(const uint8_t* &buffer, size_t &len, String& b
     return false;
   }
 
-  DEBUG_PRINTF_P("Bootloader validation: %d segments, actual size %d bytes (buffer size %d bytes, hash_appended=%d)\n",
+  DEBUG_PRINTF("Bootloader validation: %d segments, actual size %d bytes (buffer size %d bytes, hash_appended=%d)\n",
                  imageHeader.segment_count, actualBootloaderSize, len, imageHeader.hash_appended);
 
   // Update len to reflect actual bootloader size (including hash and checksum, with alignment)
@@ -716,7 +716,7 @@ static void endBootloaderOTA(AsyncWebServerRequest *request) {
   BootloaderUpdateContext* context = reinterpret_cast<BootloaderUpdateContext*>(request->_tempObject);
   request->_tempObject = nullptr;
 
-  DEBUG_PRINTF_P("EndBootloaderOTA %x --> %x\n", (uintptr_t)request, (uintptr_t)context);
+  DEBUG_PRINTF("EndBootloaderOTA %x --> %x\n", (uintptr_t)request, (uintptr_t)context);
   if (context) {
     if (context->buffer) {
       free(context->buffer);
@@ -762,12 +762,12 @@ bool initBootloaderOTA(AsyncWebServerRequest *request) {
   strip.resetSegments();
 
   // Check available heap before attempting allocation
-  DEBUG_PRINTF_P("Free heap before bootloader buffer allocation: %d bytes (need %d bytes)\n", getContiguousFreeHeap(), context->maxBootloaderSize);
+  DEBUG_PRINTF("Free heap before bootloader buffer allocation: %d bytes (need %d bytes)\n", getContiguousFreeHeap(), context->maxBootloaderSize);
 
   context->buffer = (uint8_t*)malloc(context->maxBootloaderSize);
   if (!context->buffer) {
     size_t freeHeapNow = getContiguousFreeHeap();
-    DEBUG_PRINTF_P("Failed to allocate %d byte bootloader buffer! Contiguous heap: %d bytes\n", context->maxBootloaderSize, freeHeapNow);
+    DEBUG_PRINTF("Failed to allocate %d byte bootloader buffer! Contiguous heap: %d bytes\n", context->maxBootloaderSize, freeHeapNow);
     context->errorMessage = "Out of memory! Contiguous heap: " + String(freeHeapNow) + " bytes, need: " + String(context->maxBootloaderSize) + " bytes";
     strip.resume();
     #if WLED_WATCHDOG_TIMEOUT > 0
@@ -834,7 +834,7 @@ void handleBootloaderOTAData(AsyncWebServerRequest *request, size_t index, uint8
   if (context->buffer && context->bytesBuffered + len <= context->maxBootloaderSize) {
     memcpy(context->buffer + context->bytesBuffered, data, len);
     context->bytesBuffered += len;
-    DEBUG_PRINTF_P("Bootloader buffer progress: %d / %d bytes\n", context->bytesBuffered, context->maxBootloaderSize);
+    DEBUG_PRINTF("Bootloader buffer progress: %d / %d bytes\n", context->bytesBuffered, context->maxBootloaderSize);
   } else if (!context->buffer) {
     DEBUG_PRINTLN("Bootloader buffer not allocated!");
     context->errorMessage = "Internal error: Bootloader buffer not allocated";
@@ -875,10 +875,10 @@ void handleBootloaderOTAData(AsyncWebServerRequest *request, size_t index, uint8
           size_t partitionTableSize = bootloaderData - context->buffer;
           dataToWrite = bootloaderData;
           bytesToWrite = bootloaderSize;
-          DEBUG_PRINTF_P("Skipping %d bytes of partition table data\n", partitionTableSize);
+          DEBUG_PRINTF("Skipping %d bytes of partition table data\n", partitionTableSize);
         }
 
-        DEBUG_PRINTF_P("Bootloader validation passed - writing %d bytes to flash at 0x%04X\n",
+        DEBUG_PRINTF("Bootloader validation passed - writing %d bytes to flash at 0x%04X\n",
                        bytesToWrite, flashOffset);
 
         // Calculate erase size (must be multiple of 4KB)
@@ -888,19 +888,19 @@ void handleBootloaderOTAData(AsyncWebServerRequest *request, size_t index, uint8
         }
 
         // Erase bootloader region
-        DEBUG_PRINTF_P("Erasing %d bytes at 0x%04X...\n", eraseSize, flashOffset);
+        DEBUG_PRINTF("Erasing %d bytes at 0x%04X...\n", eraseSize, flashOffset);
         esp_err_t err = esp_flash_erase_region(NULL, flashOffset, eraseSize);
         if (err != ESP_OK) {
-          DEBUG_PRINTF_P("Bootloader erase error: %d\n", err);
+          DEBUG_PRINTF("Bootloader erase error: %d\n", err);
           context->errorMessage = "Flash erase failed (error code: " + String(err) + ")";
         } else {
           // Write the validated bootloader data to flash
           err = esp_flash_write(NULL, dataToWrite, flashOffset, bytesToWrite);
           if (err != ESP_OK) {
-            DEBUG_PRINTF_P("Bootloader flash write error: %d\n", err);
+            DEBUG_PRINTF("Bootloader flash write error: %d\n", err);
             context->errorMessage = "Flash write failed (error code: " + String(err) + ")";
           } else {
-            DEBUG_PRINTF_P("Bootloader Update Success - %d bytes written to 0x%04X\n",
+            DEBUG_PRINTF("Bootloader Update Success - %d bytes written to 0x%04X\n",
                            bytesToWrite, flashOffset);
             // Invalidate cached bootloader hash
             invalidateBootloaderSHA256Cache();

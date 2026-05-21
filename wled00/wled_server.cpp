@@ -205,7 +205,7 @@ static void handleUpload(AsyncWebServerRequest *request, const String& filename,
     }
 
     request->_tempFile = WLED_FS.open(finalname, "w");
-    DEBUG_PRINTF_P("Uploading %s\n", finalname.c_str());
+    DEBUG_PRINTF("Uploading %s\n", finalname.c_str());
     if (finalname.equals(getPresetsFileName())) presetsModifiedTime = toki.second();
   }
   if (len) {
@@ -660,7 +660,7 @@ void initServer()
 
   //called when the url is not defined here, ajax-in; get-settings
   server.onNotFound([](AsyncWebServerRequest *request){
-    DEBUG_PRINTF_P("Not-Found HTTP call: %s\n", request->url().c_str());
+    DEBUG_PRINTF("Not-Found HTTP call: %s\n", request->url().c_str());
     if (captivePortal(request)) return;
 
     //make API CORS compatible

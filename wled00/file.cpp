@@ -575,9 +575,9 @@ bool validateJsonFile(const char* filename) {
   bool result = deserializeJson(doc, file, DeserializationOption::Filter(filter)) == DeserializationError::Ok;
   file.close();
   if (!result) {
-    DEBUG_PRINTF_P("Invalid JSON file %s\n", filename);
+    DEBUG_PRINTF("Invalid JSON file %s\n", filename);
   } else {
-    DEBUG_PRINTF_P("Valid JSON file %s\n", filename);
+    DEBUG_PRINTF("Valid JSON file %s\n", filename);
   }
   return result;
 }

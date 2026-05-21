@@ -125,7 +125,7 @@ void handleSwitch(uint8_t b)
 {
   // isButtonPressed() handles inverted/noninverted logic
   if (buttons[b].pressedBefore != isButtonPressed(b)) {
-    DEBUG_PRINTF_P("Switch: State changed %u\n", b);
+    DEBUG_PRINTF("Switch: State changed %u\n", b);
     buttons[b].pressedTime = millis();
     buttons[b].pressedBefore = !buttons[b].pressedBefore; // toggle pressed state
   }
@@ -133,15 +133,15 @@ void handleSwitch(uint8_t b)
   if (buttons[b].longPressed == buttons[b].pressedBefore) return;
 
   if (millis() - buttons[b].pressedTime > WLED_DEBOUNCE_THRESHOLD) { //fire edge event only after 50ms without change (debounce)
-    DEBUG_PRINTF_P("Switch: Activating  %u\n", b);
+    DEBUG_PRINTF("Switch: Activating  %u\n", b);
     if (!buttons[b].pressedBefore) { // on -> off
-      DEBUG_PRINTF_P("Switch: On -> Off (%u)\n", b);
+      DEBUG_PRINTF("Switch: On -> Off (%u)\n", b);
       if (buttons[b].macroButton) applyPreset(buttons[b].macroButton, CALL_MODE_BUTTON_PRESET);
       else { //turn on
         if (!bri) {toggleOnOff(); stateUpdated(CALL_MODE_BUTTON);}
       }
     } else {  // off -> on
-      DEBUG_PRINTF_P("Switch: Off -> On (%u)\n", b);
+      DEBUG_PRINTF("Switch: Off -> On (%u)\n", b);
       if (buttons[b].macroLongPress) applyPreset(buttons[b].macroLongPress, CALL_MODE_BUTTON_PRESET);
       else { //turn off
         if (bri) {toggleOnOff(); stateUpdated(CALL_MODE_BUTTON);}
@@ -173,7 +173,7 @@ void handleAnalog(uint8_t b)
   static float filteredReading[WLED_MAX_BUTTONS] = {0.0f};
   unsigned rawReading;    // raw value from analogRead, scaled to 12bit
 
-  DEBUG_PRINTF_P("Analog: Reading button %u\n", b);
+  DEBUG_PRINTF("Analog: Reading button %u\n", b);
 
   #ifdef ESP8266
   rawReading = analogRead(A0) << 2;   // convert 10bit read to 12bit
@@ -193,8 +193,8 @@ void handleAnalog(uint8_t b)
   // remove noise & reduce frequency of UI updates
   if (abs(int(aRead) - int(oldRead[b])) <= POT_SENSITIVITY) return;  // no significant change in reading
 
-  DEBUG_PRINTF_P("Analog: Raw = %u\n", rawReading);
-  DEBUG_PRINTF_P(" Filtered = %u\n", aRead);
+  DEBUG_PRINTF("Analog: Raw = %u\n", rawReading);
+  DEBUG_PRINTF(" Filtered = %u\n", aRead);
 
   // Unomment the next lines if you still see flickering related to potentiometer
   // This waits until strip finishes updating (why: strip was not updating at the start of handleButton() but may have started during analogRead()?)
@@ -207,7 +207,7 @@ void handleAnalog(uint8_t b)
 
   // if no macro for "short press" and "long press" is defined use brightness control
   if (!buttons[b].macroButton && !buttons[b].macroLongPress) {
-    DEBUG_PRINTF_P("Analog: Action = %u\n", buttons[b].macroDoublePress);
+    DEBUG_PRINTF("Analog: Action = %u\n", buttons[b].macroDoublePress);
     // if "double press" macro defines which option to change
     if (buttons[b].macroDoublePress >= 250) {
       // global brightness

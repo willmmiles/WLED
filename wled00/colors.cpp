@@ -273,7 +273,7 @@ void loadCustomPalettes() {
       for (unsigned g = 0; g < emptyPaletteGap; g++)
         customPalettes.push_back(CRGBPalette16(CRGB(128, 128, 128)));
       emptyPaletteGap = 0;  // reset gap counter if file exists
-      DEBUGFX_PRINTF_P("Reading palette from %s\n", fileName);
+      DEBUGFX_PRINTF("Reading palette from %s\n", fileName);
       if (readObjectFromFile(fileName, nullptr, &pDoc)) {
         JsonArray pal = pDoc["palette"];
         if (!pal.isNull() && pal.size()>3) { // not an empty palette (at least 2 entries)
@@ -287,7 +287,7 @@ void loadCustomPalettes() {
               if (colorFromHexString(rgbw, pal[i+1].as<const char *>())) { // will catch non-string entires
                 tcp[ j ] = (uint8_t) pal[ i ].as<int>(); // index
                 for (size_t c=0; c<3; c++) tcp[j+1+c] = rgbw[c]; // only use RGB component
-                DEBUGFX_PRINTF_P("%2u -> %3d [%3d,%3d,%3d]\n", i, int(tcp[j]), int(tcp[j+1]), int(tcp[j+2]), int(tcp[j+3]));
+                DEBUGFX_PRINTF("%2u -> %3d [%3d,%3d,%3d]\n", i, int(tcp[j]), int(tcp[j+1]), int(tcp[j+2]), int(tcp[j+3]));
                 j += 4;
               }
             }
@@ -297,7 +297,7 @@ void loadCustomPalettes() {
             for (size_t i=0; i<palSize && pal[i].as<int>()<256; i+=4) {
               tcp[ i ] = (uint8_t) pal[ i ].as<int>(); // index
               for (size_t c=0; c<3; c++) tcp[i+1+c] = (uint8_t) pal[i+1+c].as<int>();
-              DEBUGFX_PRINTF_P("%2u -> %3d [%3d,%3d,%3d]\n", i, int(tcp[i]), int(tcp[i+1]), int(tcp[i+2]), int(tcp[i+3]));
+              DEBUGFX_PRINTF("%2u -> %3d [%3d,%3d,%3d]\n", i, int(tcp[i]), int(tcp[i+1]), int(tcp[i+2]), int(tcp[i+3]));
             }
           }
           customPalettes.push_back(targetPalette.loadDynamicGradientPalette(tcp));
@@ -655,7 +655,7 @@ void NeoGammaWLEDMethod::calcGammaTable(float gamma)
   for (size_t i = 1; i < 256; i++) {
     gammaT[i] = (int)(powf((float)i / 255.0f, gamma) * 255.0f + 0.5f);
     gammaT_inv[i] = (int)(powf(((float)i - 0.5f) / 255.0f, gamma_inv) * 255.0f + 0.5f);
-    //DEBUG_PRINTF_P("gammaT[%d] = %d gammaT_inv[%d] = %d\n", i, gammaT[i], i, gammaT_inv[i]);
+    //DEBUG_PRINTF("gammaT[%d] = %d gammaT_inv[%d] = %d\n", i, gammaT[i], i, gammaT_inv[i]);
   }
   gammaT[0] = 0;
   gammaT_inv[0] = 0;

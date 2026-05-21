@@ -32,7 +32,7 @@ bool PinManager::deallocatePin(byte gpio, PinOwner tag)
 
   // if a non-zero ownerTag, only allow de-allocation if the owner's tag is provided
   if ((ownerTag[gpio] != PinOwner::None) && (ownerTag[gpio] != tag)) {
-    DEBUG_PRINTF_P("PIN DEALLOC: FAIL GPIO %d allocated by 0x%02X, but attempted de-allocation by 0x%02X.\n", gpio, static_cast<int>(ownerTag[gpio]), static_cast<int>(tag));
+    DEBUG_PRINTF("PIN DEALLOC: FAIL GPIO %d allocated by 0x%02X, but attempted de-allocation by 0x%02X.\n", gpio, static_cast<int>(ownerTag[gpio]), static_cast<int>(tag));
     return false;
   }
 
@@ -58,7 +58,7 @@ bool PinManager::deallocateMultiplePins(const uint8_t *pinArray, byte arrayEleme
       // if the current pin is allocated by selected owner it is possible to release it
       continue;
     }
-    DEBUG_PRINTF_P("PIN DEALLOC: FAIL GPIO %d allocated by 0x%02X, but attempted de-allocation by 0x%02X.\n", gpio, static_cast<int>(ownerTag[gpio]), static_cast<int>(tag));
+    DEBUG_PRINTF("PIN DEALLOC: FAIL GPIO %d allocated by 0x%02X, but attempted de-allocation by 0x%02X.\n", gpio, static_cast<int>(ownerTag[gpio]), static_cast<int>(tag));
     shouldFail = true;
   }
   if (shouldFail) {
@@ -102,14 +102,14 @@ bool PinManager::allocateMultiplePins(const managed_pin_type * mptArray, byte ar
     }
     // allow any GPIO for Ethernet (compile time assigned)
     if (!(isPinOk(gpio, mptArray[i].isOutput) || tag==PinOwner::Ethernet)) {
-      DEBUG_PRINTF_P("PIN ALLOC: FAIL Invalid pin attempted to be allocated: GPIO %d as %s\n.", gpio, mptArray[i].isOutput ? "output": "input");
+      DEBUG_PRINTF("PIN ALLOC: FAIL Invalid pin attempted to be allocated: GPIO %d as %s\n.", gpio, mptArray[i].isOutput ? "output": "input");
       shouldFail = true;
     }
     if ((tag==PinOwner::HW_I2C || tag==PinOwner::HW_SPI) && isPinAllocated(gpio, tag)) {
       // allow multiple "allocations" of HW I2C & SPI bus pins
       continue;
     } else if (isPinAllocated(gpio)) {
-      DEBUG_PRINTF_P("PIN ALLOC: FAIL GPIO %d already allocated by 0x%02X.\n", gpio, static_cast<int>(ownerTag[gpio]));
+      DEBUG_PRINTF("PIN ALLOC: FAIL GPIO %d already allocated by 0x%02X.\n", gpio, static_cast<int>(ownerTag[gpio]));
       shouldFail = true;
     }
   }
@@ -133,9 +133,9 @@ bool PinManager::allocateMultiplePins(const managed_pin_type * mptArray, byte ar
 
     bitWrite(pinAlloc, gpio, true);
     ownerTag[gpio] = tag;
-    DEBUG_PRINTF_P("PIN ALLOC: Pin %d allocated by 0x%02X.\n", gpio, static_cast<int>(tag));
+    DEBUG_PRINTF("PIN ALLOC: Pin %d allocated by 0x%02X.\n", gpio, static_cast<int>(tag));
   }
-  DEBUG_PRINTF_P("PIN ALLOC: 0x%014llX.\n", (unsigned long long)pinAlloc);
+  DEBUG_PRINTF("PIN ALLOC: 0x%014llX.\n", (unsigned long long)pinAlloc);
   return true;
 }
 
@@ -154,25 +154,25 @@ bool PinManager::allocatePin(byte gpio, bool output, PinOwner tag)
     #ifdef WLED_DEBUG
     if (gpio < 255) {  // 255 (-1) is the "not defined GPIO"
       if (!isPinOk(gpio, output)) {
-        DEBUG_PRINTF_P("PIN ALLOC: FAIL for owner 0x%02X: GPIO %d ", static_cast<int>(tag), gpio);
+        DEBUG_PRINTF("PIN ALLOC: FAIL for owner 0x%02X: GPIO %d ", static_cast<int>(tag), gpio);
         if (output) DEBUG_PRINTLN(" cannot be used for i/o on this MCU.");
         else DEBUG_PRINTLN(" cannot be used as input on this MCU.");
       } else {
-        DEBUG_PRINTF_P("PIN ALLOC: FAIL GPIO %d - HW I2C & SPI pins have to be allocated using allocateMultiplePins.\n", gpio);
+        DEBUG_PRINTF("PIN ALLOC: FAIL GPIO %d - HW I2C & SPI pins have to be allocated using allocateMultiplePins.\n", gpio);
       }
     }
     #endif
     return false;
   }
   if (isPinAllocated(gpio)) {
-    DEBUG_PRINTF_P("PIN ALLOC: FAIL Pin %d already allocated by 0x%02X.\n", gpio, static_cast<int>(ownerTag[gpio]));
+    DEBUG_PRINTF("PIN ALLOC: FAIL Pin %d already allocated by 0x%02X.\n", gpio, static_cast<int>(ownerTag[gpio]));
     return false;
   }
 
   bitWrite(pinAlloc, gpio, true);
   ownerTag[gpio] = tag;
-  DEBUG_PRINTF_P("PIN ALLOC: Pin %d successfully allocated by 0x%02X.\n", gpio, static_cast<int>(ownerTag[gpio]));
-  DEBUG_PRINTF_P("PIN ALLOC: 0x%014llX.\n", (unsigned long long)pinAlloc);
+  DEBUG_PRINTF("PIN ALLOC: Pin %d successfully allocated by 0x%02X.\n", gpio, static_cast<int>(ownerTag[gpio]));
+  DEBUG_PRINTF("PIN ALLOC: 0x%014llX.\n", (unsigned long long)pinAlloc);
 
   return true;
 }

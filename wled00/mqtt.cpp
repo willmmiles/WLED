@@ -66,7 +66,7 @@ static void onMqttConnect(bool sessionPresent)
 static void onMqttMessage(char* topic, char* payload, AsyncMqttClientMessageProperties properties, size_t len, size_t index, size_t total) {
   static char *payloadStr;
 
-  DEBUG_PRINTF_P("MQTT msg: %s\n", topic);
+  DEBUG_PRINTF("MQTT msg: %s\n", topic);
 
   // paranoia check to avoid npe if no payload
   if (payload==nullptr) {

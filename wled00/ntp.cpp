@@ -204,7 +204,7 @@ void handleNetworkTime()
         AsyncDNS::result res = ntpDNSlookup ? ntpDNSlookup->status() : AsyncDNS::result::Idle;
         switch (res) {
           case AsyncDNS::result::Idle:
-            //DEBUG_PRINTF_P("Resolving NTP server name: %s\n", ntpServerName);
+            //DEBUG_PRINTF("Resolving NTP server name: %s\n", ntpServerName);
             ntpDNSlookup = AsyncDNS::query(ntpServerName, ntpDNSlookup); // start dnslookup asynchronously
             return;
 
@@ -213,7 +213,7 @@ void handleNetworkTime()
 
           case AsyncDNS::result::Success:
             ntpServerIP = ntpDNSlookup->getIP();
-            DEBUG_PRINTF_P("NTP IP resolved: %s\n", ntpServerIP.toString().c_str());
+            DEBUG_PRINTF("NTP IP resolved: %s\n", ntpServerIP.toString().c_str());
             sendNTPPacket();
             ntpDNSlookup.reset();
             break;
@@ -292,7 +292,7 @@ static bool checkNTPResponse()
   }
 
   uint32_t ntpPacketReceivedTime = millis();
-  DEBUG_PRINTF_P("NTP recv, l=%d\n", cb);
+  DEBUG_PRINTF("NTP recv, l=%d\n", cb);
   byte pbuf[NTP_PACKET_SIZE];
   ntpUdp.read(pbuf, NTP_PACKET_SIZE); // read the packet into the buffer
   if (!isValidNtpResponse(pbuf)) return false;  // verify we have a valid response to client
@@ -417,7 +417,7 @@ void checkTimers()
   if (lastTimerMinute != minute(localTime)) {
     lastTimerMinute = minute(localTime);
     if (!hour(localTime) && minute(localTime)==1) calculateSunriseAndSunset();
-    DEBUG_PRINTF_P("Local time: %02d:%02d\n", hour(localTime), minute(localTime));
+    DEBUG_PRINTF("Local time: %02d:%02d\n", hour(localTime), minute(localTime));
     for (size_t i = 0; i < timers.size(); i++) {
       const Timer& t = timers[i];
       if (!t.isEnabled()) continue;
@@ -444,9 +444,9 @@ void checkTimers()
         if (!isTodayInDateRange(t.monthStart, t.dayStart, t.monthEnd, t.dayEnd)) continue;
         applyPreset(t.preset);
         #ifdef WLED_DEBUG
-        if (t.isSunrise()) DEBUG_PRINTF_P("Sunrise timer %d offset %d\n", t.preset, t.minute);
-        else if (t.isSunset()) DEBUG_PRINTF_P("Sunset timer %d offset %d\n", t.preset, t.minute);
-        else DEBUG_PRINTF_P("Timer %d: preset %d\n", i, t.preset);
+        if (t.isSunrise()) DEBUG_PRINTF("Sunrise timer %d offset %d\n", t.preset, t.minute);
+        else if (t.isSunset()) DEBUG_PRINTF("Sunset timer %d offset %d\n", t.preset, t.minute);
+        else DEBUG_PRINTF("Timer %d: preset %d\n", i, t.preset);
         #endif
       }
     }
@@ -525,7 +525,7 @@ void calculateSunriseAndSunset() {
     do {
       time_t theDay = localTime - retryCount * 86400; // one day back = 86400 seconds
       minUTC = getSunriseUTC(year(theDay), month(theDay), day(theDay), latitude, longitude, false);
-      DEBUG_PRINTF_P("* sunrise (minutes from UTC) = %d\n", minUTC);
+      DEBUG_PRINTF("* sunrise (minutes from UTC) = %d\n", minUTC);
       retryCount ++;
     } while ((abs(minUTC) > SUNSET_MAX)  && (retryCount <= 3));
 
@@ -535,7 +535,7 @@ void calculateSunriseAndSunset() {
       tim_0.tm_hour = minUTC / 60;
       tim_0.tm_min = minUTC % 60;
       sunrise = tz->toLocal(mktime(&tim_0) + utcOffsetSecs);
-      DEBUG_PRINTF_P("Sunrise: %02d:%02d\n", hour(sunrise), minute(sunrise));
+      DEBUG_PRINTF("Sunrise: %02d:%02d\n", hour(sunrise), minute(sunrise));
     } else {
       sunrise = 0;
     }
@@ -544,7 +544,7 @@ void calculateSunriseAndSunset() {
     do {
       time_t theDay = localTime - retryCount * 86400; // one day back = 86400 seconds
       minUTC = getSunriseUTC(year(theDay), month(theDay), day(theDay), latitude, longitude, true);
-      DEBUG_PRINTF_P("* sunset  (minutes from UTC) = %d\n", minUTC);
+      DEBUG_PRINTF("* sunset  (minutes from UTC) = %d\n", minUTC);
       retryCount ++;
     } while ((abs(minUTC) > SUNSET_MAX)  && (retryCount <= 3));
 
@@ -554,7 +554,7 @@ void calculateSunriseAndSunset() {
       tim_0.tm_hour = minUTC / 60;
       tim_0.tm_min = minUTC % 60;
       sunset = tz->toLocal(mktime(&tim_0) + utcOffsetSecs);
-      DEBUG_PRINTF_P("Sunset: %02d:%02d\n", hour(sunset), minute(sunset));
+      DEBUG_PRINTF("Sunset: %02d:%02d\n", hour(sunset), minute(sunset));
     } else {
       sunset = 0;
     }

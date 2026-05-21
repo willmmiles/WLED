@@ -48,12 +48,10 @@ make_unique(Args&&... args)
   #define DEBUGBUS_PRINT(x) DEBUGOUT.print(x)
   #define DEBUGBUS_PRINTLN(x) DEBUGOUT.println(x)
   #define DEBUGBUS_PRINTF(x...) DEBUGOUT.printf(x)
-  #define DEBUGBUS_PRINTF_P(x...) DEBUGOUT.printf(x)
 #else
   #define DEBUGBUS_PRINT(x)
   #define DEBUGBUS_PRINTLN(x)
   #define DEBUGBUS_PRINTF(x...)
-  #define DEBUGBUS_PRINTF_P(x...)
 #endif
 
 //colors.cpp
@@ -487,7 +485,7 @@ struct BusConfig {
     type = busType & 0x7F;  // bit 7 may be/is hacked to include refresh info (1=refresh in off state, 0=no refresh)
     size_t nPins = Bus::getNumberOfPins(type);
     for (size_t i = 0; i < nPins; i++) pins[i] = ppins[i];
-    DEBUGBUS_PRINTF_P("Bus: Config (%d-%d, type:%d, CO:%d, rev:%d, skip:%d, AW:%d kHz:%d, mA:%d/%d, driver:%s)\n",
+    DEBUGBUS_PRINTF("Bus: Config (%d-%d, type:%d, CO:%d, rev:%d, skip:%d, AW:%d kHz:%d, mA:%d/%d, driver:%s)\n",
       (int)start, (int)(start+len),
       (int)type,
       (int)colorOrder,

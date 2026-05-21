@@ -30,12 +30,10 @@
   #define DEBUGFX_PRINT(x) DEBUGOUT.print(x)
   #define DEBUGFX_PRINTLN(x) DEBUGOUT.println(x)
   #define DEBUGFX_PRINTF(x...) DEBUGOUT.printf(x)
-  #define DEBUGFX_PRINTF_P(x...) DEBUGOUT.printf(x)
 #else
   #define DEBUGFX_PRINT(x)
   #define DEBUGFX_PRINTLN(x)
   #define DEBUGFX_PRINTF(x...)
-  #define DEBUGFX_PRINTF_P(x...)
 #endif
 
 #define DEFAULT_BRIGHTNESS (uint8_t)127
@@ -524,7 +522,7 @@ class Segment {
       , _cct(0)
       {}
       ~Transition() {
-        //DEBUGFX_PRINTF_P("-- Destroying transition: %p\n", this);
+        //DEBUGFX_PRINTF("-- Destroying transition: %p\n", this);
         if (_oldSegment) delete _oldSegment;
       }
     } *_t;
@@ -595,7 +593,7 @@ class Segment {
     , _capabilities(0)
     , _t(nullptr)
     {
-      DEBUGFX_PRINTF_P("-- Creating segment: %p [%d,%d:%d,%d]\n", this, (int)start, (int)stop, (int)startY, (int)stopY);
+      DEBUGFX_PRINTF("-- Creating segment: %p [%d,%d:%d,%d]\n", this, (int)start, (int)stop, (int)startY, (int)stopY);
       // allocate render buffer (always entire segment), prefer PSRAM if DRAM is running low. Note: impact on FPS with PSRAM buffer is low (<2% with QSPI PSRAM)
       pixels = static_cast<uint32_t*>(allocate_buffer(length() * sizeof(uint32_t), BFRALLOC_PREFER_PSRAM | BFRALLOC_NOBYTEACCESS | BFRALLOC_CLEAR));
       if (!pixels) {
@@ -611,10 +609,10 @@ class Segment {
 
     ~Segment() {
       #ifdef WLED_DEBUG
-      DEBUGFX_PRINTF_P("-- Destroying segment: %p [%d,%d:%d,%d]", this, (int)start, (int)stop, (int)startY, (int)stopY);
-      if (name) DEBUGFX_PRINTF_P(" %s (%p)", name, name);
-      if (data) DEBUGFX_PRINTF_P(" %u->(%p)", _dataLen, data);
-      DEBUGFX_PRINTF_P(" T[%p]", _t);
+      DEBUGFX_PRINTF("-- Destroying segment: %p [%d,%d:%d,%d]", this, (int)start, (int)stop, (int)startY, (int)stopY);
+      if (name) DEBUGFX_PRINTF(" %s (%p)", name, name);
+      if (data) DEBUGFX_PRINTF(" %u->(%p)", _dataLen, data);
+      DEBUGFX_PRINTF(" T[%p]", _t);
       DEBUGFX_PRINTLN();
       #endif
       clearName();

@@ -211,7 +211,7 @@ class PixelsDiceTrayUsermod : public Usermod {
             dice_update.connected_die_ids[i] = die_id;
             die_connected[i] = true;
             matched = true;
-            DEBUG_PRINTF_P("DiceTray: %u (%s) connected.\n", i,
+            DEBUG_PRINTF("DiceTray: %u (%s) connected.\n", i,
                            die_name.c_str());
             break;
           }
@@ -225,7 +225,7 @@ class PixelsDiceTrayUsermod : public Usermod {
               dice_update.connected_die_ids[i] = die_id;
               die_connected[i] = true;
               dice_settings.configured_die_names[i] = die_name;
-              DEBUG_PRINTF_P("DiceTray: %u (%s) connected as wildcard.\n",
+              DEBUG_PRINTF("DiceTray: %u (%s) connected as wildcard.\n",
                              i, die_name.c_str());
               break;
             }
@@ -242,7 +242,7 @@ class PixelsDiceTrayUsermod : public Usermod {
         if (dice_update.connected_die_ids[i] != 0) {
           dice_update.connected_die_ids[i] = 0;
           last_die_events[i] = pixels::RollEvent();
-          DEBUG_PRINTF_P("DiceTray: %u disconnected.\n", i);
+          DEBUG_PRINTF("DiceTray: %u disconnected.\n", i);
         }
 
         if (!dice_settings.configured_die_names[i].empty()) {
@@ -294,10 +294,10 @@ class PixelsDiceTrayUsermod : public Usermod {
 #endif
 
     if (pixels::IsScanning() && all_found) {
-      DEBUG_PRINTF_P("DiceTray: All dice found. Stopping search.\n");
+      DEBUG_PRINTF("DiceTray: All dice found. Stopping search.\n");
       pixels::StopScanning();
     } else if (!pixels::IsScanning() && !all_found) {
-      DEBUG_PRINTF_P("DiceTray: Resuming dice search.\n");
+      DEBUG_PRINTF("DiceTray: Resuming dice search.\n");
       pixels::ScanForDice(ble_scan_duration_sec, BLE_TIME_BETWEEN_SCANS_SEC);
     }
 #if USING_TFT_DISPLAY

@@ -189,7 +189,7 @@ void handleWiZdata(uint8_t *incomingData, size_t len) {
   message_structure_t *incoming = reinterpret_cast<message_structure_t *>(incomingData);
 
   if (len != sizeof(message_structure_t)) {
-    DEBUG_PRINTF_P("Unknown incoming ESP Now message received of length %u\n", len);
+    DEBUG_PRINTF("Unknown incoming ESP Now message received of length %u\n", len);
     return;
   }
 

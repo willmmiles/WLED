@@ -203,7 +203,7 @@ static void appendGPIOinfo(Print& settingsScript)
 void getSettingsJS(byte subPage, Print& settingsScript)
 {
   //0: menu 1: wifi 2: leds 3: ui 4: sync 5: time 6: sec
-  DEBUG_PRINTF_P("settings resp %u\n", (unsigned)subPage);
+  DEBUG_PRINTF("settings resp %u\n", (unsigned)subPage);
 
   if (subPage <0 || subPage >SUBPAGE_LAST) return;
   char nS[32];

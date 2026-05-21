@@ -53,7 +53,7 @@ static ColorOrderMap _colorOrderMap = {};
 bool ColorOrderMap::add(uint16_t start, uint16_t len, uint8_t colorOrder) {
   if (count() >= WLED_MAX_COLOR_ORDER_MAPPINGS || len == 0 || (colorOrder & 0x0F) > COL_ORDER_MAX) return false; // upper nibble contains W swap information
   _mappings.push_back({start,len,colorOrder});
-  DEBUGBUS_PRINTF_P("Bus: Add COM (%d,%d,%d)\n", (int)start, (int)len, (int)colorOrder);
+  DEBUGBUS_PRINTF("Bus: Add COM (%d,%d,%d)\n", (int)start, (int)len, (int)colorOrder);
   return true;
 }
 
@@ -167,7 +167,7 @@ BusDigital::BusDigital(const BusConfig &bc)
   else {
     cleanup();
   }
-  DEBUGBUS_PRINTF_P("Bus len:%u, type:%u (RGB:%d, W:%d, CCT:%d), pins:%u,%u [itype:%u, driver:%s] mA=%d/%d %s\n",
+  DEBUGBUS_PRINTF("Bus len:%u, type:%u (RGB:%d, W:%d, CCT:%d), pins:%u,%u [itype:%u, driver:%s] mA=%d/%d %s\n",
     (int)bc.count,
     (int)bc.type,
     (int)_hasRgb, (int)_hasWhite, (int)_hasCCT,
@@ -465,7 +465,7 @@ BusPwm::BusPwm(const BusConfig &bc)
     _hasCCT = hasCCT(bc.type);
     _valid = true;
   }
-  DEBUGBUS_PRINTF_P("%successfully inited PWM strip with type %u, frequency %u, bit depth %u and pins %u,%u,%u,%u,%u\n", _valid?"S":"Uns", bc.type, _frequency, _depth, _pins[0], _pins[1], _pins[2], _pins[3], _pins[4]);
+  DEBUGBUS_PRINTF("%successfully inited PWM strip with type %u, frequency %u, bit depth %u and pins %u,%u,%u,%u,%u\n", _valid?"S":"Uns", bc.type, _frequency, _depth, _pins[0], _pins[1], _pins[2], _pins[3], _pins[4]);
 }
 
 void BusPwm::setPixelColor(unsigned pix, uint32_t c) {
@@ -649,7 +649,7 @@ BusOnOff::BusOnOff(const BusConfig &bc)
   _hasWhite = false;
   _hasCCT = false;
   _valid = true;
-  DEBUGBUS_PRINTF_P("%successfully inited On/Off strip with pin %u\n", _valid?"S":"Uns", _pin);
+  DEBUGBUS_PRINTF("%successfully inited On/Off strip with pin %u\n", _valid?"S":"Uns", _pin);
 }
 
 void BusOnOff::setPixelColor(unsigned pix, uint32_t c) {
@@ -709,7 +709,7 @@ BusNetwork::BusNetwork(const BusConfig &bc)
   #endif
   _data = (uint8_t*)d_calloc(_len, _UDPchannels);
   _valid = (_data != nullptr);
-  DEBUGBUS_PRINTF_P("%successfully inited virtual strip with type %u and IP %u.%u.%u.%u\n", _valid?"S":"Uns", bc.type, bc.pins[0], bc.pins[1], bc.pins[2], bc.pins[3]);
+  DEBUGBUS_PRINTF("%successfully inited virtual strip with type %u and IP %u.%u.%u.%u\n", _valid?"S":"Uns", bc.type, bc.pins[0], bc.pins[1], bc.pins[2], bc.pins[3]);
 }
 
 void BusNetwork::setPixelColor(unsigned pix, uint32_t c) {
@@ -1001,7 +1001,7 @@ BusHub75Matrix::BusHub75Matrix(const BusConfig &bc) : Bus(bc.type, bc.start, bc.
   if (chainLength > 1 && (_rows > 1 || _cols > 1) || bc.type == TYPE_HUB75MATRIX_QS) {
     _isVirtual = true;
     chainType = CHAIN_BOTTOM_LEFT_UP; // TODO: is there any need to support other chaining types?
-    DEBUGBUS_PRINTF_P("Using virtual matrix: %ux%u panels of %ux%u pixels\n", _cols, _rows, mxconfig.mx_width, mxconfig.mx_height);
+    DEBUGBUS_PRINTF("Using virtual matrix: %ux%u panels of %ux%u pixels\n", _cols, _rows, mxconfig.mx_width, mxconfig.mx_height);
   }
   else {
     _isVirtual = false;
@@ -1034,7 +1034,7 @@ BusHub75Matrix::BusHub75Matrix(const BusConfig &bc) : Bus(bc.type, bc.start, bc.
   }
 
   DEBUGBUS_PRINT("MatrixPanel_I2S_DMA ");
-  DEBUGBUS_PRINTF_P("%sstarted, width=%u, %u pixels.\n", _valid? "":"not ", _panelWidth, _len);
+  DEBUGBUS_PRINTF("%sstarted, width=%u, %u pixels.\n", _valid? "":"not ", _panelWidth, _len);
 
   if (_ledBuffer != nullptr) DEBUGBUS_PRINTLN("MatrixPanel_I2S_DMA LEDS buffer enabled.");
   if (_ledsDirty != nullptr) DEBUGBUS_PRINTLN("MatrixPanel_I2S_DMA LEDS dirty bit optimization enabled.");
@@ -1194,7 +1194,7 @@ size_t BusConfig::memUsage() const {
 }
 
 int BusManager::add(const BusConfig &bc, bool placeholder) {
-  DEBUGBUS_PRINTF_P("Bus: Adding bus (p:%d v:%d)\n", getNumBusses(), getNumVirtualBusses());
+  DEBUGBUS_PRINTF("Bus: Adding bus (p:%d v:%d)\n", getNumBusses(), getNumVirtualBusses());
   unsigned digital = 0;
   unsigned analog  = 0;
   unsigned twoPin  = 0;

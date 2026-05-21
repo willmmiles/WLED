@@ -47,7 +47,7 @@ void WLED::loop()
   unsigned long        loopMillis = millis();
   size_t               loopDelay = loopMillis - lastRun;
   if (lastRun == 0) loopDelay=0; // startup - don't have valid data from last run.
-  if (loopDelay > 2) DEBUG_PRINTF_P("Loop delayed more than %ums.\n", loopDelay);
+  if (loopDelay > 2) DEBUG_PRINTF("Loop delayed more than %ums.\n", loopDelay);
   static unsigned long maxLoopMillis = 0;
   static size_t        avgLoopMillis = 0;
   static unsigned long maxUsermodMillis = 0;
@@ -200,7 +200,7 @@ void WLED::loop()
         errorFlag = ERR_NORAM; // alert UI  TODO: make this a distinct error: segment reset
         break;
       case 45: // 45 consecutive seconds
-        DEBUG_PRINTF_P("Heap panic! Reset strip, reset connection\n");
+        DEBUG_PRINTF("Heap panic! Reset strip, reset connection\n");
         strip.~WS2812FX();      // deallocate strip and all its memory
         new(&strip) WS2812FX(); // re-create strip object, respecting current memory limits
         if (!Update.isRunning()) forceReconnect = true; // in case wifi is broken, make sure UI comes back, set disableForceReconnect = true to avert
@@ -259,65 +259,65 @@ void WLED::loop()
 #ifdef WLED_DEBUG
   loopMillis = millis() - loopMillis;
   //if (loopMillis > 30) {
-  //  DEBUG_PRINTF_P("Loop took %lums.\n", loopMillis);
-  //  DEBUG_PRINTF_P("Usermods took %lums.\n", usermodMillis);
-  //  DEBUG_PRINTF_P("Strip took %lums.\n", stripMillis);
+  //  DEBUG_PRINTF("Loop took %lums.\n", loopMillis);
+  //  DEBUG_PRINTF("Usermods took %lums.\n", usermodMillis);
+  //  DEBUG_PRINTF("Strip took %lums.\n", stripMillis);
   //}
   avgLoopMillis += loopMillis;
   if (loopMillis > maxLoopMillis) maxLoopMillis = loopMillis;
   if (millis() - debugTime > 29999) {
     DEBUG_PRINTLN("---DEBUG INFO---");
-    DEBUG_PRINTF_P("Runtime: %lu\n",  millis());
-    DEBUG_PRINTF_P("Unix time: %u,%03u\n", toki.getTime().sec, toki.getTime().ms);
+    DEBUG_PRINTF("Runtime: %lu\n",  millis());
+    DEBUG_PRINTF("Unix time: %u,%03u\n", toki.getTime().sec, toki.getTime().ms);
     #if defined(ARDUINO_ARCH_ESP32)
     DEBUG_PRINTLN("=== Memory Info ===");
     // Internal DRAM (standard 8-bit accessible heap)
     size_t dram_free = heap_caps_get_free_size(MALLOC_CAP_8BIT | MALLOC_CAP_INTERNAL);
     size_t dram_largest = heap_caps_get_largest_free_block(MALLOC_CAP_8BIT | MALLOC_CAP_INTERNAL);
-    DEBUG_PRINTF_P("DRAM 8-bit:   Free: %7u bytes | Largest block: %7u bytes\n", dram_free, dram_largest);
+    DEBUG_PRINTF("DRAM 8-bit:   Free: %7u bytes | Largest block: %7u bytes\n", dram_free, dram_largest);
     #ifdef BOARD_HAS_PSRAM
     size_t psram_free = heap_caps_get_free_size(MALLOC_CAP_SPIRAM);
     size_t psram_largest = heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM);
-    DEBUG_PRINTF_P("PSRAM:        Free: %7u bytes | Largest block: %6u bytes\n", psram_free, psram_largest);
+    DEBUG_PRINTF("PSRAM:        Free: %7u bytes | Largest block: %6u bytes\n", psram_free, psram_largest);
     #endif
     #if defined(CONFIG_IDF_TARGET_ESP32)
     // 32-bit DRAM (not byte accessible, only available on ESP32)
     size_t dram32_free = heap_caps_get_free_size(MALLOC_CAP_32BIT | MALLOC_CAP_INTERNAL) - dram_free; // returns all 32bit DRAM, subtract 8bit DRAM
     //size_t dram32_largest = heap_caps_get_largest_free_block(MALLOC_CAP_32BIT | MALLOC_CAP_INTERNAL); // returns largest DRAM block -> not useful
-    DEBUG_PRINTF_P("DRAM 32-bit:  Free: %7u bytes | Largest block: N/A\n", dram32_free);
+    DEBUG_PRINTF("DRAM 32-bit:  Free: %7u bytes | Largest block: N/A\n", dram32_free);
     #else
     // Fast RTC Memory (not available on ESP32)
     size_t rtcram_free = heap_caps_get_free_size(MALLOC_CAP_RTCRAM);
     size_t rtcram_largest = heap_caps_get_largest_free_block(MALLOC_CAP_RTCRAM);
-    DEBUG_PRINTF_P("RTC RAM:      Free: %7u bytes | Largest block: %7u bytes\n", rtcram_free, rtcram_largest);
+    DEBUG_PRINTF("RTC RAM:      Free: %7u bytes | Largest block: %7u bytes\n", rtcram_free, rtcram_largest);
     #endif
     if (psramFound()) {
-      DEBUG_PRINTF_P("PSRAM: %dkB/%dkB\n", ESP.getFreePsram()/1024, ESP.getPsramSize()/1024);
+      DEBUG_PRINTF("PSRAM: %dkB/%dkB\n", ESP.getFreePsram()/1024, ESP.getPsramSize()/1024);
     #ifndef BOARD_HAS_PSRAM
       DEBUG_PRINTLN("BOARD_HAS_PSRAM not defined, not using PSRAM.");
     #endif
     }
-    DEBUG_PRINTF_P("TX power: %d/%d\n", WiFi.getTxPower(), txPower);
+    DEBUG_PRINTF("TX power: %d/%d\n", WiFi.getTxPower(), txPower);
     #else // ESP8266
-    DEBUG_PRINTF_P("Free heap/contiguous: %u/%u\n", getFreeHeapSize(), getContiguousFreeHeap());
+    DEBUG_PRINTF("Free heap/contiguous: %u/%u\n", getFreeHeapSize(), getContiguousFreeHeap());
     #endif
-    DEBUG_PRINTF_P("Wifi state: %d\n", WiFi.status());
+    DEBUG_PRINTF("Wifi state: %d\n", WiFi.status());
     #ifndef WLED_DISABLE_ESPNOW
-    DEBUG_PRINTF_P("ESP-NOW state: %u\n", statusESPNow);
+    DEBUG_PRINTF("ESP-NOW state: %u\n", statusESPNow);
     #endif
 
     if (WiFi.status() != lastWifiState) {
       wifiStateChangedTime = millis();
     }
     lastWifiState = WiFi.status();
-    DEBUG_PRINTF_P("State time: %lu\n",        wifiStateChangedTime);
-    DEBUG_PRINTF_P("NTP last sync: %lu\n",     ntpLastSyncTime);
-    DEBUG_PRINTF_P("Client IP: %u.%u.%u.%u\n", Network.localIP()[0], Network.localIP()[1], Network.localIP()[2], Network.localIP()[3]);
+    DEBUG_PRINTF("State time: %lu\n",        wifiStateChangedTime);
+    DEBUG_PRINTF("NTP last sync: %lu\n",     ntpLastSyncTime);
+    DEBUG_PRINTF("Client IP: %u.%u.%u.%u\n", Network.localIP()[0], Network.localIP()[1], Network.localIP()[2], Network.localIP()[3]);
     if (loops > 0) { // avoid division by zero
-      DEBUG_PRINTF_P("Loops/sec: %u\n",         loops / 30);
-      DEBUG_PRINTF_P("Loop time[ms]: %u/%lu\n", avgLoopMillis/loops,    maxLoopMillis);
-      DEBUG_PRINTF_P("UM time[ms]: %u/%lu\n",   avgUsermodMillis/loops, maxUsermodMillis);
-      DEBUG_PRINTF_P("Strip time[ms]:%u/%lu\n", avgStripMillis/loops,   maxStripMillis);
+      DEBUG_PRINTF("Loops/sec: %u\n",         loops / 30);
+      DEBUG_PRINTF("Loop time[ms]: %u/%lu\n", avgLoopMillis/loops,    maxLoopMillis);
+      DEBUG_PRINTF("UM time[ms]: %u/%lu\n",   avgUsermodMillis/loops, maxUsermodMillis);
+      DEBUG_PRINTF("Strip time[ms]:%u/%lu\n", avgStripMillis/loops,   maxStripMillis);
     }
     strip.printSize();
     server.printStatus(DEBUGOUT);
@@ -388,17 +388,17 @@ void WLED::setup()
   Serial.setDebugOutput(false); // switch off kernel messages when using USBCDC
   #endif
   DEBUG_PRINTLN();
-  DEBUG_PRINTF_P("---WLED %s %u INIT---\n", versionString, VERSION);
+  DEBUG_PRINTF("---WLED %s %u INIT---\n", versionString, VERSION);
   DEBUG_PRINTLN();
 #ifdef ARDUINO_ARCH_ESP32
-  DEBUG_PRINTF_P("esp32 %s\n", ESP.getSdkVersion());
+  DEBUG_PRINTF("esp32 %s\n", ESP.getSdkVersion());
   #if defined(ESP_ARDUINO_VERSION)
-    DEBUG_PRINTF_P("arduino-esp32 v%d.%d.%d\n", int(ESP_ARDUINO_VERSION_MAJOR), int(ESP_ARDUINO_VERSION_MINOR), int(ESP_ARDUINO_VERSION_PATCH));  // available since v2.0.0
+    DEBUG_PRINTF("arduino-esp32 v%d.%d.%d\n", int(ESP_ARDUINO_VERSION_MAJOR), int(ESP_ARDUINO_VERSION_MINOR), int(ESP_ARDUINO_VERSION_PATCH));  // available since v2.0.0
   #else
     DEBUG_PRINTLN("arduino-esp32 v1.0.x\n");  // we can't say in more detail.
   #endif
-  DEBUG_PRINTF_P("CPU:   %s rev.%d, %d core(s), %d MHz.\n", ESP.getChipModel(), (int)ESP.getChipRevision(), ESP.getChipCores(), ESP.getCpuFreqMHz());
-  DEBUG_PRINTF_P("FLASH: %d MB, Mode %d ", (ESP.getFlashChipSize()/1024)/1024, (int)ESP.getFlashChipMode());
+  DEBUG_PRINTF("CPU:   %s rev.%d, %d core(s), %d MHz.\n", ESP.getChipModel(), (int)ESP.getChipRevision(), ESP.getChipCores(), ESP.getCpuFreqMHz());
+  DEBUG_PRINTF("FLASH: %d MB, Mode %d ", (ESP.getFlashChipSize()/1024)/1024, (int)ESP.getFlashChipMode());
   #ifdef WLED_DEBUG
   switch (ESP.getFlashChipMode()) {
     // missing: Octal modes
@@ -415,27 +415,27 @@ void WLED::setup()
     default: break;
   }
   #endif
-  DEBUG_PRINTF_P(", speed %u MHz.\n", ESP.getFlashChipSpeed()/1000000);
+  DEBUG_PRINTF(", speed %u MHz.\n", ESP.getFlashChipSpeed()/1000000);
 
 #else
-  DEBUG_PRINTF_P("esp8266 @ %u MHz.\nCore: %s\n", ESP.getCpuFreqMHz(), ESP.getCoreVersion());
-  DEBUG_PRINTF_P("FLASH: %u MB\n", (ESP.getFlashChipSize()/1024)/1024);
+  DEBUG_PRINTF("esp8266 @ %u MHz.\nCore: %s\n", ESP.getCpuFreqMHz(), ESP.getCoreVersion());
+  DEBUG_PRINTF("FLASH: %u MB\n", (ESP.getFlashChipSize()/1024)/1024);
 #endif
-  DEBUG_PRINTF_P("heap %u\n", getFreeHeapSize());
+  DEBUG_PRINTF("heap %u\n", getFreeHeapSize());
 
 #if defined(BOARD_HAS_PSRAM)
   // if JSON buffer allocation fails requestJsonBufferLock() will always return false preventing crashes
   if (psramFound() && ESP.getPsramSize()) {
     pDoc = new PSRAMDynamicJsonDocument(2 * JSON_BUFFER_SIZE);
-    DEBUG_PRINTF_P("JSON buffer size: %ubytes\n", (2 * JSON_BUFFER_SIZE));
-    DEBUG_PRINTF_P("PSRAM: %dkB/%dkB\n", ESP.getFreePsram()/1024, ESP.getPsramSize()/1024);
+    DEBUG_PRINTF("JSON buffer size: %ubytes\n", (2 * JSON_BUFFER_SIZE));
+    DEBUG_PRINTF("PSRAM: %dkB/%dkB\n", ESP.getFreePsram()/1024, ESP.getPsramSize()/1024);
   } else {
     pDoc = new DynamicJsonDocument(JSON_BUFFER_SIZE);  // Use onboard RAM instead as a fallback
   }
 #endif
 
 #if defined(ARDUINO_ARCH_ESP32)
-  DEBUG_PRINTF_P("TX power: %d/%d\n", WiFi.getTxPower(), txPower);
+  DEBUG_PRINTF("TX power: %d/%d\n", WiFi.getTxPower(), txPower);
 #endif
 
 #ifdef ESP8266
@@ -449,7 +449,7 @@ void WLED::setup()
   PinManager::allocatePin(2, true, PinOwner::DMX);
 #endif
 
-  DEBUG_PRINTF_P("heap %u\n", getFreeHeapSize());
+  DEBUG_PRINTF("heap %u\n", getFreeHeapSize());
 
   bool fsinit = false;
   DEBUGFS_PRINTLN("Mount FS");
@@ -482,7 +482,7 @@ void WLED::setup()
   }
   DEBUG_PRINTLN("Reading config");
   bool needsCfgSave = deserializeConfigFromFS();
-  DEBUG_PRINTF_P("heap %u\n", getFreeHeapSize());
+  DEBUG_PRINTF("heap %u\n", getFreeHeapSize());
 
 #if defined(STATUSLED) && STATUSLED>=0
   if (!PinManager::isPinAllocated(STATUSLED)) {
@@ -494,12 +494,12 @@ void WLED::setup()
 
   DEBUG_PRINTLN("Initializing strip");
   beginStrip();
-  DEBUG_PRINTF_P("heap %u\n", getFreeHeapSize());
+  DEBUG_PRINTF("heap %u\n", getFreeHeapSize());
 
   DEBUG_PRINTLN("Usermods setup");
   userSetup();
   UsermodManager::setup();
-  DEBUG_PRINTF_P("heap %u\n", getFreeHeapSize());
+  DEBUG_PRINTF("heap %u\n", getFreeHeapSize());
 
   if (needsCfgSave) serializeConfigToFS(); // usermods required new parameters; need to wait for strip to be initialised #4752
 
@@ -580,13 +580,13 @@ void WLED::setup()
   // HTTP server page init
   DEBUG_PRINTLN("initServer");
   initServer();
-  DEBUG_PRINTF_P("heap %u\n", getFreeHeapSize());
+  DEBUG_PRINTF("heap %u\n", getFreeHeapSize());
 
 #ifndef WLED_DISABLE_INFRARED
   // init IR
   DEBUG_PRINTLN("initIR");
   initIR();
-  DEBUG_PRINTF_P("heap %u\n", getFreeHeapSize());
+  DEBUG_PRINTF("heap %u\n", getFreeHeapSize());
 #endif
 
 #if defined(ARDUINO_ARCH_ESP32) && defined(LWIP_IPV6)
@@ -684,7 +684,7 @@ void WLED::initAP(bool resetAP)
 
 void WLED::initConnection()
 {
-  DEBUG_PRINTF_P("initConnection() called @ %lus.\n", millis()/1000);
+  DEBUG_PRINTF("initConnection() called @ %lus.\n", millis()/1000);
   #ifdef WLED_ENABLE_WEBSOCKETS
   ws.onEvent(wsEvent);
   #endif
@@ -740,7 +740,7 @@ void WLED::initConnection()
   if (WLED_WIFI_CONFIGURED) {
     showWelcomePage = false;
     
-    DEBUG_PRINTF_P("Connecting to %s...\n", multiWiFi[selectedWiFi].clientSSID);
+    DEBUG_PRINTF("Connecting to %s...\n", multiWiFi[selectedWiFi].clientSSID);
 
 #ifdef WLED_ENABLE_WPA_ENTERPRISE
     if (multiWiFi[selectedWiFi].encryptionType == WIFI_ENCRYPTION_TYPE_PSK) {
@@ -763,7 +763,7 @@ void WLED::initConnection()
       }
       WiFi.begin(multiWiFi[selectedWiFi].clientSSID, multiWiFi[selectedWiFi].clientPass, 0, bssid); // no harm if called multiple times
     } else { // WIFI_ENCRYPTION_TYPE_ENTERPRISE
-      DEBUG_PRINTF_P("Using WPA2_AUTH_PEAP (Anon: %s, Ident: %s)\n", multiWiFi[selectedWiFi].enterpriseAnonIdentity, multiWiFi[selectedWiFi].enterpriseIdentity);
+      DEBUG_PRINTF("Using WPA2_AUTH_PEAP (Anon: %s, Ident: %s)\n", multiWiFi[selectedWiFi].enterpriseAnonIdentity, multiWiFi[selectedWiFi].enterpriseIdentity);
 #ifdef ESP8266
       struct station_config sta_conf;
       os_memset(&sta_conf, 0, sizeof(sta_conf));
@@ -890,7 +890,7 @@ void WLED::handleConnection()
     return;
 
   if (lastReconnectAttempt == 0 || forceReconnect) {
-    DEBUG_PRINTF_P("Initial connect or forced reconnect (@ %lus).\n", nowS);
+    DEBUG_PRINTF("Initial connect or forced reconnect (@ %lus).\n", nowS);
     selectedWiFi = findWiFi(); // find strongest WiFi
     initConnection();
     interfacesInited = false;
@@ -910,7 +910,7 @@ void WLED::handleConnection()
 #endif
     if (stac != stacO) {
       stacO = stac;
-      DEBUG_PRINTF_P("Connected AP clients: %d\n", (int)stac);
+      DEBUG_PRINTF("Connected AP clients: %d\n", (int)stac);
       if (!Network.isConnected() && wifiConfigured) {        // trying to connect, but not connected
         if (stac)
           WiFi.disconnect();        // disable search so that AP can work
@@ -942,13 +942,13 @@ void WLED::handleConnection()
     }
     if (now - lastReconnectAttempt > ((stac) ? 300000 : 18000) && wifiConfigured) {
       if (improvActive == 2) improvActive = 3;
-      DEBUG_PRINTF_P("Last reconnect (%lus) too old (@ %lus).\n", lastReconnectAttempt/1000, nowS);
+      DEBUG_PRINTF("Last reconnect (%lus) too old (@ %lus).\n", lastReconnectAttempt/1000, nowS);
       if (++selectedWiFi >= multiWiFi.size()) selectedWiFi = 0; // we couldn't connect, try with another network from the list
       initConnection();
     }
     if (!apActive && now - lastReconnectAttempt > 12000 && (!wasConnected || apBehavior == AP_BEHAVIOR_NO_CONN)) {
       if (!(apBehavior == AP_BEHAVIOR_TEMPORARY && now > WLED_AP_TIMEOUT)) {
-        DEBUG_PRINTF_P("Not connected AP (@ %lus).\n", nowS);
+        DEBUG_PRINTF("Not connected AP (@ %lus).\n", nowS);
         initAP();  // start AP only within first 5min
       }
     }
@@ -958,7 +958,7 @@ void WLED::handleConnection()
         dnsServer.stop();
         WiFi.softAPdisconnect(true);
         apActive = false;
-        DEBUG_PRINTF_P("Temporary AP disabled (@ %lus).\n", nowS);
+        DEBUG_PRINTF("Temporary AP disabled (@ %lus).\n", nowS);
       }
     }
   } else if (!interfacesInited) { //newly connected

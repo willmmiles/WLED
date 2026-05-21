@@ -213,7 +213,7 @@ bool deserializeConfig(JsonObject doc, bool fromFS) {
   }
   #endif
 
-  DEBUG_PRINTF_P("Heap before buses: %d\n", getFreeHeapSize());
+  DEBUG_PRINTF("Heap before buses: %d\n", getFreeHeapSize());
   JsonArray ins = hw_led["ins"];
   if (!ins.isNull()) {
     int s = 0;  // bus iterator
@@ -370,7 +370,7 @@ bool deserializeConfig(JsonObject doc, bool fromFS) {
         if ((type == BTN_TYPE_ANALOG) || (type == BTN_TYPE_ANALOG_INVERTED)) {
           if (digitalPinToAnalogChannel(pin) < 0) {
             // not an ADC analog pin
-            DEBUG_PRINTF_P("PIN ALLOC error: GPIO%d for analog button #%d is not an analog pin!\n", pin, s);
+            DEBUG_PRINTF("PIN ALLOC error: GPIO%d for analog button #%d is not an analog pin!\n", pin, s);
             PinManager::deallocatePin(pin, PinOwner::Button);
             pin = -1;
             continue;
@@ -380,7 +380,7 @@ bool deserializeConfig(JsonObject doc, bool fromFS) {
         } else if ((type == BTN_TYPE_TOUCH || type == BTN_TYPE_TOUCH_SWITCH)) {
           if (digitalPinToTouchChannel(pin) < 0) {
             // not a touch pin
-            DEBUG_PRINTF_P("PIN ALLOC error: GPIO%d for touch button #%d is not a touch pin!\n", pin, s);
+            DEBUG_PRINTF("PIN ALLOC error: GPIO%d for touch button #%d is not a touch pin!\n", pin, s);
             PinManager::deallocatePin(pin, PinOwner::Button);
             pin = -1;
             continue;
@@ -973,10 +973,10 @@ void serializeConfig(JsonObject root) {
   JsonArray hw_led_ins = hw_led.createNestedArray("ins");
 
   for (size_t s = 0; s < BusManager::getNumBusses(); s++) {
-    DEBUG_PRINTF_P("Cfg: Saving bus #%u\n", s);
+    DEBUG_PRINTF("Cfg: Saving bus #%u\n", s);
     const Bus *bus = BusManager::getBus(s);
     if (!bus) break;  // Memory corruption, iterator invalid
-    DEBUG_PRINTF_P("  (%d-%d, type:%d, CO:%d, rev:%d, skip:%d, AW:%d kHz:%d, mA:%d/%d)\n",
+    DEBUG_PRINTF("  (%d-%d, type:%d, CO:%d, rev:%d, skip:%d, AW:%d kHz:%d, mA:%d/%d)\n",
       (int)bus->getStart(), (int)(bus->getStart()+bus->getLength()),
       (int)(bus->getType() & 0x7F),
       (int)bus->getColorOrder(),
