@@ -34,7 +34,7 @@ void handleHue()
 void reconnectHue()
 {
   if (!WLED_CONNECTED || !huePollingEnabled) return;
-  WLOG_D("hue", "Hue reconnect");
+  DEBUG_PRINTLN(F("Hue reconnect"));
   if (hueClient == nullptr) {
     hueClient = new AsyncClient();
     hueClient->onConnect(&onHueConnect, hueClient);
@@ -47,13 +47,13 @@ void reconnectHue()
 
 void onHueError(void* arg, AsyncClient* client, int8_t error)
 {
-  WLOG_E("hue", "Hue err");
+  DEBUG_PRINTLN(F("Hue err"));
   hueError = HUE_ERROR_TIMEOUT;
 }
 
 void onHueConnect(void* arg, AsyncClient* client)
 {
-  WLOG_D("hue", "Hue connect");
+  DEBUG_PRINTLN(F("Hue connect"));
   sendHuePoll();
 }
 
@@ -85,8 +85,8 @@ void onHueData(void* arg, AsyncClient* client, void *data, size_t len)
 {
   if (!len) return;
   char* str = (char*)data;
-  WLOG_D("hue", "%s", hueApiKey);
-  WLOG_D("hue", "%s", str);
+  DEBUG_PRINTLN(hueApiKey);
+  DEBUG_PRINTLN(str);
   //only get response body
   str = strstr(str,"\r\n\r\n");
   if (str == nullptr) return;

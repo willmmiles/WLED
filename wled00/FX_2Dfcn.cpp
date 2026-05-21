@@ -36,7 +36,7 @@ void WS2812FX::setUpMatrix() {
 
     // safety check
     if (Segment::maxWidth * Segment::maxHeight > MAX_LEDS || Segment::maxWidth > 255 || Segment::maxHeight > 255 || Segment::maxWidth <= 1 || Segment::maxHeight <= 1) {
-      WLOG_E("fx", "2D Bounds error.");
+      DEBUG_PRINTLN(F("2D Bounds error."));
       isMatrix = false;
       Segment::maxWidth = _length;
       Segment::maxHeight = 1;
@@ -75,7 +75,8 @@ void WS2812FX::setUpMatrix() {
       int8_t *gapTable = nullptr;
 
       if (isFile && requestJSONBufferLock(JSON_LOCK_LEDGAP)) {
-        WLOG_I("fx", "Reading LED gap from %s", fileName);
+        DEBUG_PRINT(F("Reading LED gap from "));
+        DEBUG_PRINTLN(fileName);
         // read the array into global JSON buffer
         if (readObjectFromFile(fileName, nullptr, pDoc)) {
           // the array is similar to ledmap, except it has only 3 values:
@@ -91,7 +92,7 @@ void WS2812FX::setUpMatrix() {
             }
           }
         }
-        WLOG_D("fx", "Gaps loaded.");
+        DEBUG_PRINTLN(F("Gaps loaded."));
         releaseJSONBufferLock();
       }
 
@@ -115,18 +116,18 @@ void WS2812FX::setUpMatrix() {
       p_free(gapTable);
 
       #ifdef WLED_DEBUG
-      WLOG_D("fx", "Matrix ledmap:");
+      DEBUG_PRINT(F("Matrix ledmap:"));
       for (unsigned i=0; i<customMappingSize; i++) {
-        if (!(i%Segment::maxWidth)) WLOG_D("fx", "");
-        WLOG_D("fx", "%4d,", customMappingTable[i]);
+        if (!(i%Segment::maxWidth)) DEBUG_PRINTLN();
+        DEBUG_PRINTF_P(PSTR("%4d,"), customMappingTable[i]);
         #if defined(CONFIG_IDF_TARGET_ESP32S2)
         delay(1); // on S2 the CDC output can crash without a delay
         #endif
       }
-      WLOG_D("fx", "");
+      DEBUG_PRINTLN();
       #endif
     } else { // memory allocation error
-      WLOG_E("fx", "ERROR 2D LED map allocation error.");
+      DEBUG_PRINTLN(F("ERROR 2D LED map allocation error."));
       isMatrix = false;
       panel.clear();
       Segment::maxWidth = _length;

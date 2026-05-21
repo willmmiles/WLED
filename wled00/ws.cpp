@@ -24,12 +24,12 @@ void wsEvent(AsyncWebSocket * server, AsyncWebSocketClient * client, AwsEventTyp
 {
   if(type == WS_EVT_CONNECT){
     //client connected
-    WLOG_I("ws", "WS client connected.");
+    DEBUG_PRINTLN(F("WS client connected."));
     sendDataWs(client);
   } else if(type == WS_EVT_DISCONNECT){
     //client disconnected
     if (client->id() == wsLiveClientId) wsLiveClientId = 0;
-    WLOG_I("ws", "WS client disconnected.");
+    DEBUG_PRINTLN(F("WS client disconnected."));
   } else if(type == WS_EVT_DATA){
     // data packet
     AwsFrameInfo * info = (AwsFrameInfo*)arg;
@@ -103,7 +103,7 @@ void wsEvent(AsyncWebSocket * server, AsyncWebSocketClient * client, AwsEventTyp
         }
       }
     } else {
-      WLOG_D("ws", "WS multipart message: final %u index %u len %u total %u", info->final, info->index, len, (uint32_t)info->len);
+      DEBUG_PRINTF_P(PSTR("WS multipart message: final %u index %u len %u total %u\n"), info->final, info->index, len, (uint32_t)info->len);
       //message is comprised of multiple frames or the frame is split into multiple packets
       //if(info->index == 0){
         //if (!wsFrameBuffer && len < 4096) wsFrameBuffer = new uint8_t[4096];
@@ -121,18 +121,18 @@ void wsEvent(AsyncWebSocket * server, AsyncWebSocketClient * client, AwsEventTyp
           }
         }
       }
-      WLOG_D("ws", "WS multipart message.");
+      DEBUG_PRINTLN(F("WS multipart message."));
     }
   } else if(type == WS_EVT_ERROR){
     //error was received from the other end
-    WLOG_E("ws", "WS error.");
+    DEBUG_PRINTLN(F("WS error."));
 
   } else if(type == WS_EVT_PONG){
     //pong message was received (in response to a ping request maybe)
-    WLOG_D("ws", "WS pong.");
+    DEBUG_PRINTLN(F("WS pong."));
 
   } else {
-    WLOG_W("ws", "WS unknown event.");
+    DEBUG_PRINTLN(F("WS unknown event."));
   }
 }
 
@@ -156,32 +156,33 @@ void sendDataWs(AsyncWebSocketClient * client)
   serializeInfo(info);
 
   size_t len = measureJson(*pDoc);
-  WLOG_D("ws", "JSON buffer size: %u for WS request (%u).", pDoc->memoryUsage(), len);
+  DEBUG_PRINTF_P(PSTR("JSON buffer size: %u for WS request (%u).\n"), pDoc->memoryUsage(), len);
 
   // the following may no longer be necessary as heap management has been fixed by @willmmiles in AWS
   size_t heap1 = getFreeHeapSize();
-  WLOG_D("ws", "heap %u", getFreeHeapSize());
+  DEBUG_PRINTF_P(PSTR("heap %u\n"), getFreeHeapSize());
   AsyncWebSocketBuffer buffer(len);
   #ifdef ESP8266
   size_t heap2 = getFreeHeapSize();
-  WLOG_D("ws", "heap %u", getFreeHeapSize());
+  DEBUG_PRINTF_P(PSTR("heap %u\n"), getFreeHeapSize());
   #else
   size_t heap2 = 0; // ESP32 variants do not have the same issue and will work without checking heap allocation
   #endif
   if (!buffer || heap1-heap2<len) {
     releaseJSONBufferLock();
-    WLOG_E("ws", "WS buffer allocation failed.");
+    DEBUG_PRINTLN(F("WS buffer allocation failed."));
     ws.closeAll(1013); //code 1013 = temporary overload, try again later
     ws.cleanupClients(0); //disconnect all clients to release memory
     return; //out of memory
   }
   serializeJson(*pDoc, (char *)buffer.data(), len);
 
+  DEBUG_PRINT(F("Sending WS data "));
   if (client) {
-    WLOG_D("ws", "Sending WS data to a single client.");
+    DEBUG_PRINTLN(F("to a single client."));
     client->text(std::move(buffer));
   } else {
-    WLOG_D("ws", "Sending WS data to multiple clients.");
+    DEBUG_PRINTLN(F("to multiple clients."));
     ws.textAll(std::move(buffer));
   }
 

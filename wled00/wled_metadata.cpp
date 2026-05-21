@@ -103,21 +103,21 @@ bool findWledMetadata(const uint8_t* binaryData, size_t dataSize, wled_metadata_
         // Validate hash using runtime function
         uint32_t expected_hash = djb2_hash_runtime(candidate.release_name);
         if (candidate.hash != expected_hash) {
-          WLOG_W("wled", "Found WLED structure at offset %u but hash mismatch", offset);
+          DEBUG_PRINTF_P(PSTR("Found WLED structure at offset %u but hash mismatch\n"), offset);
           continue;
         }
         
         // Valid structure found - copy entire structure
         *extractedDesc = candidate;
         
-        WLOG_D("wled", "Extracted WLED structure at offset %u: '%s'",
+        DEBUG_PRINTF_P(PSTR("Extracted WLED structure at offset %u: '%s'\n"), 
                       offset, extractedDesc->release_name);
         return true;
       }
     }
   }
   
-  WLOG_D("wled", "No WLED custom description found in binary");
+  DEBUG_PRINTLN(F("No WLED custom description found in binary"));
   return false;
 }
 

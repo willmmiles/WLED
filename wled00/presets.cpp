@@ -37,7 +37,7 @@ static void doSaveState() {
   initPresetsFile(); // just in case if someone deleted presets.json using /edit
   JsonObject sObj = pDoc->to<JsonObject>();
 
-  WLOG_D("preset", "Serialize current state");
+  DEBUG_PRINTLN(F("Serialize current state"));
   if (playlistSave) {
     serializePlaylist(sObj);
     if (includeBri) sObj["on"] = true;
@@ -118,7 +118,7 @@ void initPresetsFile()
 
 bool applyPresetFromPlaylist(byte index)
 {
-  WLOG_D("preset", "Request to apply preset: %d", index);
+  DEBUG_PRINTF_P(PSTR("Request to apply preset: %d\n"), index);
   presetToApply = index;
   callModeToApply = CALL_MODE_DIRECT_CHANGE;
   return true;
@@ -127,7 +127,7 @@ bool applyPresetFromPlaylist(byte index)
 bool applyPreset(byte index, byte callMode)
 {
   unloadPlaylist(); // applying a preset unloads the playlist (#3827)
-  WLOG_D("preset", "Request to apply preset: %u", index);
+  DEBUG_PRINTF_P(PSTR("Request to apply preset: %u\n"), index);
   presetToApply = index;
   callModeToApply = callMode;
   return true;
@@ -163,7 +163,7 @@ void handlePresets()
   presetToApply = 0; //clear request for preset
   callModeToApply = 0;
 
-  WLOG_D("preset", "Applying preset: %u", (unsigned)tmpPreset);
+  DEBUG_PRINTF_P(PSTR("Applying preset: %u\n"), (unsigned)tmpPreset);
 
   #if defined(ARDUINO_ARCH_ESP32S2) || defined(ARDUINO_ARCH_ESP32C3)
   unsigned long maxWait = millis() + strip.getFrameTime();
@@ -228,7 +228,7 @@ void savePreset(byte index, const char* pname, JsonObject sObj)
     else                             sprintf_P(saveName, PSTR("Preset %d"), index);
   }
 
-  WLOG_D("preset", "Saving preset (%d) %s", index, saveName);
+  DEBUG_PRINTF_P(PSTR("Saving preset (%d) %s\n"), index, saveName);
 
   presetToSave = index;
   playlistSave = false;

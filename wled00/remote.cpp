@@ -189,7 +189,7 @@ void handleWiZdata(uint8_t *incomingData, size_t len) {
   message_structure_t *incoming = reinterpret_cast<message_structure_t *>(incomingData);
 
   if (len != sizeof(message_structure_t)) {
-    WLOG_W("remote", "Unknown incoming ESP Now message received of length %u", len);
+    DEBUG_PRINTF_P(PSTR("Unknown incoming ESP Now message received of length %u\n"), len);
     return;
   }
 
@@ -198,7 +198,12 @@ void handleWiZdata(uint8_t *incomingData, size_t len) {
     return;
   }
 
-  WLOG_D("remote", "Incoming ESP Now Packet [%u] from sender [%s] button: %u", cur_seq, last_signal_src, incoming->button);
+  DEBUG_PRINT(F("Incoming ESP Now Packet ["));
+  DEBUG_PRINT(cur_seq);
+  DEBUG_PRINT(F("] from sender ["));
+  DEBUG_PRINT(last_signal_src);
+  DEBUG_PRINT(F("] button: "));
+  DEBUG_PRINTLN(incoming->button);
 
   ESPNowButton = incoming->button; // save state, do not process in callback (can cause glitches)
   last_seq = cur_seq;
