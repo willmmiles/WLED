@@ -115,7 +115,7 @@ void log_setup();
 // by the optimizer.
 template<typename str_type, LogLevel lvl>
 inline void log_write_lvl_v(const str_type* tag, const str_type* fmt, va_list ap) {
-  if (lvl <= WLED_LOG_LEVEL) { log_write_v(lvl, tag, fmt, ap); };
+  if (lvl <= static_cast<LogLevel>(WLED_LOG_LEVEL)) { log_write_v(lvl, tag, fmt, ap); };
 }
 
 // Variant for WLED_LOG_DECLARE: gated on a per-file local_min rather than the
@@ -128,7 +128,9 @@ inline void log_write_local_v(const str_type* tag, const str_type* fmt, va_list 
 // Common function body
 #define WLED_LOG_LVL_FUNC(fn, lvl_enum) \
   template<typename str_type> \
-  inline void fn(const char* tag, const char* fmt, ...) __attribute__((format(printf, 2, 3))) \
+  inline void fn(const char* tag, const char* fmt, ...) __attribute__((format(printf, 2, 3))); \
+  template<typename str_type> \
+  inline void fn(const char* tag, const char* fmt, ...) \
   { va_list ap; va_start(ap, fmt); log_write_lvl_v<str_type, lvl_enum>(tag, fmt, ap); va_end(ap); }
 
 // Specific implementations
