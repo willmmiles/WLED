@@ -514,11 +514,11 @@ bool deserializeState(JsonObject root, byte callMode, byte presetId)
     currentPreset = root[F("pd")] | currentPreset;
     if (root["win"].isNull()) presetCycCurr = currentPreset; // otherwise presetCycCurr was set in handleSet() [set.cpp]
     presetToRestore = currentPreset; // stateUpdated() will clear the preset, so we need to restore it after
-    WLOG_D("json", "Preset direct: %d", currentPreset);
+    DEBUG_PRINTF_P(PSTR("Preset direct: %d\n"), currentPreset);
   } else if (!root["ps"].isNull()) {
     // we have "ps" call (i.e. from button or external API call) or "pd" that includes "ps" (i.e. from UI call)
     if (root["win"].isNull() && getVal(root["ps"], presetCycCurr, 1, 250) && presetCycCurr > 0 && presetCycCurr < 251 && presetCycCurr != currentPreset) {
-      WLOG_D("json", "Preset select: %d", presetCycCurr);
+      DEBUG_PRINTF_P(PSTR("Preset select: %d\n"), presetCycCurr);
       // b) preset ID only or preset that does not change state (use embedded cycling limits if they exist in getVal())
       applyPreset(presetCycCurr, callMode); // async load from file system (only preset ID was specified)
       return stateResponse;
@@ -1373,10 +1373,10 @@ void serveJson(AsyncWebServerRequest* request)
       //lDoc["m"] = lDoc.memoryUsage(); // JSON buffer usage, for remote debugging
   }
 
-  WLOG_D("json", "JSON buffer size: %u for request: %d", lDoc.memoryUsage(), subJson);
+  DEBUG_PRINTF_P(PSTR("JSON buffer size: %u for request: %d\n"), lDoc.memoryUsage(), subJson);
 
   [[maybe_unused]] size_t len = response->setLength();
-  WLOG_D("json", "JSON content length: %u", len);
+  DEBUG_PRINTF_P(PSTR("JSON content length: %u\n"), len);
 
   request->send(response);
 }

@@ -205,7 +205,7 @@ static void handleUpload(AsyncWebServerRequest *request, const String& filename,
     }
 
     request->_tempFile = WLED_FS.open(finalname, "w");
-    WLOG_D("http", "Uploading %s", finalname.c_str());
+    DEBUG_PRINTF_P(PSTR("Uploading %s\n"), finalname.c_str());
     if (finalname.equals(FPSTR(getPresetsFileName()))) presetsModifiedTime = toki.second();
   }
   if (len) {
@@ -327,7 +327,7 @@ static bool captivePortal(AsyncWebServerRequest *request)
 
   String hostH = request->getHeader(F("Host"))->value();
   if (!isIp(hostH) && hostH.indexOf(F("wled.me")) < 0 && hostH.indexOf(cmDNS) < 0 && hostH.indexOf(':') < 0) {
-    WLOG_D("http", "Captive portal");
+    DEBUG_PRINTLN(F("Captive portal"));
     AsyncWebServerResponse *response = request->beginResponse(302);
     response->addHeader(F("Location"), F("http://4.3.2.1"));
     request->send(response);
@@ -529,7 +529,7 @@ void initServer()
       // Privilege checks
       IPAddress client  = request->client()->remoteIP();
       if (((otaSameSubnet && !inSameSubnet(client)) && !strlen(settingsPIN)) || (!otaSameSubnet && !inLocalSubnet(client))) {        
-        WLOG_W("http", "Attempted OTA update from different/non-local subnet!");
+        DEBUG_PRINTLN(F("Attempted OTA update from different/non-local subnet!"));
         serveMessage(request, 401, FPSTR(s_accessdenied), F("Client is not on local subnet."), 254);
         setOTAReplied(request);
         return;
@@ -577,7 +577,7 @@ void initServer()
       // Privilege checks
       IPAddress client = request->client()->remoteIP();
       if (((otaSameSubnet && !inSameSubnet(client)) && !strlen(settingsPIN)) || (!otaSameSubnet && !inLocalSubnet(client))) {
-        WLOG_W("http", "Attempted bootloader update from different/non-local subnet!");
+        DEBUG_PRINTLN(F("Attempted bootloader update from different/non-local subnet!"));
         serveMessage(request, 401, FPSTR(s_accessdenied), F("Client is not on local subnet."), 254);
         setBootloaderOTAReplied(request);
         return;
@@ -661,7 +661,7 @@ void initServer()
 
   //called when the url is not defined here, ajax-in; get-settings
   server.onNotFound([](AsyncWebServerRequest *request){
-    WLOG_D("http", "Not-Found HTTP call: %s", request->url().c_str());
+    DEBUG_PRINTF_P(PSTR("Not-Found HTTP call: %s\n"), request->url().c_str());
     if (captivePortal(request)) return;
 
     //make API CORS compatible
