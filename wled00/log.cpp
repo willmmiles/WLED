@@ -15,9 +15,6 @@
 // linker sections and are discovered at runtime via pointer arithmetic.
 DECLARE_DYNARRAY(wled::LogSink*, log_sinks);
 
-// Out-of-line definition for ILogBuffer's singleton pointer.
-wled::ILogBuffer* wled::ILogBuffer::s_instance = nullptr;
-
 // ── Platform spinlock ─────────────────────────────────────────────────────────
 // Held for the duration of sink dispatch.  Sinks must not block.
 #ifdef ESP8266
@@ -74,12 +71,40 @@ void wled::log_write_v(LogLevel level, const char* tag_P,
   log_write_raw(level, tag, msg, strlen(msg));
 }
 
+void wled::log_write_v(LogLevel level,
+                        const __FlashStringHelper* tag,
+                        const __FlashStringHelper* fmt,
+                        va_list ap)
+{
+  char msg[WLED_LOG_MSG_SIZE];
+#ifdef ESP8266
+  vsnprintf_P(msg, sizeof(msg), reinterpret_cast<const char*>(fmt), ap);
+  char tag_buf[32];
+  strncpy_P(tag_buf, reinterpret_cast<const char*>(tag), sizeof(tag_buf) - 1);
+  tag_buf[sizeof(tag_buf) - 1] = '\0';
+  log_write_raw(level, tag_buf, msg, strlen(msg));
+#else
+  vsnprintf(msg, sizeof(msg), reinterpret_cast<const char*>(fmt), ap);
+  log_write_raw(level, reinterpret_cast<const char*>(tag), msg, strlen(msg));
+#endif
+}
+
 void wled::log_write(LogLevel level, const char* tag_P,
                       const char* fmt_P, ...)
 {
   va_list ap;
   va_start(ap, fmt_P);
   log_write_v(level, tag_P, fmt_P, ap);
+  va_end(ap);
+}
+
+void wled::log_write(LogLevel level,
+                      const __FlashStringHelper* tag,
+                      const __FlashStringHelper* fmt, ...)
+{
+  va_list ap;
+  va_start(ap, fmt);
+  log_write_v(level, tag, fmt, ap);
   va_end(ap);
 }
 

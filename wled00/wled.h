@@ -975,7 +975,7 @@ WLED_GLOBAL JsonDocument *pDoc _INIT(&gDoc);
 WLED_GLOBAL volatile uint8_t jsonBufferLock _INIT(0);
 
 // ── Structured logging framework ──────────────────────────────────────────────
-// WLOG_I / WLOG_D / WLOG_W / WLOG_E / WLOG_V are the primary logging calls.
+// Primary calls: wled::logI/logD/logW/logE/logV — see log.h for full API.
 // DEBUG_* shims below preserve backward compatibility for external usermods.
 #include "log.h"
 
@@ -992,14 +992,14 @@ WLED_GLOBAL volatile uint8_t jsonBufferLock _INIT(0);
 #endif
 
 // ── Backward-compatible debug shims ──────────────────────────────────────────
-// These delegate to the new WLOG_D / WLOG_I calls so external usermods that
-// still use DEBUG_* continue to work.  All are no-ops when WLED_DEBUG is not
-// defined (preserving the existing guarantee that release builds are silent on
-// serial, which shares the port with light-control protocols).
+// These delegate to wled::log_write so external usermods that still use
+// DEBUG_* continue to work.  All are no-ops when WLED_DEBUG is not defined
+// (preserving the existing guarantee that release builds are silent on serial,
+// which shares the port with light-control protocols).
 //
 // NOTE: DEBUG_PRINTF_P passes fmt directly (it is already a PROGMEM pointer
-// from the call site's PSTR() wrapper); WLOG_D would double-wrap it.
-// The other variants wrap with PSTR() since they receive plain string literals.
+// from the call site's PSTR() wrapper); wrapping it again in PSTR() would
+// double-embed it on ESP8266.
 #ifdef WLED_DEBUG
   #ifndef ESP8266
     #include <rom/rtc.h>

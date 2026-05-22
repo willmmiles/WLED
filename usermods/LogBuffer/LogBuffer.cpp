@@ -1,8 +1,8 @@
 /*
  * LogBuffer usermod — in-memory ring buffer log sink with HTTP streaming.
  *
- * Implements both wled::LogSink (receives formatted lines from the dispatch
- * layer) and wled::ILogBuffer (streams contents to the /log HTTP endpoint).
+ * Implements wled::LogSink to receive formatted lines from the dispatch layer
+ * and serves them via its own HTTP endpoints.
  *
  * CAPACITY
  *   Build default: 32 KB when PSRAM is available, 4 KB otherwise.
@@ -30,9 +30,8 @@
   #endif
 #endif
 
-class LogBufferUsermod : public Usermod, public wled::LogSink, public wled::ILogBuffer {
+class LogBufferUsermod : public Usermod, public wled::LogSink {
 public:
-  LogBufferUsermod() { wled::ILogBuffer::_register(this); }
   ~LogBufferUsermod() { if (_buf) { free(_buf); _buf = nullptr; } }
 
   // ── wled::LogSink ──────────────────────────────────────────────────────────
@@ -84,28 +83,6 @@ public:
     if (len == 0 || msg[len - 1] != '\n') _ringWrite("\n", 1);
   }
 
-  // ── wled::ILogBuffer ───────────────────────────────────────────────────────
-  bool isAvailable() const override { return _buf != nullptr; }
-
-  void streamTo(Print& out) const override {
-    _spinLock();
-    if (!_buf || _used == 0) { _spinUnlock(); return; }
-    if (_used < _capacity) {
-      out.write(reinterpret_cast<const uint8_t*>(_buf), _used);
-    } else {
-      out.write(reinterpret_cast<const uint8_t*>(_buf + _head), _capacity - _head);
-      out.write(reinterpret_cast<const uint8_t*>(_buf),          _head);
-    }
-    _spinUnlock();
-  }
-
-  void clear() override {
-    _spinLock();
-    _head = 0;
-    _used = 0;
-    _spinUnlock();
-  }
-
   // ── Usermod ────────────────────────────────────────────────────────────────
   void loop() override {}
 
@@ -137,6 +114,25 @@ public:
   }
 
 private:
+  void streamTo(Print& out) const {
+    _spinLock();
+    if (!_buf || _used == 0) { _spinUnlock(); return; }
+    if (_used < _capacity) {
+      out.write(reinterpret_cast<const uint8_t*>(_buf), _used);
+    } else {
+      out.write(reinterpret_cast<const uint8_t*>(_buf + _head), _capacity - _head);
+      out.write(reinterpret_cast<const uint8_t*>(_buf),          _head);
+    }
+    _spinUnlock();
+  }
+
+  void clear() {
+    _spinLock();
+    _head = 0;
+    _used = 0;
+    _spinUnlock();
+  }
+
   // ── Ring-buffer state ──────────────────────────────────────────────────────
   char*  _buf             = nullptr;
   size_t _capacity        = 0;
