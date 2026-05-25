@@ -127,7 +127,7 @@ static bool handleIfNoneMatchCacheHeader(AsyncWebServerRequest *request, int cod
  * @param gzip Optional. Defaults to true. If false, the gzip header will not be added.
  * @param eTagSuffix Optional. Defaults to 0. A suffix that will be added to the ETag header. This can be used to invalidate the cache for a specific page.
  */
-static void handleStaticContent(AsyncWebServerRequest *request, const String &path, int code, const String &contentType, const uint8_t *content, size_t len, bool gzip = true, uint16_t eTagSuffix = 0) {
+void handleStaticContent(AsyncWebServerRequest *request, const String &path, int code, const String &contentType, const uint8_t *content, size_t len, bool gzip, uint16_t eTagSuffix) {
   if (path != "" && handleFileRead(request, path)) return;
   if (handleIfNoneMatchCacheHeader(request, code, eTagSuffix)) return;
   AsyncWebServerResponse *response = request->beginResponse_P(code, contentType, content, len);
