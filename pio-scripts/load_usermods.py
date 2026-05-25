@@ -1,6 +1,7 @@
 Import('env')
 from collections import deque
 from pathlib import Path   # For OS-agnostic path manipulation
+import json
 import re
 from urllib.parse import urlparse
 from click import secho
@@ -200,6 +201,45 @@ def wrapped_ConfigureProjectLibBuilder(xenv):
       f"to their library.json.",
       fg="red", err=True)
     Exit(1)
+
+  # Register a SCons Command to build each selected usermod's HTML assets.
+  # The generated header lives in the usermod's own source directory, so SCons's
+  # C/C++ scanner detects the #include and orders compilation correctly.
+  for dep in wled_deps:
+    manifest_path = Path(dep.src_dir) / 'cdata.json'
+    if not manifest_path.exists():
+      continue
+    try:
+      manifest = json.loads(manifest_path.read_text())
+    except Exception as e:
+      secho(f"WARNING: Could not parse {manifest_path}: {e}", fg="yellow", err=True)
+      continue
+    if not manifest.get('output') or not isinstance(manifest.get('specs'), list) or not manifest['specs']:
+      secho(f"WARNING: Skipping {manifest_path}: missing 'output' or 'specs'", fg="yellow", err=True)
+      continue
+    output_file = Path(dep.src_dir) / manifest['output']
+    src_data_dir = Path(dep.src_dir) / manifest.get('srcDir', 'data')
+    sources = [str(manifest_path)]
+    if src_data_dir.exists():
+      sources += [str(p) for p in src_data_dir.rglob('*') if p.is_file()]
+    cdata_cmd = xenv.Command(
+      target=str(output_file),
+      source=sources,
+      action='node "$PROJECT_DIR/tools/cdata.js" "$SOURCE"'
+    )
+    # Mirror build_ui.py's pattern: require the header before compiling any of
+    # this module's source files.
+    for method in ("Object", "StaticObject", "SharedObject"):
+      if not hasattr(dep.env, method):
+        continue
+      orig = getattr(dep.env, method)
+      def _wrap(orig=orig, cmd=cdata_cmd, denv=dep.env):
+        def wrapped(*args, **kwargs):
+          nodes = orig(*args, **kwargs)
+          denv.Requires(nodes, cmd)
+          return nodes
+        return wrapped
+      setattr(dep.env, method, _wrap())
 
   # Save the depbuilders list for later validation
   xenv.Replace(WLED_MODULES=wled_deps)

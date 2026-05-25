@@ -236,7 +236,10 @@ function isAlreadyBuilt(webUIPath, packageJsonPath = "package.json") {
     }
   }
 
-  return !isAnyFileInFolderNewerThan(webUIPath, lastBuildTime) && !isFileNewerThan(packageJsonPath, lastBuildTime) && !isFileNewerThan(__filename, lastBuildTime);
+  if (isAnyFileInFolderNewerThan(webUIPath, lastBuildTime)) return false;
+  if (isFileNewerThan(packageJsonPath, lastBuildTime)) return false;
+  if (isFileNewerThan(__filename, lastBuildTime)) return false;
+  return true;
 }
 
 // Don't run this script if we're in a test environment
@@ -244,9 +247,35 @@ if (process.env.NODE_ENV === 'test') {
   return;
 }
 
+const manifestArg = process.argv[2];
+
+if (manifestArg && manifestArg !== '--force' && manifestArg !== '-f') {
+  // Single-manifest mode: build one usermod's HTML assets, invoked by the build system.
+  const manifestPath = path.resolve(manifestArg);
+  const modDir = path.dirname(manifestPath);
+  let manifest;
+  try {
+    manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+  } catch (e) {
+    console.error("Could not read manifest " + manifestPath + ": " + e.message);
+    process.exit(1);
+  }
+  if (!manifest.output || !Array.isArray(manifest.specs) || manifest.specs.length === 0) {
+    console.error("Invalid manifest " + manifestPath + ": missing 'output' or 'specs'");
+    process.exit(1);
+  }
+  writeChunks(
+    path.join(modDir, manifest.srcDir || 'data'),
+    manifest.specs,
+    path.join(modDir, manifest.output)
+  );
+  return;
+}
+
+// Main UI build mode.
 console.info(wledBanner);
 
-if (isAlreadyBuilt("wled00/data") && process.argv[2] !== '--force' && process.argv[2] !== '-f') {
+if (isAlreadyBuilt("wled00/data") && manifestArg !== '--force' && manifestArg !== '-f') {
   console.info("Web UI is already built");
   return;
 }
