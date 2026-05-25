@@ -106,7 +106,13 @@ Usermod* UsermodManager::lookup(const char* mod_name) {
   return nullptr;
 }
 
-size_t UsermodManager::getModCount() { return getCount(); };
+size_t UsermodManager::getModCount() { return getCount(); }
+
+Usermod* UsermodManager::getModAt(size_t index) {
+  auto begin = DYNARRAY_BEGIN(usermods);
+  if (begin + index >= DYNARRAY_END(usermods)) return nullptr;
+  return *(begin + index);
+}
 
 /* Usermod base class name probe */
 void Usermod::probeNameFromConfig() {
