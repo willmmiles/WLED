@@ -413,6 +413,7 @@ namespace UsermodManager {
   void onStateChange(uint8_t);
   Usermod* lookup(uint16_t mod_id);
   Usermod* lookup(const char* mod_name); // find usermod by name (case-sensitive), safe for PROGMEM strings
+  Usermod* getModAt(size_t index);       // ordered iteration for settings page enumeration
   size_t getModCount();
 };
 
