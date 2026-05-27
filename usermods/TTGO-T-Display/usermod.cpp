@@ -64,6 +64,10 @@ class TTGO_T_DisplayMod : public Usermod {
   long lastRedraw = 0;
   bool displayTurnedOff = false;
 
+  // string that are used multiple time (this will save some flash memory)
+  static const char _name[];
+  static const char _enabled[];
+
 public:
 
 TTGO_T_DisplayMod() : Usermod()
@@ -127,7 +131,13 @@ void setup() override {
 
 
 void loop() override {
-  if (!enabled) return;
+  if (!enabled) {
+    if (!displayTurnedOff) {
+      digitalWrite(TFT_BL, !TFT_BACKLIGHT_ON); // Turn backlight off. 
+      displayTurnedOff = true;
+    }
+    return;
+  }
 
   // Check if we time interval for redrawing passes.
   if (millis() - lastUpdate_mod < USER_LOOP_REFRESH_RATE_MS) {
@@ -240,7 +250,47 @@ void loop() override {
   DEBUG_PRINTLN("Print estimated current");
   
 }
+
+
+/*
+  * addToJsonInfo() can be used to add custom entries to the /json/info part of the JSON API.
+  * Creating an "u" object allows you to add custom key/value pairs to the Info section of the WLED web UI.
+  * Below it is shown how this could be used for e.g. a light sensor
+  */
+void addToJsonInfo(JsonObject& root) {
+  JsonObject user = root["u"];
+  if (user.isNull()) user = root.createNestedObject("u");
+
+  auto state = user.createNestedArray(FPSTR(_name));
+  if (enabled) {
+    state.add(displayTurnedOff ? "Off" : "On");
+  } else {
+    state.add("Disabled");
+  }
+}
+
+
+void addToConfig(JsonObject &root) override {
+  JsonObject top = root.createNestedObject(FPSTR(_name)); // usermodname
+  top[FPSTR(_enabled)] = enabled;
+}
+
+bool readFromConfig(JsonObject& root) override
+{
+  // default settings values could be set here (or below using the 3-argument getJsonValue()) instead of in the class definition or constructor
+  // setting them inside readFromConfig() is slightly more robust, handling the rare but plausible use case of single value being missing after boot (e.g. if the cfg.json was manually edited and a value was removed)
+  JsonObject top = root[FPSTR(_name)];
+  bool configComplete = !top.isNull();
+
+  configComplete &= getJsonValue(top[FPSTR(_enabled)], enabled);
+  return configComplete;
+}
+
 };  // TTGO_T_DisplayMod
+
+// add more strings here to reduce flash memory usage
+const char TTGO_T_DisplayMod::_name[]    PROGMEM = "TFT Display";
+const char TTGO_T_DisplayMod::_enabled[] PROGMEM = "enabled";
 
 static TTGO_T_DisplayMod usermod_ttgo_t_display;
 REGISTER_USERMOD(usermod_ttgo_t_display);
