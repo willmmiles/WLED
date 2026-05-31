@@ -26,7 +26,7 @@ jobs:
     - name: Get default environments
       id: envs
       run: |
-        echo "usermods=$(find usermods/ -name library.json | xargs dirname | xargs -n 1 basename | jq -R | grep -v PWM_fan | grep -v BME68X_v2| grep -v pixels_dice_tray | jq --slurp -c)" >> $GITHUB_OUTPUT
+        echo "usermods=$(find usermods/ -name library.json | xargs dirname | xargs -n 1 basename | jq -R | grep -v PWM_fan | grep -v BME68X_v2| grep -v pixels_dice_tray | jq --slurp -c '. + ["https://github.com/wled/wled-usermod-example"]')" >> $GITHUB_OUTPUT
     outputs:
       usermods: ${{ steps.envs.outputs.usermods }}
 
@@ -74,4 +74,4 @@ jobs:
         cat platformio_override.ini
 
     - name: Build firmware
-      run: pio run -e ${{ matrix.environment }}    
+      run: pio run -e ${{ matrix.environment }}
