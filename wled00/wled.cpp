@@ -683,6 +683,13 @@ void WLED::initAP(bool resetAP)
   apActive = true;
 }
 
+#ifdef ARDUINO_ARCH_ESP32
+// Declare internal Arduino library function to work around the fact that WiFi.setHostname() does not propagate the
+// hostname to the network interface if it's been previously used.  The underlying ESP-IDF layer supports this just
+// fine; it's an oversight in the Arduino layer that we can work around by calling the internal function directly.
+esp_err_t set_esp_interface_hostname(esp_interface_t interface, const char * hostname);
+#endif
+
 void WLED::initConnection()
 {
   DEBUG_PRINTF_P(PSTR("initConnection() called @ %lus.\n"), millis()/1000);
@@ -709,13 +716,8 @@ void WLED::initConnection()
   getWLEDhostname(hostname, sizeof(hostname), true); // create DNS name based on mDNS name if set, or fall back to standard WLED server name
 
 #ifdef ARDUINO_ARCH_ESP32
-  // Reset mode to NULL to force a full STA mode transition, so that WiFi.mode(WIFI_STA) below actually applies the hostname (and TX power, etc.).
-  // This is required on reconnects when mode is already WIFI_STA.
-  DEBUG_PRINTLN(F("WiFi mode_null: driver teardown / re-init."));
-  WiFi.mode(WIFI_MODE_NULL);
-  apActive = false;           // the AP is physically torn down by WIFI_MODE_NULL
-  delay(5);                   // give the WiFi stack time to complete the mode transition
-  WiFi.setHostname(hostname);
+  WiFi.setHostname(hostname); // Sets the hostname in the wifi lib; does not necessarily propagate it to the network interface
+  set_esp_interface_hostname(ESP_IF_WIFI_STA, hostname); // ensure hostname propagates to network interface for DHCP and mDNS
 #endif
 
   if (multiWiFi[selectedWiFi].staticIP != 0U && multiWiFi[selectedWiFi].staticGW != 0U) {
@@ -723,8 +725,6 @@ void WLED::initConnection()
   } else {
     WiFi.config(IPAddress((uint32_t)0), IPAddress((uint32_t)0), IPAddress((uint32_t)0));
   }
-
-  lastReconnectAttempt = millis();
 
   if (!WLED_WIFI_CONFIGURED) {
     DEBUG_PRINTLN(F("No connection configured."));
@@ -785,7 +785,7 @@ void WLED::initConnection()
 #else // WLED_ENABLE_WPA_ENTERPRISE
     uint8_t *bssid = nullptr;
     // check if user BSSID is non zero for current WiFi config
-    for (int i = 0; i < sizeof(multiWiFi[selectedWiFi].bssid); i++) {
+    for (unsigned i = 0; i < sizeof(multiWiFi[selectedWiFi].bssid); i++) {
       if (multiWiFi[selectedWiFi].bssid[i] != 0) {
         bssid = multiWiFi[selectedWiFi].bssid; // BSSID set, assign pointer and continue
         break;
@@ -882,30 +882,26 @@ void WLED::initInterfaces()
 
 void WLED::handleConnection()
 {
-  static bool scanDone = true;
-  static byte stacO = 0;
   const unsigned long now = millis();
   #ifdef WLED_DEBUG
   const unsigned long nowS = now/1000;
   #endif
   const bool wifiConfigured = WLED_WIFI_CONFIGURED;
 
-  // ignore connection handling if WiFi is configured and scan still running
-  // or within first 2s if WiFi is not configured or AP is always active
-  if ((wifiConfigured && multiWiFi.size() > 1 && WiFi.scanComplete() < 0) || (now < 2000 && (!wifiConfigured || apBehavior == AP_BEHAVIOR_ALWAYS)))
-    return;
-
-  if (lastReconnectAttempt == 0 || forceReconnect) {
-    DEBUG_PRINTF_P(PSTR("Initial connect or forced reconnect (@ %lus).\n"), nowS);
-    selectedWiFi = findWiFi(); // find strongest WiFi
-    initConnection();
-    interfacesInited = false;
-    forceReconnect = false;
-    wasConnected = false;
-    return;
-  }
+  static enum class WifiState { 
+    Idle,
+    Searching,
+    Connecting,
+    Connected,
+  } state = WifiState::Searching;   // setup() starts a scan
 
   byte stac = 0;
+
+  // ignore connection handling within first 2s if WiFi is not configured or AP is always active
+  if ((now < 2000 && (!wifiConfigured || apBehavior == AP_BEHAVIOR_ALWAYS)))
+    return;
+
+  // Check access point for clients, if active
   if (apActive) {
 #ifdef ESP8266
     stac = wifi_softap_get_station_num();
@@ -914,85 +910,118 @@ void WLED::handleConnection()
     esp_wifi_ap_get_sta_list(&stationList);
     stac = stationList.num;
 #endif
-    if (stac != stacO) {
-      stacO = stac;
-      DEBUG_PRINTF_P(PSTR("Connected AP clients: %d\n"), (int)stac);
-      if (!Network.isConnected() && wifiConfigured) {        // trying to connect, but not connected
-        if (stac)
-          WiFi.disconnect();        // disable search so that AP can work
-        else
-          initConnection();         // restart search
-      }
-    }
-  }
-
-  if (!Network.isConnected()) {
-    if (interfacesInited) {
-      if (scanDone && multiWiFi.size() > 1) {
-        DEBUG_PRINTLN(F("WiFi scan initiated on disconnect."));
-        findWiFi(true); // reinit scan
-        scanDone = false;
-        return;         // try to connect in next iteration
-      }
-      DEBUG_PRINTLN(F("Disconnected!"));
-      selectedWiFi = findWiFi();
-      initConnection();
-      interfacesInited = false;
-      scanDone = true;
-      return;
-    }
-    //send improv failed 6 seconds after second init attempt (24 sec. after provisioning)
-    if (improvActive > 2 && now - lastReconnectAttempt > 6000) {
-      sendImprovStateResponse(0x03, true);
-      improvActive = 2;
-    }
-    if (now - lastReconnectAttempt > ((stac) ? 300000 : 18000) && wifiConfigured) {
-      if (improvActive == 2) improvActive = 3;
-      DEBUG_PRINTF_P(PSTR("Last reconnect (%lus) too old (@ %lus).\n"), lastReconnectAttempt/1000, nowS);
-      if (++selectedWiFi >= multiWiFi.size()) selectedWiFi = 0; // we couldn't connect, try with another network from the list
-      initConnection();
-    }
-    if (!apActive && now - lastReconnectAttempt > 12000 && (!wasConnected || apBehavior == AP_BEHAVIOR_NO_CONN)) {
-      if (!(apBehavior == AP_BEHAVIOR_TEMPORARY && now > WLED_AP_TIMEOUT)) {
-        DEBUG_PRINTF_P(PSTR("Not connected AP (@ %lus).\n"), nowS);
-        initAP();  // start AP only within first 5min
-      }
-    }
-    if (apActive && apBehavior == AP_BEHAVIOR_TEMPORARY && now > WLED_AP_TIMEOUT && stac == 0) { // disconnect AP after 5min if no clients connected
-      // if AP was enabled more than 10min after boot or if client was connected more than 10min after boot do not disconnect AP mode
-      if (now < 2*WLED_AP_TIMEOUT) {
+    //DEBUG_PRINTF_P(PSTR("Connected AP clients: %d\n"), (int)stac);
+    if (!Network.isConnected() && wifiConfigured) {        // trying to connect, but not connected
+      if (stac) {
+        WiFi.disconnect();        // disable search so that AP can work
+        return;
+      } else if (apBehavior == AP_BEHAVIOR_TEMPORARY && (now > WLED_AP_TIMEOUT) && (now < 2*WLED_AP_TIMEOUT)) {
+        // Temporary AP mode - close AP if no clients within 10min after boot
         dnsServer.stop();
         WiFi.softAPdisconnect(true);
         apActive = false;
         DEBUG_PRINTF_P(PSTR("Temporary AP disabled (@ %lus).\n"), nowS);
       }
     }
-  } else if (!interfacesInited) { //newly connected
-    DEBUG_PRINTLN();
-    DEBUG_PRINT(F("Connected! IP address: "));
-    DEBUG_PRINTLN(Network.localIP());
-    #ifdef ARDUINO_ARCH_ESP32
-    esp_wifi_set_storage(WIFI_STORAGE_RAM); // disable further updates of NVM credentials to prevent wear on flash (same as WiFi.persistent(false) but updates immediately, arduino wifi deficiency workaround)
-    #endif
-    if (improvActive) {
-      if (improvError == 3) sendImprovStateResponse(0x00, true);
-      sendImprovStateResponse(0x04);
-      if (improvActive > 1) sendImprovIPRPCResult(ImprovRPCType::Command_Wifi);
-    }
-    initInterfaces();
-    userConnected();
-    UsermodManager::connected();
-    lastMqttReconnectAttempt = 0; // force immediate update
+  }
 
-    // shut down AP
-    if (apBehavior != AP_BEHAVIOR_ALWAYS && apActive) {
-      dnsServer.stop();
-      WiFi.softAPdisconnect(true);
-      apActive = false;
-      DEBUG_PRINTLN(F("Access point disabled (connected)."));
+  // Consider current connection state
+  if (forceReconnect) {
+    WiFi.disconnect();
+    forceReconnect = false;
+    interfacesInited = false;
+    state = WifiState::Idle;
+  }
+
+  // Are we connected?
+  // Note that this test includes Ethernet, so the wifi search loop will not be invoked while Ethernet is connected, even if WiFi is configured.
+  // This allows Ethernet to be used as primary connection method with WiFi fallback.
+  if (Network.isConnected()) {
+    if (!interfacesInited) { //newly connected
+      DEBUG_PRINTLN();
+      DEBUG_PRINT(F("Connected! IP address: "));
+      DEBUG_PRINTLN(Network.localIP());
+      #ifdef ARDUINO_ARCH_ESP32
+      esp_wifi_set_storage(WIFI_STORAGE_RAM); // disable further updates of NVM credentials to prevent wear on flash (same as WiFi.persistent(false) but updates immediately, arduino wifi deficiency workaround)
+      #endif
+      if (improvActive) {
+        if (improvError == 3) sendImprovStateResponse(0x00, true);
+        sendImprovStateResponse(0x04);
+        if (improvActive > 1) sendImprovIPRPCResult(ImprovRPCType::Command_Wifi);
+      }
+      initInterfaces();
+      userConnected();
+      UsermodManager::connected();
+      lastMqttReconnectAttempt = 0; // force immediate update
+
+      // shut down AP
+      if (apBehavior != AP_BEHAVIOR_ALWAYS && apActive) {
+        dnsServer.stop();
+        WiFi.softAPdisconnect(true);
+        apActive = false;
+        DEBUG_PRINTLN(F("Access point disabled (connected)."));
+      }
     }
+    state = WifiState::Connected;
+    return;
+  }  
+  
+  // network is not connected
+  bool startScan = false;
+  switch (state) {
+    case WifiState::Connected:
+      DEBUG_PRINTLN(F("Disconnected!"));
+      interfacesInited = false;
+      state = WifiState::Idle;
+      /* fall through */
+      
+    case WifiState::Idle:
+      startScan = true;
+      state = WifiState::Searching;
+      /* fall through */
+
+    case WifiState::Searching:
+      // Check scan results
+      {
+        if (wifiConfigured) {
+          int nextWifi = findWiFi(startScan); // find strongest WiFi, start scan if not started yet
+          if (nextWifi < 0) {
+            // scan in progress or no WiFi found, wait for next loop
+            break; 
+          }
+          // Attempt connection
+          selectedWiFi = nextWifi;
+          DEBUG_PRINTF_P(PSTR("Attempting connection, last reconnect %lus (@ %lus).\n"), lastReconnectAttempt/1000, nowS);    
+        } // otherwise we just call initConnection() anyways; it'll open the bootup access point               
+        initConnection();
+        lastReconnectAttempt = now;
+        if (improvActive == 2) improvActive = 3;
+        state = WifiState::Connecting;      
+      }
+      break;
+      
+    case WifiState::Connecting:
+      if (now - lastReconnectAttempt > ((stac) ? 300000 : 18000) && wifiConfigured) {
+        state = WifiState::Idle; // Restart on next attempt
+      }
+      break;
+  }
+
+  //send improv failed 6 seconds after second init attempt (24 sec. after provisioning)
+  if (improvActive > 2 && now - lastReconnectAttempt > 6000) {
+    sendImprovStateResponse(0x03, true);
+    improvActive = 2;
+  }
+
+  if (!apActive && ((now - lastReconnectAttempt) > 12000)
+      && (!wasConnected || apBehavior == AP_BEHAVIOR_NO_CONN)
+      && (!(apBehavior == AP_BEHAVIOR_TEMPORARY && now > WLED_AP_TIMEOUT)))
+  {
+    DEBUG_PRINTF_P(PSTR("Not connected AP (@ %lus).\n"), nowS);
+    initAP();
   }
 }
+
 
 // If status LED pin is allocated for other uses, does nothing
 // else blink at 1Hz when Network.isConnected() is false (no WiFi, ?? no Ethernet ??)
@@ -1018,7 +1047,10 @@ void WLED::handleStatusLED()
   } else if (apActive) {
     c = RGBW32(0,0,255,0);
     ledStatusType = 1;
+  } else {
+    ledStatusType = 0;
   }
+
   if (ledStatusType) {
     if (millis() - ledStatusLastMillis >= (1000/ledStatusType)) {
       ledStatusLastMillis = millis();
