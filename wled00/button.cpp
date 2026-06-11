@@ -304,10 +304,10 @@ void handleButton()
         if (!buttons[b].longPressed) {
           buttonBriDirection = !buttonBriDirection; //toggle brightness direction on long press
           longPressAction(b);
-        } else if (b) { //repeatable action (~5 times per s) on button > 0
+        } /* else if (b) { //repeatable action (~5 times per s) on button > 0
           longPressAction(b);
           buttons[b].pressedTime = now - WLED_LONG_REPEATED_ACTION; //200ms
-        }
+        } */
         buttons[b].longPressed = true;
       }
 
