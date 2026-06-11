@@ -13,7 +13,7 @@ It contains a fully annotated implementation and a `library.json` template. Keep
 For the complete guide see **[kno.wled.ge/advanced/custom-features](https://kno.wled.ge/advanced/custom-features/)**, covering:
 
 - Enabling usermods via `custom_usermods` in `platformio_override.ini`
-- Local development with `file://` references
+- Local development with `symlink://` references
 - Sharing via git URL
 - `library.json` structure and the required `"libArchive": false` setting
 - All lifecycle methods (`setup`, `loop`, `addToConfig`, `readFromConfig`, etc.)
