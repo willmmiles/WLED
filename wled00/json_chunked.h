@@ -197,7 +197,10 @@ struct KeyValuePair {
   Writer value;
 };
 
-// makeStringKey: one-shot writer for a RAM string key (retries if buffer too small)
+// makeStringKey: JSON-quoted string key writer.
+// The const char* overload captures the pointer — safe for string literals
+// (program lifetime) but NOT for local buffers.  Use the String overload when
+// the string may not outlive the returned writer.
 inline KeyValuePair::Writer makeStringKey(const char* s) {
   bool written = false;
   return KeyValuePair::Writer(
@@ -209,12 +212,39 @@ inline KeyValuePair::Writer makeStringKey(const char* s) {
     });
 }
 
-// makeStringKey overload for flash strings
-inline KeyValuePair::Writer makeStringKey(const __FlashStringHelper* s) {
-  char buf[64];
-  strncpy_P(buf, (PGM_P)s, sizeof(buf) - 1);
-  buf[sizeof(buf) - 1] = '\0';
-  return makeStringKey(static_cast<const char*>(buf));
+// Overloads that copy the string into the closure (safe for local / flash strings)
+inline KeyValuePair::Writer makeStringKey(String s) {
+  bool written = false;
+  return KeyValuePair::Writer(
+    [s, written](uint8_t* buf, size_t len) mutable -> size_t {
+      if (written) return 0;
+      size_t n = writeJSONString(buf, len, s.c_str());
+      if (n) written = true;
+      return n;
+    });
+}
+inline KeyValuePair::Writer makeStringKey(const __FlashStringHelper* fs) {
+  return makeStringKey(String(fs));
+}
+
+// makeIntKeyWriter: JSON-quoted decimal integer key  (e.g. "42")
+inline KeyValuePair::Writer makeIntKeyWriter(int32_t v) {
+  return makeStringKey(String(v));
+}
+
+// makeIntWriter: unquoted decimal integer value  (e.g. 42)
+inline KeyValuePair::Writer makeIntWriter(int32_t v) {
+  String s(v);
+  bool written = false;
+  return KeyValuePair::Writer(
+    [s, written](uint8_t* buf, size_t len) mutable -> size_t {
+      if (written) return 0;
+      size_t n = s.length();
+      if (n > len) return 0;
+      memcpy(buf, s.c_str(), n);
+      written = true;
+      return n;
+    });
 }
 
 
