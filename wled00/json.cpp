@@ -1,4 +1,5 @@
 #include "wled.h"
+#include "json_chunked.h"
 
 #define JSON_PATH_STATE      1
 #define JSON_PATH_INFO       2
@@ -1213,76 +1214,27 @@ void serializeModeNames(JsonArray arr)
   }
 }
 
-// Writes a JSON-escaped string (with surrounding quotes) into dest[0..maxLen-1].
-// Returns bytes written, or 0 if the buffer was too small.
-static size_t writeJSONString(uint8_t* dest, size_t maxLen, const char* src) {
-  size_t pos = 0;
-
-  auto emit = [&](char c) -> bool {
-    if (pos >= maxLen) return false;
-    dest[pos++] = (uint8_t)c;
-    return true;
-  };
-
-  if (!emit('"')) return 0;
-
-  for (const char* p = src; *p; ++p) {
-    char esc = ARDUINOJSON_NAMESPACE::EscapeSequence::escapeChar(*p);
-    if (esc) {
-      if (!emit('\\') || !emit(esc)) return 0;
-    } else {
-      if (!emit(*p)) return 0;
-    }
-  }
-
-  if (!emit('"')) return 0;
-  return pos;
-}
-
-// Writes ,"<escaped_src>" into dest[0..maxLen-1] (no null terminator).
-// Returns bytes written, or 0 if the buffer was too small.
-static size_t writeJSONStringElement(uint8_t* dest, size_t maxLen, const char* src) {
-  if (maxLen == 0) return 0;
-  dest[0] = ',';
-  size_t n = writeJSONString(dest + 1, maxLen - 1, src);
-  if (n == 0) return 0;
-  return 1 + n;
-}
-
-// Generate a streamed JSON response for the mode data
-// This uses sendChunked to send the reply in blocks based on how much fit in the outbound
-// packet buffer, minimizing the required state (ie. just the next index to send).  This
-// allows us to send an arbitrarily large response without using any significant amount of
-// memory (so no worries about buffer limits).
 void respondModeData(AsyncWebServerRequest* request) {
-  size_t fx_index = 0;
-  request->sendChunked(FPSTR(CONTENT_TYPE_JSON),
-    [fx_index](uint8_t* data, size_t len, size_t) mutable {
-      size_t bytes_written = 0;
-      char lineBuffer[256];
-      while (fx_index < strip.getModeCount()) {
-        strncpy_P(lineBuffer, strip.getModeData(fx_index), sizeof(lineBuffer)-1); // Copy to stack buffer for strchr
-        if (lineBuffer[0] != 0) {
-          lineBuffer[sizeof(lineBuffer)-1] = '\0'; // terminate string (only needed if strncpy filled the buffer)
-          const char* dataPtr = strchr(lineBuffer,'@'); // Find '@', if there is one
-          size_t mode_bytes = writeJSONStringElement(data, len, dataPtr ? dataPtr + 1 : "");
-          if (mode_bytes == 0) break;  // didn't fit; break loop and try again next packet
-          if (fx_index == 0) *data = '[';
-          data += mode_bytes;
-          len -= mode_bytes;
-          bytes_written += mode_bytes;
-        }
-        ++fx_index;        
-      }
+  respondJSONList(request, size_t(0), size_t(strip.getModeCount()),
+    [](size_t i, uint8_t* dest, size_t maxLen) -> size_t {
+      char buf[256];
+      strncpy_P(buf, strip.getModeData(i), sizeof(buf) - 1);
+      buf[sizeof(buf) - 1] = '\0';
+      const char* p = strchr(buf, '@');
+      return writeJSONString(dest, maxLen, p ? p + 1 : "");
+    });
+}
 
-      if ((fx_index == strip.getModeCount()) && (len >= 1)) {
-        *data = ']';
-        ++bytes_written;
-        ++fx_index; // we're really done
-      }
-
-      return bytes_written;
-  });
+void respondModeNames(AsyncWebServerRequest* request) {
+  respondJSONList(request, size_t(0), size_t(strip.getModeCount()),
+    [](size_t i, uint8_t* dest, size_t maxLen) -> size_t {
+      char buf[256];
+      strncpy_P(buf, strip.getModeData(i), sizeof(buf) - 1);
+      buf[sizeof(buf) - 1] = '\0';
+      char* p = strchr(buf, '@');
+      if (p) *p = '\0';
+      return writeJSONString(dest, maxLen, buf);
+    });
 }
 
 // Global buffer locking response helper class (to make sure lock is released when AsyncJsonResponse is destroyed)
@@ -1312,7 +1264,7 @@ class LockedJsonResponse: public AsyncJsonResponse {
 void serveJson(AsyncWebServerRequest* request)
 {
   enum class json_target {
-    all, state, info, state_info, nodes, effects, palettes, networks, config, pins
+    all, state, info, state_info, nodes, palettes, networks, config, pins
   };
   json_target subJson = json_target::all;
 
@@ -1321,7 +1273,7 @@ void serveJson(AsyncWebServerRequest* request)
   else if (url.indexOf("info")     > 0) subJson = json_target::info;
   else if (url.indexOf("si")       > 0) subJson = json_target::state_info;
   else if (url.indexOf(F("nodes")) > 0) subJson = json_target::nodes;
-  else if (url.indexOf(F("eff"))   > 0) subJson = json_target::effects;
+  else if (url.indexOf(F("eff"))   > 0) { respondModeNames(request); return; }
   else if (url.indexOf(F("palx"))  > 0) subJson = json_target::palettes;
   else if (url.indexOf(F("fxda"))  > 0) { respondModeData(request); return; }
   else if (url.indexOf(F("net"))   > 0) subJson = json_target::networks;
@@ -1348,7 +1300,7 @@ void serveJson(AsyncWebServerRequest* request)
   }
   // releaseJSONBufferLock() will be called when "response" is destroyed (from AsyncWebServer)
   // make sure you delete "response" if no "request->send(response);" is made
-  LockedJsonResponse *response = new LockedJsonResponse(pDoc, subJson==json_target::effects); // will clear and convert JsonDocument into JsonArray if necessary
+  LockedJsonResponse *response = new LockedJsonResponse(pDoc, false); // will clear and convert JsonDocument into JsonObject if necessary
 
   JsonVariant lDoc = response->getRoot();
 
@@ -1362,8 +1314,6 @@ void serveJson(AsyncWebServerRequest* request)
       serializeNodes(lDoc); break;
     case json_target::palettes:
       serializePalettes(lDoc, request->hasParam(F("page")) ? request->getParam(F("page"))->value().toInt() : 0); break;
-    case json_target::effects:
-      serializeModeNames(lDoc); break;
     case json_target::networks:
       serializeNetworks(lDoc); break;
     case json_target::config:
