@@ -1084,6 +1084,107 @@ void serializeNodes(JsonObject root)
   }
 }
 
+// makePinItemWriter: build a streaming writer for one GPIO pin object.
+// Returns an immediately-done writer for pins that should be skipped.
+static KeyValuePair::Writer makePinItemWriter(int gpio) {
+  bool canInput    = PinManager::isPinOk(gpio, false);
+  bool canOutput   = PinManager::isPinOk(gpio, true);
+  bool isAllocated = PinManager::isPinAllocated(gpio);
+  if (!canInput && !canOutput && !isAllocated)
+    return [](uint8_t*, size_t) -> size_t { return 0; };
+
+  auto doc = std::make_shared<StaticJsonDocument<384>>();
+  JsonObject pinObj = doc->to<JsonObject>();
+  pinObj["p"] = gpio;
+
+  uint8_t caps = 0;
+  #ifdef ARDUINO_ARCH_ESP32
+  if (PinManager::isAnalogPin(gpio)) caps |= PIN_CAP_ADC;
+  if (canInput && !canOutput) caps |= PIN_CAP_INPUT_ONLY;
+  #if defined(CONFIG_IDF_TARGET_ESP32S3)
+  if (gpio == 0) caps |= PIN_CAP_BOOT;
+  if (gpio == 45 || gpio == 46) caps |= PIN_CAP_BOOTSTRAP;
+  #elif defined(CONFIG_IDF_TARGET_ESP32S2)
+  if (gpio == 0) caps |= PIN_CAP_BOOT;
+  if (gpio == 45 || gpio == 46) caps |= PIN_CAP_BOOTSTRAP;
+  #elif defined(CONFIG_IDF_TARGET_ESP32C3)
+  if (gpio == 9) caps |= PIN_CAP_BOOT;
+  if (gpio == 2 || gpio == 8) caps |= PIN_CAP_BOOTSTRAP;
+  #elif defined(CONFIG_IDF_TARGET_ESP32)
+  if (gpio == 0) caps |= PIN_CAP_BOOT;
+  if (gpio == 2 || gpio == 12) caps |= PIN_CAP_BOOTSTRAP;
+  #endif
+  #else
+  if (gpio == 0) caps |= PIN_CAP_BOOT;
+  if (gpio == 2 || gpio == 15) caps |= PIN_CAP_BOOTSTRAP;
+  if (gpio == 17) caps = PIN_CAP_INPUT_ONLY | PIN_CAP_ADC;
+  #endif
+  pinObj["c"] = caps;
+  pinObj["a"] = isAllocated;
+
+  int buttonIndex = PinManager::getButtonIndex(gpio);
+  PinOwner owner  = PinManager::getPinOwner(gpio);
+  if (isAllocated) {
+    pinObj["o"] = static_cast<uint8_t>(owner);
+    pinObj["n"] = PinManager::getPinOwnerName(gpio);
+    if (owner == PinOwner::Relay) {
+      pinObj["m"] = 1;
+      pinObj["s"] = digitalRead(rlyPin);
+    } else if (buttonIndex >= 0) {
+      pinObj["m"] = 0;
+      pinObj["t"] = buttons[buttonIndex].type;
+      pinObj["s"] = isButtonPressed(buttonIndex) ? 1 : 0;
+      #if defined(CONFIG_IDF_TARGET_ESP32) || defined(CONFIG_IDF_TARGET_ESP32S2) || defined(CONFIG_IDF_TARGET_ESP32S3)
+      if (buttons[buttonIndex].type == BTN_TYPE_TOUCH || buttons[buttonIndex].type == BTN_TYPE_TOUCH_SWITCH) {
+        if (digitalPinToTouchChannel(gpio) >= 0) {
+          #ifdef SOC_TOUCH_VERSION_2
+          pinObj["r"] = touchRead(gpio) >> 4;
+          #else
+          pinObj["r"] = touchRead(gpio);
+          #endif
+        }
+      }
+      #endif
+      if (buttons[buttonIndex].type == BTN_TYPE_ANALOG || buttons[buttonIndex].type == BTN_TYPE_ANALOG_INVERTED) {
+        int analogRaw = 0;
+        #ifdef ESP8266
+        analogRaw = analogRead(A0) >> 2;
+        #else
+        if (digitalPinToAnalogChannel(gpio) >= 0) analogRaw = (analogRead(gpio) >> 4);
+        #endif
+        if (buttons[buttonIndex].type == BTN_TYPE_ANALOG_INVERTED) analogRaw = 255 - analogRaw;
+        pinObj["r"] = analogRaw;
+      }
+    } else if (owner == PinOwner::BusOnOff || owner == PinOwner::UM_MultiRelay) {
+      pinObj["m"] = 1;
+      pinObj["s"] = digitalRead(gpio);
+    }
+  }
+
+  size_t total = measureJson(*doc);
+  size_t sent  = 0;
+  return KeyValuePair::Writer(
+    [doc, total, sent](uint8_t* buf, size_t maxLen) mutable -> size_t {
+      if (sent >= total) return 0;
+      size_t n = total - sent < maxLen ? total - sent : maxLen;
+      ChunkPrint cp(buf, sent, n);
+      serializeJson(*doc, cp);
+      sent += n;
+      return n;
+    });
+}
+
+void respondPins(AsyncWebServerRequest* request) {
+  constexpr int ENUM_PINS = WLED_NUM_PINS;
+  respondJSONObject(request, size_t(0), size_t(1),
+    [](size_t) -> KeyValuePair {
+      return KeyValuePair{
+        makeStringKey("pins"),
+        KeyValuePair::Writer(writeJSONList(int(0), ENUM_PINS, makePinItemWriter))
+      };
+    });
+}
+
 void serializePins(JsonObject root)
 {
   JsonArray pins = root.createNestedArray(F("pins"));
@@ -1299,7 +1400,7 @@ class LockedJsonResponse: public AsyncJsonResponse {
 void serveJson(AsyncWebServerRequest* request)
 {
   enum class json_target {
-    all, state, info, state_info, palettes, networks, config, pins
+    all, state, info, state_info, palettes, networks, config
   };
   json_target subJson = json_target::all;
 
@@ -1313,7 +1414,7 @@ void serveJson(AsyncWebServerRequest* request)
   else if (url.indexOf(F("fxda"))  > 0) { respondModeData(request); return; }
   else if (url.indexOf(F("net"))   > 0) subJson = json_target::networks;
   else if (url.indexOf(F("cfg"))   > 0) subJson = json_target::config;
-  else if (url.indexOf(F("pins"))  > 0) subJson = json_target::pins;
+  else if (url.indexOf(F("pins"))  > 0) { respondPins(request); return; }
   #ifdef WLED_ENABLE_JSONLIVE
   else if (url.indexOf("live")     > 0) {
     serveLiveLeds(request);
@@ -1351,8 +1452,6 @@ void serveJson(AsyncWebServerRequest* request)
       serializeNetworks(lDoc); break;
     case json_target::config:
       serializeConfig(lDoc); break;
-    case json_target::pins:
-      serializePins(lDoc); break;
     case json_target::state_info:
     case json_target::all:
       JsonObject state = lDoc.createNestedObject("state");
