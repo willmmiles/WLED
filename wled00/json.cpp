@@ -1457,6 +1457,55 @@ void respondModeNames(AsyncWebServerRequest* request) {
     });
 }
 
+void respondJsonAll(AsyncWebServerRequest* request) {
+  if (!requestJSONBufferLock(JSON_LOCK_SERVEJSON)) {
+    request->deferResponse();
+    return;
+  }
+
+  // Populate state and info into pDoc sub-objects.
+  // The lock is held until the chunked response finishes streaming.
+  pDoc->clear();
+  JsonObject stateObj = pDoc->createNestedObject("state");
+  serializeState(stateObj);
+  JsonObject infoObj = pDoc->createNestedObject("info");
+  serializeInfo(infoObj);
+
+  // Capture JsonVariants by value (pointer into pDoc, valid while lock held).
+  JsonVariant stateVar = stateObj;
+  JsonVariant infoVar  = infoObj;
+
+  auto writer = writeJSONObject(size_t(0), size_t(4),
+    [stateVar, infoVar](size_t idx) mutable -> KeyValuePair {
+      switch (idx) {
+        case 0: return { makeStringKey("state"),    makeArduinoJsonWriter(stateVar) };
+        case 1: return { makeStringKey("info"),     makeArduinoJsonWriter(infoVar)  };
+        case 2: return { makeStringKey(F("effects")),
+                         KeyValuePair::Writer(writeJSONList(size_t(0), size_t(strip.getModeCount()),
+                           [](size_t i, uint8_t* dest, size_t maxLen) -> size_t {
+                             char buf[256];
+                             strncpy_P(buf, strip.getModeData(i), sizeof(buf) - 1);
+                             buf[sizeof(buf) - 1] = '\0';
+                             char* p = strchr(buf, '@');
+                             if (p) *p = '\0';
+                             return writeJSONString(dest, maxLen, buf);
+                           })) };
+        default: return { makeStringKey(F("palettes")),
+                          makeProgmemRawWriter(JSON_palette_names) };
+      }
+    });
+
+  request->sendChunked(FPSTR(CONTENT_TYPE_JSON),
+    [writer, lock_released=false](uint8_t* data, size_t len, size_t) mutable -> size_t {
+      size_t n = writer(data, len);
+      if (n == 0 && !lock_released) {
+        releaseJSONBufferLock();
+        lock_released = true;
+      }
+      return n;
+    });
+}
+
 // Global buffer locking response helper class (to make sure lock is released when AsyncJsonResponse is destroyed)
 class LockedJsonResponse: public AsyncJsonResponse {
   bool _holding_lock;
@@ -1484,20 +1533,22 @@ class LockedJsonResponse: public AsyncJsonResponse {
 void serveJson(AsyncWebServerRequest* request)
 {
   enum class json_target {
-    all, state, info, state_info, networks, config
+    state, info, state_info, networks, config
   };
-  json_target subJson = json_target::all;
+  // Default: bare /json → streaming all-in-one response, no buffer lock needed.
+  bool isAll = true;
+  json_target subJson = json_target::state; // placeholder; only used when isAll==false
 
   const String& url = request->url();
-  if      (url.indexOf("state")    > 0) subJson = json_target::state;
-  else if (url.indexOf("info")     > 0) subJson = json_target::info;
-  else if (url.indexOf("si")       > 0) subJson = json_target::state_info;
+  if      (url.indexOf("state")    > 0) { isAll = false; subJson = json_target::state; }
+  else if (url.indexOf("info")     > 0) { isAll = false; subJson = json_target::info; }
+  else if (url.indexOf("si")       > 0) { isAll = false; subJson = json_target::state_info; }
   else if (url.indexOf(F("nodes")) > 0) { respondNodes(request); return; }
   else if (url.indexOf(F("eff"))   > 0) { respondModeNames(request); return; }
   else if (url.indexOf(F("palx"))  > 0) { respondPalettes(request, request->hasParam(F("page")) ? request->getParam(F("page"))->value().toInt() : 0); return; }
   else if (url.indexOf(F("fxda"))  > 0) { respondModeData(request); return; }
-  else if (url.indexOf(F("net"))   > 0) subJson = json_target::networks;
-  else if (url.indexOf(F("cfg"))   > 0) subJson = json_target::config;
+  else if (url.indexOf(F("net"))   > 0) { isAll = false; subJson = json_target::networks; }
+  else if (url.indexOf(F("cfg"))   > 0) { isAll = false; subJson = json_target::config; }
   else if (url.indexOf(F("pins"))  > 0) { respondPins(request); return; }
   #ifdef WLED_ENABLE_JSONLIVE
   else if (url.indexOf("live")     > 0) {
@@ -1514,8 +1565,10 @@ void serveJson(AsyncWebServerRequest* request)
     return;
   }
 
+  if (isAll) { respondJsonAll(request); return; }
+
   if (!requestJSONBufferLock(JSON_LOCK_SERVEJSON)) {
-    request->deferResponse();    
+    request->deferResponse();
     return;
   }
   // releaseJSONBufferLock() will be called when "response" is destroyed (from AsyncWebServer)
@@ -1535,18 +1588,13 @@ void serveJson(AsyncWebServerRequest* request)
     case json_target::config:
       serializeConfig(lDoc); break;
     case json_target::state_info:
-    case json_target::all:
-      JsonObject state = lDoc.createNestedObject("state");
-      serializeState(state);
-      JsonObject info = lDoc.createNestedObject("info");
-      serializeInfo(info);
-      if (subJson == json_target::all)
       {
-        JsonArray effects = lDoc.createNestedArray(F("effects"));
-        serializeModeNames(effects); // remove WLED-SR extensions from effect names
-        lDoc[F("palettes")] = serialized((const __FlashStringHelper*)JSON_palette_names);
+        JsonObject state = lDoc.createNestedObject("state");
+        serializeState(state);
+        JsonObject info = lDoc.createNestedObject("info");
+        serializeInfo(info);
       }
-      //lDoc["m"] = lDoc.memoryUsage(); // JSON buffer usage, for remote debugging
+      break;
   }
 
   DEBUG_PRINTF_P(PSTR("JSON buffer size: %u for request: %d\n"), lDoc.memoryUsage(), subJson);

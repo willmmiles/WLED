@@ -263,16 +263,22 @@ struct JSONObjectWriter {
   ItemWriter keyWriter, valueWriter;
   Phase phase;
   bool first, done;
+  // Two-consecutive-zero protocol for Phase::Value:
+  // A value writer may return 0 for "no room, retry" (not done) OR for "truly done".
+  // We advance to the next entry only after two consecutive 0-returns from the same
+  // value writer, ensuring the second 0 on a fresh buffer unambiguously means "done".
+  bool valueRetryPending;
 
   JSONObjectWriter(Iterator begin, Iterator end, MakeItem mi)
     : current(begin), end_val(end), makeItem(mi),
-      phase(Phase::NeedItem), first(true), done(false) {}
+      phase(Phase::NeedItem), first(true), done(false), valueRetryPending(false) {}
 
   size_t operator()(uint8_t* dest, size_t maxLen) {
     if (done) return 0;
     size_t pos = 0;
+    bool stopEarly = false;   // set in Phase::Value to exit the while on first zero
 
-    while (pos < maxLen) {
+    while (pos < maxLen && !stopEarly) {
       if (current == end_val) {
         const size_t need = first ? 2 : 1;       // "{}" vs "}"
         if (pos + need > maxLen) break;
@@ -285,8 +291,9 @@ struct JSONObjectWriter {
       switch (phase) {
         case Phase::NeedItem: {
           auto kv = makeItem(current);
-          keyWriter   = kv.key;
-          valueWriter = kv.value;
+          keyWriter         = kv.key;
+          valueWriter       = kv.value;
+          valueRetryPending = false;
           phase = Phase::Sep;
           continue;
         }
@@ -308,11 +315,34 @@ struct JSONObjectWriter {
         case Phase::Value: {
           size_t n = valueWriter(dest + pos, maxLen - pos);
           pos += n;
-          if (n == 0) { ++current; phase = Phase::NeedItem; }
+          if (n == 0) {
+            if (valueRetryPending) {
+              // Second consecutive zero → writer is truly done
+              valueRetryPending = false;
+              ++current;
+              phase = Phase::NeedItem;
+            } else {
+              // First zero → may be "no room".  Exit; the next callback will clarify.
+              valueRetryPending = true;
+              stopEarly = true;
+            }
+          } else {
+            valueRetryPending = false;
+          }
           continue;
         }
       }
     }
+
+    if (current == end_val && !done) {
+      const size_t need = first ? 2 : 1;
+      if (pos + need <= maxLen) {
+        if (first) dest[pos++] = '{';
+        dest[pos++] = '}';
+        done = true;
+      }
+    }
+
     return pos;
   }
 };
@@ -366,5 +396,41 @@ void respondJSONObject(AsyncWebServerRequest* request, Iterator begin, Iterator 
   request->sendChunked(FPSTR(CONTENT_TYPE_JSON),
     [writer](uint8_t* data, size_t len, size_t) mutable -> size_t {
       return writer(data, len);
+    });
+}
+
+
+// ── makeProgmemRawWriter ──────────────────────────────────────────────────────
+// Streams the raw bytes of a PROGMEM string (already-serialized JSON) in chunks.
+
+inline KeyValuePair::Writer makeProgmemRawWriter(const char* src) {  // src points into PROGMEM
+  size_t total = strlen_P(src);
+  size_t sent  = 0;
+  return KeyValuePair::Writer(
+    [src, total, sent](uint8_t* buf, size_t maxLen) mutable -> size_t {
+      if (sent >= total) return 0;
+      size_t n = total - sent < maxLen ? total - sent : maxLen;
+      memcpy_P(buf, src + sent, n);
+      sent += n;
+      return n;
+    });
+}
+
+// ── makeArduinoJsonWriter ─────────────────────────────────────────────────────
+// Streams an already-populated ArduinoJSON variant via ChunkPrint re-serialization.
+// The JsonVariant must remain valid (document must not be cleared/destroyed)
+// for the lifetime of the returned writer.
+
+inline KeyValuePair::Writer makeArduinoJsonWriter(JsonVariant v) {
+  size_t total = measureJson(v);
+  size_t sent  = 0;
+  return KeyValuePair::Writer(
+    [v, total, sent](uint8_t* buf, size_t maxLen) mutable -> size_t {
+      if (sent >= total) return 0;
+      size_t n = total - sent < maxLen ? total - sent : maxLen;
+      ChunkPrint cp(buf, sent, n);
+      serializeJson(v, cp);
+      sent += n;
+      return n;
     });
 }
