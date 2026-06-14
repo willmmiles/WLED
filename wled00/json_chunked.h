@@ -1,0 +1,185 @@
+#pragma once
+// Requires wled.h (for AsyncWebServerRequest, CONTENT_TYPE_JSON, FPSTR) to be included first.
+
+#include <functional>
+#include <type_traits>
+
+class AsyncWebServerRequest;
+
+
+// ── writeJSONString ───────────────────────────────────────────────────────────
+// Writes a JSON-escaped quoted string into dest[0..maxLen-1].
+// Returns bytes written, or 0 if the buffer was too small.
+
+inline size_t writeJSONString(uint8_t* dest, size_t maxLen, const char* src) {
+  size_t pos = 0;
+
+  auto emit = [&](char c) -> bool {
+    if (pos >= maxLen) return false;
+    dest[pos++] = static_cast<uint8_t>(c);
+    return true;
+  };
+
+  if (!emit('"')) return 0;
+  for (const char* p = src; *p; ++p) {
+    char esc = 0;
+    switch (*p) {
+      case '"':  esc = '"';  break;
+      case '\\': esc = '\\'; break;
+      case '\b': esc = 'b';  break;
+      case '\f': esc = 'f';  break;
+      case '\n': esc = 'n';  break;
+      case '\r': esc = 'r';  break;
+      case '\t': esc = 't';  break;
+    }
+    if (esc) {
+      if (!emit('\\') || !emit(esc)) return 0;
+    } else {
+      if (!emit(*p)) return 0;
+    }
+  }
+  if (!emit('"')) return 0;
+  return pos;
+}
+
+
+// ── is_item_factory ───────────────────────────────────────────────────────────
+// Detects whether Callback is a 1-arg factory (Iterator) -> writer,
+// or a 3-arg direct writer (Iterator, uint8_t*, size_t) -> size_t.
+
+template<typename Callback, typename Iterator, typename = void>
+struct is_item_factory : std::false_type {};
+
+template<typename Callback, typename Iterator>
+struct is_item_factory<Callback, Iterator,
+  decltype(void(std::declval<Callback>()(std::declval<Iterator>())))>
+  : std::true_type {};
+
+
+// ── JSONListWriter ────────────────────────────────────────────────────────────
+// Stateful writer for the direct-writer path.
+// Callback: (Iterator, uint8_t*, size_t) -> size_t
+//   Return n > 0: wrote n bytes of this item.
+//   Return 0:     item didn't fit; will be retried next call.
+
+template<typename Iterator, typename Callback>
+struct JSONListWriter {
+  Iterator current, begin_val, end_val;
+  Callback cb;
+  bool done;
+
+  JSONListWriter(Iterator begin, Iterator end, Callback cb_)
+    : current(begin), begin_val(begin), end_val(end), cb(cb_), done(false) {}
+
+  size_t operator()(uint8_t* dest, size_t maxLen) {
+    if (done) return 0;
+    size_t pos = 0;
+
+    while (current != end_val) {
+      if (pos + 2 > maxLen) break;                                    // need room for separator + ≥1 byte
+      size_t n = cb(current, dest + pos + 1, maxLen - pos - 1);
+      if (n == 0) break;                                              // didn't fit; retry next call
+      dest[pos] = (current == begin_val) ? '[' : ',';
+      pos += 1 + n;
+      ++current;
+    }
+
+    if (current == end_val) {
+      const size_t need = (current == begin_val) ? 2 : 1;            // empty array needs "[]", else "]"
+      if (pos + need <= maxLen) {
+        if (current == begin_val) dest[pos++] = '[';
+        dest[pos++] = ']';
+        done = true;
+      }
+    }
+
+    return pos;
+  }
+};
+
+
+// ── JSONListFactoryWriter ─────────────────────────────────────────────────────
+// Stateful writer for the factory path.
+// MakeItem: (Iterator) -> writer, where writer: (uint8_t*, size_t) -> size_t
+//   Item writers signal completion by returning 0 after their last bytes.
+
+template<typename Iterator, typename MakeItem>
+struct JSONListFactoryWriter {
+  typedef std::function<size_t(uint8_t*, size_t)> ItemWriter;
+
+  Iterator current, end_val;
+  MakeItem makeItem;
+  ItemWriter item;          // empty std::function == no item in progress
+  bool first, done;
+
+  JSONListFactoryWriter(Iterator begin, Iterator end, MakeItem makeItem_)
+    : current(begin), end_val(end), makeItem(makeItem_), first(true), done(false) {}
+
+  size_t operator()(uint8_t* dest, size_t maxLen) {
+    if (done) return 0;
+    size_t pos = 0;
+
+    while (current != end_val) {
+      if (pos + 2 > maxLen) break;
+      if (!item) item = makeItem(current);
+
+      size_t n = item(dest + pos + 1, maxLen - pos - 1);
+      if (n > 0) {
+        dest[pos] = first ? '[' : ',';
+        first = false;
+        pos += 1 + n;
+      } else {
+        // item writer is done; advance to next outer item
+        item = ItemWriter();
+        ++current;
+      }
+    }
+
+    if (current == end_val) {
+      const size_t need = first ? 2 : 1;
+      if (pos + need <= maxLen) {
+        if (first) dest[pos++] = '[';
+        dest[pos++] = ']';
+        done = true;
+      }
+    }
+
+    return pos;
+  }
+};
+
+
+// ── writeJSONList ─────────────────────────────────────────────────────────────
+// Returns a stateful writer for [begin, end) using the given callback.
+// Dispatches to JSONListWriter or JSONListFactoryWriter based on callback arity.
+
+template<typename Iterator, typename Callback>
+typename std::enable_if<
+  !is_item_factory<Callback, Iterator>::value,
+  JSONListWriter<Iterator, Callback>
+>::type
+writeJSONList(Iterator begin, Iterator end, Callback cb) {
+  return JSONListWriter<Iterator, Callback>(begin, end, cb);
+}
+
+template<typename Iterator, typename Callback>
+typename std::enable_if<
+  is_item_factory<Callback, Iterator>::value,
+  JSONListFactoryWriter<Iterator, Callback>
+>::type
+writeJSONList(Iterator begin, Iterator end, Callback cb) {
+  return JSONListFactoryWriter<Iterator, Callback>(begin, end, cb);
+}
+
+
+// ── respondJSONList ───────────────────────────────────────────────────────────
+// Sends [begin, end) as a chunked JSON array HTTP response.
+
+template<typename Iterator, typename Callback>
+void respondJSONList(AsyncWebServerRequest* request, Iterator begin, Iterator end, Callback cb) {
+  auto writer = writeJSONList(begin, end, cb);
+  request->sendChunked(FPSTR(CONTENT_TYPE_JSON),
+    [writer](uint8_t* data, size_t len, size_t) mutable -> size_t {
+      return writer(data, len);
+    });
+}
