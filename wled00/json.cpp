@@ -1225,6 +1225,41 @@ void respondModeData(AsyncWebServerRequest* request) {
     });
 }
 
+void respondNodes(AsyncWebServerRequest* request) {
+  // Produces {"nodes":[{"name":..,"type":N,"ip":..,"age":N,"vid":N},...]}
+  // Each valid node (ip[0] != 0) is serialized into a small ArduinoJSON doc
+  // and streamed via ChunkPrint, no global buffer lock needed.
+  auto makeItem = [](size_t /*idx*/) -> KeyValuePair {
+    return KeyValuePair{
+      makeStringKey("nodes"),
+      KeyValuePair::Writer(writeJSONList(Nodes.begin(), Nodes.end(),
+        [](NodesMap::iterator it) -> KeyValuePair::Writer {
+          if (it->second.ip[0] == 0)
+            return [](uint8_t*, size_t) -> size_t { return 0; };
+          auto doc = std::make_shared<StaticJsonDocument<192>>();
+          JsonObject obj = doc->to<JsonObject>();
+          obj[F("name")] = it->second.nodeName;
+          obj["type"]    = it->second.nodeType;
+          obj["ip"]      = it->second.ip.toString();
+          obj[F("age")]  = it->second.age;
+          obj[F("vid")]  = it->second.build;
+          size_t total = measureJson(*doc);
+          size_t sent  = 0;
+          return KeyValuePair::Writer(
+            [doc, total, sent](uint8_t* buf, size_t maxLen) mutable -> size_t {
+              if (sent >= total) return 0;
+              size_t n = total - sent < maxLen ? total - sent : maxLen;
+              ChunkPrint cp(buf, sent, n);
+              serializeJson(*doc, cp);
+              sent += n;
+              return n;
+            });
+        }))
+    };
+  };
+  respondJSONObject(request, size_t(0), size_t(1), makeItem);
+}
+
 void respondModeNames(AsyncWebServerRequest* request) {
   respondJSONList(request, size_t(0), size_t(strip.getModeCount()),
     [](size_t i, uint8_t* dest, size_t maxLen) -> size_t {
@@ -1264,7 +1299,7 @@ class LockedJsonResponse: public AsyncJsonResponse {
 void serveJson(AsyncWebServerRequest* request)
 {
   enum class json_target {
-    all, state, info, state_info, nodes, palettes, networks, config, pins
+    all, state, info, state_info, palettes, networks, config, pins
   };
   json_target subJson = json_target::all;
 
@@ -1272,7 +1307,7 @@ void serveJson(AsyncWebServerRequest* request)
   if      (url.indexOf("state")    > 0) subJson = json_target::state;
   else if (url.indexOf("info")     > 0) subJson = json_target::info;
   else if (url.indexOf("si")       > 0) subJson = json_target::state_info;
-  else if (url.indexOf(F("nodes")) > 0) subJson = json_target::nodes;
+  else if (url.indexOf(F("nodes")) > 0) { respondNodes(request); return; }
   else if (url.indexOf(F("eff"))   > 0) { respondModeNames(request); return; }
   else if (url.indexOf(F("palx"))  > 0) subJson = json_target::palettes;
   else if (url.indexOf(F("fxda"))  > 0) { respondModeData(request); return; }
@@ -1310,8 +1345,6 @@ void serveJson(AsyncWebServerRequest* request)
       serializeState(lDoc); break;
     case json_target::info:
       serializeInfo(lDoc); break;
-    case json_target::nodes:
-      serializeNodes(lDoc); break;
     case json_target::palettes:
       serializePalettes(lDoc, request->hasParam(F("page")) ? request->getParam(F("page"))->value().toInt() : 0); break;
     case json_target::networks:
