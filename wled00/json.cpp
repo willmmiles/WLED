@@ -960,6 +960,90 @@ static void setPaletteColors(JsonArray json, byte* tcp)
     }
 }
 
+// makePaletteArrayWriter: builds and streams the color array for one palette entry.
+static KeyValuePair::Writer makePaletteArrayWriter(int i, int palettesCount, int umPalettesCount) {
+  auto doc = std::make_shared<StaticJsonDocument<1400>>();
+  JsonArray arr = doc->to<JsonArray>();
+  byte tcp[72];
+  switch (i) {
+    case 0: setPaletteColors(arr, PartyColors_gc22); break;
+    case 1: for (int j = 0; j < 4; j++) arr.add("r"); break;
+    case 2: arr.add("c1"); break;
+    case 3: arr.add("c1"); arr.add("c1"); arr.add("c2"); arr.add("c2"); break;
+    case 4: arr.add("c3"); arr.add("c2"); arr.add("c1"); break;
+    case 5:
+      for (int j = 0; j < 5; j++) arr.add("c1");
+      for (int j = 0; j < 5; j++) arr.add("c2");
+      for (int j = 0; j < 5; j++) arr.add("c3");
+      arr.add("c1");
+      break;
+    default:
+      if (i >= palettesCount + umPalettesCount) {
+        setPaletteColors(arr, customPalettes[i - palettesCount - umPalettesCount]);
+      } else if (i >= palettesCount) {
+        setPaletteColors(arr, usermodPalettes[i - palettesCount].palette);
+      } else if (i < DYNAMIC_PALETTE_COUNT + FASTLED_PALETTE_COUNT) {
+        setPaletteColors(arr, *fastledPalettes[i - DYNAMIC_PALETTE_COUNT]);
+      } else {
+        memcpy_P(tcp, (byte*)pgm_read_dword(&(gGradientPalettes[i - (DYNAMIC_PALETTE_COUNT + FASTLED_PALETTE_COUNT)])), sizeof(tcp));
+        setPaletteColors(arr, tcp);
+      }
+      break;
+  }
+  size_t total = measureJson(*doc);
+  size_t sent  = 0;
+  return KeyValuePair::Writer(
+    [doc, total, sent](uint8_t* buf, size_t maxLen) mutable -> size_t {
+      if (sent >= total) return 0;
+      size_t n = total - sent < maxLen ? total - sent : maxLen;
+      ChunkPrint cp(buf, sent, n);
+      serializeJson(*doc, cp);
+      sent += n;
+      return n;
+    });
+}
+
+void respondPalettes(AsyncWebServerRequest* request, int page) {
+  const int customPalettesCount = customPalettes.size();
+  const int umPalettesCount     = usermodPalettes.size();
+  const int palettesCount       = FIXED_PALETTE_COUNT;
+  #ifdef ESP8266
+  constexpr int itemPerPage = 5;
+  #else
+  constexpr int itemPerPage = 8;
+  #endif
+  const int total = palettesCount + umPalettesCount + customPalettesCount;
+  const int maxPage = total / itemPerPage;
+  if (page > maxPage) page = maxPage;
+  const int start = itemPerPage * page;
+  const int end   = start + itemPerPage < total ? start + itemPerPage : total;
+
+  respondJSONObject(request, size_t(0), size_t(2),
+    [maxPage, start, end, palettesCount, umPalettesCount](size_t idx) -> KeyValuePair {
+      if (idx == 0) {
+        return KeyValuePair{ makeStringKey("m"), makeIntWriter(maxPage) };
+      }
+      // idx == 1: "p" -> nested object of palette arrays
+      return KeyValuePair{
+        makeStringKey("p"),
+        KeyValuePair::Writer(writeJSONObject(start, end,
+          [palettesCount, umPalettesCount](int i) -> KeyValuePair {
+            int paletteId;
+            if (i >= palettesCount + umPalettesCount)
+              paletteId = WLED_CUSTOM_PALETTE_ID_BASE  - (i - palettesCount - umPalettesCount);
+            else if (i >= palettesCount)
+              paletteId = WLED_USERMOD_PALETTE_ID_BASE - (i - palettesCount);
+            else
+              paletteId = i;
+            return KeyValuePair{
+              makeIntKeyWriter(paletteId),
+              makePaletteArrayWriter(i, palettesCount, umPalettesCount)
+            };
+          }))
+      };
+    });
+}
+
 void serializePalettes(JsonObject root, int page)
 {
   byte tcp[72];
@@ -1400,7 +1484,7 @@ class LockedJsonResponse: public AsyncJsonResponse {
 void serveJson(AsyncWebServerRequest* request)
 {
   enum class json_target {
-    all, state, info, state_info, palettes, networks, config
+    all, state, info, state_info, networks, config
   };
   json_target subJson = json_target::all;
 
@@ -1410,7 +1494,7 @@ void serveJson(AsyncWebServerRequest* request)
   else if (url.indexOf("si")       > 0) subJson = json_target::state_info;
   else if (url.indexOf(F("nodes")) > 0) { respondNodes(request); return; }
   else if (url.indexOf(F("eff"))   > 0) { respondModeNames(request); return; }
-  else if (url.indexOf(F("palx"))  > 0) subJson = json_target::palettes;
+  else if (url.indexOf(F("palx"))  > 0) { respondPalettes(request, request->hasParam(F("page")) ? request->getParam(F("page"))->value().toInt() : 0); return; }
   else if (url.indexOf(F("fxda"))  > 0) { respondModeData(request); return; }
   else if (url.indexOf(F("net"))   > 0) subJson = json_target::networks;
   else if (url.indexOf(F("cfg"))   > 0) subJson = json_target::config;
@@ -1446,8 +1530,6 @@ void serveJson(AsyncWebServerRequest* request)
       serializeState(lDoc); break;
     case json_target::info:
       serializeInfo(lDoc); break;
-    case json_target::palettes:
-      serializePalettes(lDoc, request->hasParam(F("page")) ? request->getParam(F("page"))->value().toInt() : 0); break;
     case json_target::networks:
       serializeNetworks(lDoc); break;
     case json_target::config:
