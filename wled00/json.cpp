@@ -1416,37 +1416,21 @@ void respondModeData(AsyncWebServerRequest* request) {
 
 void respondNodes(AsyncWebServerRequest* request) {
   // Produces {"nodes":[{"name":..,"type":N,"ip":..,"age":N,"vid":N},...]}
-  // Each valid node (ip[0] != 0) is serialized into a small ArduinoJSON doc
-  // and streamed via ChunkPrint, no global buffer lock needed.
-  auto makeItem = [](size_t /*idx*/) -> KeyValuePair {
-    return KeyValuePair{
-      "nodes",
-      writeJSONList(Nodes.begin(), Nodes.end(),
+  respondJSONObject(request, {
+    { "nodes", writeJSONList(Nodes.begin(), Nodes.end(),
         [](NodesMap::iterator it) -> json_chunked::Element {
           if (it->second.ip[0] == 0)
             return json_chunked::Element([](uint8_t*, size_t) -> WriteResult { return {true, 0}; });
-          auto doc = std::make_shared<StaticJsonDocument<192>>();
-          JsonObject obj = doc->to<JsonObject>();
-          obj[F("name")] = it->second.nodeName;
-          obj["type"]    = it->second.nodeType;
-          obj["ip"]      = it->second.ip.toString();
-          obj[F("age")]  = it->second.age;
-          obj[F("vid")]  = it->second.build;
-          size_t total = measureJson(*doc);
-          size_t sent  = 0;
-          return json_chunked::Element(
-            [doc, total, sent](uint8_t* buf, size_t maxLen) mutable -> WriteResult {
-              if (sent >= total) return {true, 0};
-              size_t n = total - sent < maxLen ? total - sent : maxLen;
-              ChunkPrint cp(buf, sent, n);
-              serializeJson(*doc, cp);
-              sent += n;
-              return {sent >= total, n};
-            });
+          return writeJSONObject({
+            { "name",   String(it->second.nodeName) },
+            { "type",   it->second.nodeType         },
+            { "ip",     it->second.ip.toString()    },
+            { F("age"), it->second.age              },
+            { F("vid"), it->second.build            }
+          });
         })
-    };
-  };
-  respondJSONObject(request, size_t(0), size_t(1), makeItem);
+    }
+  });
 }
 
 void respondModeNames(AsyncWebServerRequest* request) {
@@ -1499,14 +1483,15 @@ void respondJsonAll(AsyncWebServerRequest* request) {
       }
     });
 
+  bool lock_released = false;
   request->sendChunked(FPSTR(CONTENT_TYPE_JSON),
-    [writer, lock_released=false](uint8_t* data, size_t len, size_t) mutable -> size_t {
-      auto [done, n] = writer(data, len);
-      if (done && !lock_released) {
+    [writer, lock_released](uint8_t* data, size_t len, size_t) mutable -> size_t {
+      WriteResult r = writer(data, len);
+      if (r.done && !lock_released) {
         releaseJSONBufferLock();
         lock_released = true;
       }
-      return n;
+      return r.count;
     });
 }
 
