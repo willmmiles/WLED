@@ -1,26 +1,85 @@
 #pragma once
-// Requires wled.h (for AsyncWebServerRequest, CONTENT_TYPE_JSON, FPSTR) to be included first.
+/*
+ * json_chunked.h — Buffer-free chunked JSON streaming for ESPAsyncWebServer.
+ *
+ * Overview
+ * --------
+ * Provides stateful writer objects and helper functions for streaming
+ * arbitrarily large JSON arrays and objects over HTTP in chunks, without
+ * allocating a full serialization buffer.  All state is held in the writer
+ * objects themselves; sendChunked callbacks capture them by value.
+ *
+ * Core types (namespace json_chunked)
+ * ------------------------------------
+ *  WriteResult  — return value for every writer call.
+ *    {false, 0}   no room; retry with the same (or larger) buffer
+ *    {false, n}   wrote n bytes; sub-writer not finished — stop filling the
+ *                 current buffer and flush what has been collected so far
+ *    {true,  n}   wrote n final bytes; writer is done, caller may advance
+ *    {true,  0}   writer already finished (or item was empty/skipped)
+ *
+ *  Element  — unified type for all serialization slots: list items, object
+ *            keys, and object values.  Implicitly constructs from:
+ *              const char*                → JSON-quoted string
+ *              String / __FlashStringHelper*  → JSON-quoted string (copied)
+ *              int32_t                    → unquoted decimal integer
+ *              JsonVariant                → ChunkPrint re-serialization
+ *              any (uint8_t*,size_t)->WriteResult callable
+ *                                         → wrapped directly (JSONListWriter,
+ *                                           JSONObjectWriter, lambdas, ...)
+ *            For cases not covered (PROGMEM raw bytes, integer object keys),
+ *            use the explicit factory functions below.
+ *
+ *  KeyValuePair  — {Element key; Element value}; one JSON object entry.
+ *
+ * Explicit factory functions
+ * --------------------------
+ *  makeProgmemRawWriter(s)  PROGMEM byte sequence streamed verbatim
+ *                           (already-serialized JSON; distinct from const char*
+ *                           which goes through JSON string escaping)
+ *
+ * Stateful composers
+ * ------------------
+ *  writeJSONList(begin, end, cb)
+ *    cb is either:
+ *      (Iterator, uint8_t*, size_t) -> size_t   direct: cb writes one item
+ *      (Iterator) -> Element                      factory: one writer per item
+ *
+ *  writeJSONObject(begin, end, makeItem)
+ *    makeItem: (Iterator) -> KeyValuePair
+ *
+ *  respondJSONList / respondJSONObject
+ *    Sugar that calls writeJSONList / writeJSONObject and pipes into
+ *    request->sendChunked.
+ *
+ * Lifetime
+ * --------
+ * The sendChunked lambda captures the outer writer by value.  Per-item heap-
+ * allocated documents (nodes, pins, palettes) are held via shared_ptr inside
+ * Element closures; only one is live at a time.  No global JSON buffer lock
+ * is needed for these endpoints.
+ */
 
 #include <functional>
-#include <memory>
 #include <type_traits>
+#include <ESPAsyncWebServer.h>
+#include "src/dependencies/json/ArduinoJson-v6.h"
+#include "src/dependencies/json/AsyncJson-v6.h"   // ChunkPrint
 
-class AsyncWebServerRequest;
 
+namespace json_chunked {
 
-// ── writeJSONString ───────────────────────────────────────────────────────────
+// ── quoteJsonString ───────────────────────────────────────────────────────────
 // Writes a JSON-escaped quoted string into dest[0..maxLen-1].
 // Returns bytes written, or 0 if the buffer was too small.
 
-inline size_t writeJSONString(uint8_t* dest, size_t maxLen, const char* src) {
+inline size_t quoteJsonString(uint8_t* dest, size_t maxLen, const char* src) {
   size_t pos = 0;
-
   auto emit = [&](char c) -> bool {
     if (pos >= maxLen) return false;
     dest[pos++] = static_cast<uint8_t>(c);
     return true;
   };
-
   if (!emit('"')) return 0;
   for (const char* p = src; *p; ++p) {
     char esc = 0;
@@ -43,26 +102,117 @@ inline size_t writeJSONString(uint8_t* dest, size_t maxLen, const char* src) {
   return pos;
 }
 
-
 // ── WriteResult ───────────────────────────────────────────────────────────────
-// Return type for all writer callables: (uint8_t*, size_t) -> WriteResult.
-//
-//   {false, 0}  no room; retry with a fresh buffer
-//   {false, n}  wrote n bytes, more to come; stop filling current buffer
-//   {true,  n}  wrote n final bytes; writer is done (caller may advance)
-//   {true,  0}  writer was already done (or item was empty/skipped)
-//
-// The "not done" signal tells the outer layer to stop filling the current
-// buffer immediately — the sub-writer couldn't complete in the space left.
-
+// Return type from element writing functions, indicating how many bytes were written and whether the writer is done.
 struct WriteResult {
   bool   done;
   size_t count;
 };
 
 
+// ── Element ────────────────────────────────────────────────────────────────────
+// Unified serialization slot type.  See file header for implicit conversions.
+struct Element {
+  std::function<WriteResult(uint8_t*, size_t)> fn;
+
+  Element() = default;
+
+  // From any callable with the Element signature (JSONListWriter, lambdas, …)
+  template<typename F,
+    typename = typename std::enable_if<
+      std::is_invocable_r<WriteResult, typename std::decay<F>::type,
+                          uint8_t*, size_t>::value
+    >::type>
+  Element(F&& f) : fn(std::forward<F>(f)) {}
+
+  // const char* → JSON-quoted string (captures pointer; safe for literals)
+  Element(const char* s) {
+    bool written = false;
+    fn = [s, written](uint8_t* buf, size_t len) mutable -> WriteResult {
+      if (written) return {true, 0};
+      size_t n = quoteJsonString(buf, len, s);
+      if (n) { written = true; return {true, n}; }
+      return {false, 0};
+    };
+  }
+
+  // String → JSON-quoted string (copies into closure)
+  Element(String s) {
+    bool written = false;
+    fn = [s, written](uint8_t* buf, size_t len) mutable -> WriteResult {
+      if (written) return {true, 0};
+      size_t n = quoteJsonString(buf, len, s.c_str());
+      if (n) { written = true; return {true, n}; }
+      return {false, 0};
+    };
+  }
+
+  // __FlashStringHelper* → copies to String, then JSON-quoted
+  Element(const __FlashStringHelper* fs) : Element(String(fs)) {}
+
+  // int32_t → unquoted decimal integer (use makeIntKeyWriter for quoted keys)
+  Element(int32_t v) {
+    String s(v);
+    bool written = false;
+    fn = [s, written](uint8_t* buf, size_t len) mutable -> WriteResult {
+      if (written) return {true, 0};
+      size_t n = s.length();
+      if (n > len) return {false, 0};
+      memcpy(buf, s.c_str(), n);
+      written = true;
+      return {true, n};
+    };
+  }
+
+  // JsonVariant → ChunkPrint re-serialization (variant must outlive the writer)
+  Element(JsonVariant v) {
+    size_t total = measureJson(v);
+    size_t sent  = 0;
+    fn = [v, total, sent](uint8_t* buf, size_t maxLen) mutable -> WriteResult {
+      if (sent >= total) return {true, 0};
+      size_t n = total - sent < maxLen ? total - sent : maxLen;
+      ChunkPrint cp(buf, sent, n);
+      serializeJson(v, cp);
+      sent += n;
+      return {sent >= total, n};
+    };
+  }
+
+  WriteResult operator()(uint8_t* buf, size_t len) const { return fn(buf, len); }
+  explicit operator bool() const { return bool(fn); }
+};
+
+
+// ── Explicit factory functions ────────────────────────────────────────────────
+
+// makeProgmemRawWriter: streams raw PROGMEM bytes verbatim (pre-serialized JSON)
+inline Element makeProgmemRawWriter(const char* src) {  // src points into PROGMEM
+  size_t total = strlen_P(src);
+  size_t sent  = 0;
+  return Element([src, total, sent](uint8_t* buf, size_t maxLen) mutable -> WriteResult {
+    if (sent >= total) return {true, 0};
+    size_t n = total - sent < maxLen ? total - sent : maxLen;
+    memcpy_P(buf, src + sent, n);
+    sent += n;
+    return {sent >= total, n};
+  });
+}
+
+
+// ── KeyValuePair ──────────────────────────────────────────────────────────────
+// One JSON object entry.  Aggregate-initialise directly from native types:
+//   { "key",   42 }       — string key, integer value
+//   { "state", stateVar } — string key, JsonVariant value
+//   { F("effects"), writeJSONList(...) } — flash key, sub-list writer
+
+struct KeyValuePair {
+  Element key;
+  Element value;
+};
+
+
 // ── is_item_factory ───────────────────────────────────────────────────────────
-// Detects whether Callback is a 1-arg factory (Iterator) -> writer,
+// Detects whether Callback is a 1-arg factory (Iterator) -> Element,
 // or a 3-arg direct writer (Iterator, uint8_t*, size_t) -> size_t.
 
 template<typename Callback, typename Iterator, typename = void>
@@ -75,9 +225,9 @@ struct is_item_factory<Callback, Iterator,
 
 
 // ── JSONListWriter ────────────────────────────────────────────────────────────
-// Stateful writer for the direct-writer path.
+// Stateful writer for the direct-callback path.
 // Callback: (Iterator, uint8_t*, size_t) -> size_t
-//   Return n > 0: wrote n bytes of this item (item is complete).
+//   Return n > 0: wrote n bytes (item complete).
 //   Return 0:     item didn't fit; will be retried next call.
 
 template<typename Iterator, typename Callback>
@@ -94,16 +244,16 @@ struct JSONListWriter {
     size_t pos = 0;
 
     while (current != end_val) {
-      if (pos + 2 > maxLen) break;                                    // need room for separator + ≥1 byte
+      if (pos + 2 > maxLen) break;
       size_t n = cb(current, dest + pos + 1, maxLen - pos - 1);
-      if (n == 0) break;                                              // didn't fit; retry next call
+      if (n == 0) break;
       dest[pos] = (current == begin_val) ? '[' : ',';
       pos += 1 + n;
       ++current;
     }
 
     if (current == end_val) {
-      const size_t need = (current == begin_val) ? 2 : 1;            // empty array needs "[]", else "]"
+      const size_t need = (current == begin_val) ? 2 : 1;
       if (pos + need <= maxLen) {
         if (current == begin_val) dest[pos++] = '[';
         dest[pos++] = ']';
@@ -118,20 +268,17 @@ struct JSONListWriter {
 
 // ── JSONListFactoryWriter ─────────────────────────────────────────────────────
 // Stateful writer for the factory path.
-// MakeItem: (Iterator) -> Writer, where Writer: (uint8_t*, size_t) -> WriteResult
+// MakeItem: (Iterator) -> Element (or any type implicitly convertible to Element)
 //
-// Empty items ({true, 0} on first call) are silently skipped.
-// Multi-call items are supported: the separator is committed only when
-// the first bytes of the item arrive, so empty items leave no separator.
+// Empty items ({true, 0} on first call) are silently skipped; no separator is
+// emitted until an item actually produces bytes.
 
 template<typename Iterator, typename MakeItem>
 struct JSONListFactoryWriter {
-  typedef std::function<WriteResult(uint8_t*, size_t)> ItemWriter;
-
   Iterator current, end_val;
   MakeItem makeItem;
-  ItemWriter item;          // empty std::function == no item in progress
-  bool first, done, itemActive;  // itemActive: separator already written for current item
+  Element   item;
+  bool     first, done, itemActive;
 
   JSONListFactoryWriter(Iterator begin, Iterator end, MakeItem makeItem_)
     : current(begin), end_val(end), makeItem(makeItem_),
@@ -147,8 +294,8 @@ struct JSONListFactoryWriter {
         itemActive = false;
       }
 
-      // Reserve a slot for the separator until the item produces its first byte.
-      size_t sepReserve = itemActive ? 0 : 1;
+      // Reserve one byte for the separator until the item produces its first byte.
+      const size_t sepReserve = itemActive ? 0 : 1;
       if (pos + sepReserve + 1 > maxLen) break;
 
       auto [idone, n] = item(dest + pos + sepReserve, maxLen - pos - sepReserve);
@@ -162,11 +309,11 @@ struct JSONListFactoryWriter {
       pos += n;
 
       if (idone) {
-        item       = ItemWriter();
+        item       = Element();
         ++current;
         itemActive = false;
       } else {
-        break;   // not done: either no room ({false,0}) or partial write ({false,n})
+        break;
       }
     }
 
@@ -185,8 +332,6 @@ struct JSONListFactoryWriter {
 
 
 // ── writeJSONList ─────────────────────────────────────────────────────────────
-// Returns a stateful writer for [begin, end) using the given callback.
-// Dispatches to JSONListWriter or JSONListFactoryWriter based on callback arity.
 
 template<typename Iterator, typename Callback>
 typename std::enable_if<
@@ -208,7 +353,6 @@ writeJSONList(Iterator begin, Iterator end, Callback cb) {
 
 
 // ── respondJSONList ───────────────────────────────────────────────────────────
-// Sends [begin, end) as a chunked JSON array HTTP response.
 
 template<typename Iterator, typename Callback>
 void respondJSONList(AsyncWebServerRequest* request, Iterator begin, Iterator end, Callback cb) {
@@ -221,82 +365,18 @@ void respondJSONList(AsyncWebServerRequest* request, Iterator begin, Iterator en
 }
 
 
-// ── KeyValuePair ──────────────────────────────────────────────────────────────
-// Holds one JSON object entry: a key writer and a value writer.
-// Both use the (uint8_t*, size_t) -> WriteResult contract.
-
-struct KeyValuePair {
-  typedef std::function<WriteResult(uint8_t*, size_t)> Writer;
-  Writer key;
-  Writer value;
-};
-
-// makeStringKey: JSON-quoted string key writer.
-// The const char* overload captures the pointer — safe for string literals
-// (program lifetime) but NOT for local buffers.  Use the String overload when
-// the string may not outlive the returned writer.
-inline KeyValuePair::Writer makeStringKey(const char* s) {
-  bool written = false;
-  return KeyValuePair::Writer(
-    [s, written](uint8_t* buf, size_t len) mutable -> WriteResult {
-      if (written) return {true, 0};
-      size_t n = writeJSONString(buf, len, s);
-      if (n) { written = true; return {true, n}; }
-      return {false, 0};
-    });
-}
-
-// Overloads that copy the string into the closure (safe for local / flash strings)
-inline KeyValuePair::Writer makeStringKey(String s) {
-  bool written = false;
-  return KeyValuePair::Writer(
-    [s, written](uint8_t* buf, size_t len) mutable -> WriteResult {
-      if (written) return {true, 0};
-      size_t n = writeJSONString(buf, len, s.c_str());
-      if (n) { written = true; return {true, n}; }
-      return {false, 0};
-    });
-}
-inline KeyValuePair::Writer makeStringKey(const __FlashStringHelper* fs) {
-  return makeStringKey(String(fs));
-}
-
-// makeIntKeyWriter: JSON-quoted decimal integer key  (e.g. "42")
-inline KeyValuePair::Writer makeIntKeyWriter(int32_t v) {
-  return makeStringKey(String(v));
-}
-
-// makeIntWriter: unquoted decimal integer value  (e.g. 42)
-inline KeyValuePair::Writer makeIntWriter(int32_t v) {
-  String s(v);
-  bool written = false;
-  return KeyValuePair::Writer(
-    [s, written](uint8_t* buf, size_t len) mutable -> WriteResult {
-      if (written) return {true, 0};
-      size_t n = s.length();
-      if (n > len) return {false, 0};
-      memcpy(buf, s.c_str(), n);
-      written = true;
-      return {true, n};
-    });
-}
-
-
 // ── JSONObjectWriter ──────────────────────────────────────────────────────────
-// Stateful writer that produces {"key":value,...} from an iterator range.
 // MakeItem: (Iterator) -> KeyValuePair
-//   Called once per item; returned key/value writers are drained to completion.
 
 template<typename Iterator, typename MakeItem>
 struct JSONObjectWriter {
-  typedef typename KeyValuePair::Writer ItemWriter;
   enum class Phase : uint8_t { NeedItem, Sep, Key, Colon, Value };
 
   Iterator current, end_val;
   MakeItem makeItem;
-  ItemWriter keyWriter, valueWriter;
-  Phase phase;
-  bool first, done;
+  Element   keyWriter, valueWriter;
+  Phase    phase;
+  bool     first, done;
 
   JSONObjectWriter(Iterator begin, Iterator end, MakeItem mi)
     : current(begin), end_val(end), makeItem(mi),
@@ -308,7 +388,7 @@ struct JSONObjectWriter {
 
     while (pos < maxLen) {
       if (current == end_val) {
-        const size_t need = first ? 2 : 1;       // "{}" vs "}"
+        const size_t need = first ? 2 : 1;
         if (pos + need > maxLen) break;
         if (first) dest[pos++] = '{';
         dest[pos++] = '}';
@@ -333,7 +413,7 @@ struct JSONObjectWriter {
           auto [kdone, n] = keyWriter(dest + pos, maxLen - pos);
           pos += n;
           if (kdone) { phase = Phase::Colon; continue; }
-          goto exit_loop;   // key didn't fit; return what we have
+          goto exit_loop;
         }
         case Phase::Colon:
           dest[pos++] = ':';
@@ -342,12 +422,7 @@ struct JSONObjectWriter {
         case Phase::Value: {
           auto [vdone, n] = valueWriter(dest + pos, maxLen - pos);
           pos += n;
-          if (vdone) {
-            ++current;
-            phase = Phase::NeedItem;
-            continue;
-          }
-          // Not done: either no room or partial write — stop filling.
+          if (vdone) { ++current; phase = Phase::NeedItem; continue; }
           goto exit_loop;
         }
       }
@@ -379,22 +454,21 @@ writeJSONObject(Iterator begin, Iterator end, MakeItem mi) {
 
 // Two-callback form: keyCb(Iterator, uint8_t*, size_t) -> size_t
 //                    valCb(Iterator, uint8_t*, size_t) -> size_t
-// Adapts into the factory form via std::function (one allocation per item).
 
 template<typename Iterator, typename KeyCb, typename ValueCb>
 JSONObjectWriter<Iterator, std::function<KeyValuePair(Iterator)>>
 writeJSONObject(Iterator begin, Iterator end, KeyCb keyCb, ValueCb valCb) {
-  typedef std::function<KeyValuePair(Iterator)> MakeItem;
+  using MakeItem = std::function<KeyValuePair(Iterator)>;
   MakeItem mi = [keyCb, valCb](Iterator it) -> KeyValuePair {
-    return KeyValuePair{
-      [keyCb, it](uint8_t* buf, size_t len) -> WriteResult {
+    return {
+      Element([keyCb, it](uint8_t* buf, size_t len) -> WriteResult {
         size_t n = keyCb(it, buf, len);
         return {n > 0, n};
-      },
-      [valCb, it](uint8_t* buf, size_t len) -> WriteResult {
+      }),
+      Element([valCb, it](uint8_t* buf, size_t len) -> WriteResult {
         size_t n = valCb(it, buf, len);
         return {n > 0, n};
-      }
+      })
     };
   };
   return JSONObjectWriter<Iterator, MakeItem>(begin, end, mi);
@@ -402,8 +476,6 @@ writeJSONObject(Iterator begin, Iterator end, KeyCb keyCb, ValueCb valCb) {
 
 
 // ── respondJSONObject ─────────────────────────────────────────────────────────
-// Sends {"key":value,...} as a chunked JSON object HTTP response.
-// Factory form (makeItem returns KeyValuePair):
 
 template<typename Iterator, typename MakeItem>
 void respondJSONObject(AsyncWebServerRequest* request, Iterator begin, Iterator end, MakeItem mi) {
@@ -414,8 +486,6 @@ void respondJSONObject(AsyncWebServerRequest* request, Iterator begin, Iterator 
       return n;
     });
 }
-
-// Two-callback form:
 
 template<typename Iterator, typename KeyCb, typename ValueCb>
 void respondJSONObject(AsyncWebServerRequest* request, Iterator begin, Iterator end, KeyCb keyCb, ValueCb valCb) {
@@ -428,37 +498,4 @@ void respondJSONObject(AsyncWebServerRequest* request, Iterator begin, Iterator 
 }
 
 
-// ── makeProgmemRawWriter ──────────────────────────────────────────────────────
-// Streams the raw bytes of a PROGMEM string (already-serialized JSON) in chunks.
-
-inline KeyValuePair::Writer makeProgmemRawWriter(const char* src) {  // src points into PROGMEM
-  size_t total = strlen_P(src);
-  size_t sent  = 0;
-  return KeyValuePair::Writer(
-    [src, total, sent](uint8_t* buf, size_t maxLen) mutable -> WriteResult {
-      if (sent >= total) return {true, 0};
-      size_t n = total - sent < maxLen ? total - sent : maxLen;
-      memcpy_P(buf, src + sent, n);
-      sent += n;
-      return {sent >= total, n};
-    });
-}
-
-// ── makeArduinoJsonWriter ─────────────────────────────────────────────────────
-// Streams an already-populated ArduinoJSON variant via ChunkPrint re-serialization.
-// The JsonVariant must remain valid (document must not be cleared/destroyed)
-// for the lifetime of the returned writer.
-
-inline KeyValuePair::Writer makeArduinoJsonWriter(JsonVariant v) {
-  size_t total = measureJson(v);
-  size_t sent  = 0;
-  return KeyValuePair::Writer(
-    [v, total, sent](uint8_t* buf, size_t maxLen) mutable -> WriteResult {
-      if (sent >= total) return {true, 0};
-      size_t n = total - sent < maxLen ? total - sent : maxLen;
-      ChunkPrint cp(buf, sent, n);
-      serializeJson(v, cp);
-      sent += n;
-      return {sent >= total, n};
-    });
-}
+} // namespace json_chunked
