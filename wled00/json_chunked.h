@@ -22,7 +22,8 @@
  *            keys, and object values.  Implicitly constructs from:
  *              const char*                → JSON-quoted string
  *              String / __FlashStringHelper*  → JSON-quoted string (copied)
- *              int32_t                    → unquoted decimal integer
+ *              any integral type (not bool) → unquoted decimal integer
+ *              bool                       → true / false literal
  *              JsonVariant                → ChunkPrint re-serialization
  *              any (uint8_t*,size_t)->WriteResult callable
  *                                         → wrapped directly (JSONListWriter,
@@ -48,6 +49,11 @@
  *  writeJSONObject(begin, end, makeItem)
  *    makeItem: (Iterator) -> KeyValuePair
  *
+ *  writeJSONObject({kvpair, kvpair, …})
+ *    Initializer-list form; items are evaluated at the call site (eager Element
+ *    construction, lazy byte-writing).  Returns Element so the result can be
+ *    used as a nested value or passed directly to respondJSONObject.
+ *
  *  respondJSONList / respondJSONObject
  *    Sugar that calls writeJSONList / writeJSONObject and pipes into
  *    request->sendChunked.
@@ -61,7 +67,9 @@
  */
 
 #include <functional>
+#include <initializer_list>
 #include <type_traits>
+#include <vector>
 #include <ESPAsyncWebServer.h>
 #include "src/dependencies/json/ArduinoJson-v6.h"
 #include "src/dependencies/json/AsyncJson-v6.h"   // ChunkPrint
@@ -110,6 +118,27 @@ struct WriteResult {
 };
 
 
+// ── is_element_fn ─────────────────────────────────────────────────────────────
+// C++11-compatible substitute for std::is_invocable_r (which arrived in C++17).
+// Evaluates to true_type when F can be called as F(uint8_t*, size_t) and
+// returns WriteResult; false_type otherwise.  The void default and the
+// enable_if<is_same<decltype(call expression), WriteResult>> specialisation
+// together form a standard SFINAE pattern: if the call expression is ill-formed
+// (F not callable with those args) the specialisation is discarded and the
+// primary (false_type) wins instead of producing a hard error.
+
+template<typename F, typename = void>
+struct is_element_fn : std::false_type {};
+
+template<typename F>
+struct is_element_fn<F, typename std::enable_if<
+    std::is_same<
+      decltype(std::declval<F>()(std::declval<uint8_t*>(), std::declval<size_t>())),
+      WriteResult
+    >::value
+  >::type> : std::true_type {};
+
+
 // ── Element ────────────────────────────────────────────────────────────────────
 // Unified serialization slot type.  See file header for implicit conversions.
 struct Element {
@@ -120,8 +149,7 @@ struct Element {
   // From any callable with the Element signature (JSONListWriter, lambdas, …)
   template<typename F,
     typename = typename std::enable_if<
-      std::is_invocable_r<WriteResult, typename std::decay<F>::type,
-                          uint8_t*, size_t>::value
+      is_element_fn<typename std::decay<F>::type>::value
     >::type>
   Element(F&& f) : fn(std::forward<F>(f)) {}
 
@@ -149,6 +177,29 @@ struct Element {
 
   // __FlashStringHelper* → copies to String, then JSON-quoted
   Element(const __FlashStringHelper* fs) : Element(String(fs)) {}
+
+  // Any integer type (uint8_t, uint16_t, uint32_t, int, …) → unquoted decimal.
+  // enable_if<is_integral> admits any integer width; the is_same<bool> exclusion
+  // stops true/false from silently becoming 1/0 — bool has its own constructor.
+  template<typename T,
+    typename = typename std::enable_if<
+      std::is_integral<T>::value && !std::is_same<T, bool>::value
+    >::type>
+  Element(T v) : Element(static_cast<int32_t>(v)) {}
+
+  // bool → true / false JSON literal
+  Element(bool v) {
+    const char* s = v ? "true" : "false";
+    size_t      n = v ? 4 : 5;
+    bool written = false;
+    fn = [s, n, written](uint8_t* buf, size_t len) mutable -> WriteResult {
+      if (written) return {true, 0};
+      if (n > len)  return {false, 0};
+      memcpy(buf, s, n);
+      written = true;
+      return {true, n};
+    };
+  }
 
   // int32_t → unquoted decimal integer (use makeIntKeyWriter for quoted keys)
   Element(int32_t v) {
@@ -298,17 +349,17 @@ struct JSONListFactoryWriter {
       const size_t sepReserve = itemActive ? 0 : 1;
       if (pos + sepReserve + 1 > maxLen) break;
 
-      auto [idone, n] = item(dest + pos + sepReserve, maxLen - pos - sepReserve);
+      WriteResult ir = item(dest + pos + sepReserve, maxLen - pos - sepReserve);
 
-      if (n > 0 && !itemActive) {
+      if (ir.count > 0 && !itemActive) {
         dest[pos] = first ? '[' : ',';
         first      = false;
         pos       += 1;
         itemActive = true;
       }
-      pos += n;
+      pos += ir.count;
 
-      if (idone) {
+      if (ir.done) {
         item       = Element();
         ++current;
         itemActive = false;
@@ -359,8 +410,8 @@ void respondJSONList(AsyncWebServerRequest* request, Iterator begin, Iterator en
   auto writer = writeJSONList(begin, end, cb);
   request->sendChunked(FPSTR(CONTENT_TYPE_JSON),
     [writer](uint8_t* data, size_t len, size_t) mutable -> size_t {
-      auto [done, n] = writer(data, len);
-      return n;
+      WriteResult r = writer(data, len);
+      return r.count;
     });
 }
 
@@ -410,9 +461,9 @@ struct JSONObjectWriter {
           phase = Phase::Key;
           continue;
         case Phase::Key: {
-          auto [kdone, n] = keyWriter(dest + pos, maxLen - pos);
-          pos += n;
-          if (kdone) { phase = Phase::Colon; continue; }
+          WriteResult kr = keyWriter(dest + pos, maxLen - pos);
+          pos += kr.count;
+          if (kr.done) { phase = Phase::Colon; continue; }
           goto exit_loop;
         }
         case Phase::Colon:
@@ -420,9 +471,9 @@ struct JSONObjectWriter {
           phase = Phase::Value;
           continue;
         case Phase::Value: {
-          auto [vdone, n] = valueWriter(dest + pos, maxLen - pos);
-          pos += n;
-          if (vdone) { ++current; phase = Phase::NeedItem; continue; }
+          WriteResult vr = valueWriter(dest + pos, maxLen - pos);
+          pos += vr.count;
+          if (vr.done) { ++current; phase = Phase::NeedItem; continue; }
           goto exit_loop;
         }
       }
@@ -475,6 +526,21 @@ writeJSONObject(Iterator begin, Iterator end, KeyCb keyCb, ValueCb valCb) {
 }
 
 
+// Initializer-list form: writeJSONObject({ {"key", val}, {"key2", val2} })
+// Items (KeyValuePair values) are constructed at the call site and copied into a
+// heap vector so the returned Element can outlive the current stack frame (needed
+// because sendChunked fires its callback asynchronously after this function returns).
+inline Element writeJSONObject(std::initializer_list<KeyValuePair> items) {
+  typedef std::vector<KeyValuePair> KVVec;
+  std::shared_ptr<KVVec> vec = std::make_shared<KVVec>(items.begin(), items.end());
+  auto writer = writeJSONObject(vec->begin(), vec->end(),
+      [](KVVec::iterator it) -> KeyValuePair { return *it; });
+  return Element([vec, writer](uint8_t* buf, size_t len) mutable -> WriteResult {
+      return writer(buf, len);
+  });
+}
+
+
 // ── respondJSONObject ─────────────────────────────────────────────────────────
 
 template<typename Iterator, typename MakeItem>
@@ -482,8 +548,8 @@ void respondJSONObject(AsyncWebServerRequest* request, Iterator begin, Iterator 
   auto writer = writeJSONObject(begin, end, mi);
   request->sendChunked(FPSTR(CONTENT_TYPE_JSON),
     [writer](uint8_t* data, size_t len, size_t) mutable -> size_t {
-      auto [done, n] = writer(data, len);
-      return n;
+      WriteResult r = writer(data, len);
+      return r.count;
     });
 }
 
@@ -492,8 +558,18 @@ void respondJSONObject(AsyncWebServerRequest* request, Iterator begin, Iterator 
   auto writer = writeJSONObject(begin, end, keyCb, valCb);
   request->sendChunked(FPSTR(CONTENT_TYPE_JSON),
     [writer](uint8_t* data, size_t len, size_t) mutable -> size_t {
-      auto [done, n] = writer(data, len);
-      return n;
+      WriteResult r = writer(data, len);
+      return r.count;
+    });
+}
+
+
+inline void respondJSONObject(AsyncWebServerRequest* request, std::initializer_list<KeyValuePair> items) {
+  Element writer = writeJSONObject(items);
+  request->sendChunked(FPSTR(CONTENT_TYPE_JSON),
+    [writer](uint8_t* data, size_t len, size_t) mutable -> size_t {
+      WriteResult r = writer(data, len);
+      return r.count;
     });
 }
 
