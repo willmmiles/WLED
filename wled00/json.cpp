@@ -993,13 +993,13 @@ static KeyValuePair::Writer makePaletteArrayWriter(int i, int palettesCount, int
   size_t total = measureJson(*doc);
   size_t sent  = 0;
   return KeyValuePair::Writer(
-    [doc, total, sent](uint8_t* buf, size_t maxLen) mutable -> size_t {
-      if (sent >= total) return 0;
+    [doc, total, sent](uint8_t* buf, size_t maxLen) mutable -> WriteResult {
+      if (sent >= total) return {true, 0};
       size_t n = total - sent < maxLen ? total - sent : maxLen;
       ChunkPrint cp(buf, sent, n);
       serializeJson(*doc, cp);
       sent += n;
-      return n;
+      return {sent >= total, n};
     });
 }
 
@@ -1175,7 +1175,7 @@ static KeyValuePair::Writer makePinItemWriter(int gpio) {
   bool canOutput   = PinManager::isPinOk(gpio, true);
   bool isAllocated = PinManager::isPinAllocated(gpio);
   if (!canInput && !canOutput && !isAllocated)
-    return [](uint8_t*, size_t) -> size_t { return 0; };
+    return [](uint8_t*, size_t) -> WriteResult { return {true, 0}; };
 
   auto doc = std::make_shared<StaticJsonDocument<384>>();
   JsonObject pinObj = doc->to<JsonObject>();
@@ -1248,13 +1248,13 @@ static KeyValuePair::Writer makePinItemWriter(int gpio) {
   size_t total = measureJson(*doc);
   size_t sent  = 0;
   return KeyValuePair::Writer(
-    [doc, total, sent](uint8_t* buf, size_t maxLen) mutable -> size_t {
-      if (sent >= total) return 0;
+    [doc, total, sent](uint8_t* buf, size_t maxLen) mutable -> WriteResult {
+      if (sent >= total) return {true, 0};
       size_t n = total - sent < maxLen ? total - sent : maxLen;
       ChunkPrint cp(buf, sent, n);
       serializeJson(*doc, cp);
       sent += n;
-      return n;
+      return {sent >= total, n};
     });
 }
 
@@ -1420,7 +1420,7 @@ void respondNodes(AsyncWebServerRequest* request) {
       KeyValuePair::Writer(writeJSONList(Nodes.begin(), Nodes.end(),
         [](NodesMap::iterator it) -> KeyValuePair::Writer {
           if (it->second.ip[0] == 0)
-            return [](uint8_t*, size_t) -> size_t { return 0; };
+            return KeyValuePair::Writer([](uint8_t*, size_t) -> WriteResult { return {true, 0}; });
           auto doc = std::make_shared<StaticJsonDocument<192>>();
           JsonObject obj = doc->to<JsonObject>();
           obj[F("name")] = it->second.nodeName;
@@ -1431,13 +1431,13 @@ void respondNodes(AsyncWebServerRequest* request) {
           size_t total = measureJson(*doc);
           size_t sent  = 0;
           return KeyValuePair::Writer(
-            [doc, total, sent](uint8_t* buf, size_t maxLen) mutable -> size_t {
-              if (sent >= total) return 0;
+            [doc, total, sent](uint8_t* buf, size_t maxLen) mutable -> WriteResult {
+              if (sent >= total) return {true, 0};
               size_t n = total - sent < maxLen ? total - sent : maxLen;
               ChunkPrint cp(buf, sent, n);
               serializeJson(*doc, cp);
               sent += n;
-              return n;
+              return {sent >= total, n};
             });
         }))
     };
@@ -1497,8 +1497,8 @@ void respondJsonAll(AsyncWebServerRequest* request) {
 
   request->sendChunked(FPSTR(CONTENT_TYPE_JSON),
     [writer, lock_released=false](uint8_t* data, size_t len, size_t) mutable -> size_t {
-      size_t n = writer(data, len);
-      if (n == 0 && !lock_released) {
+      auto [done, n] = writer(data, len);
+      if (done && !lock_released) {
         releaseJSONBufferLock();
         lock_released = true;
       }

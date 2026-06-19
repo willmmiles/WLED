@@ -44,6 +44,23 @@ inline size_t writeJSONString(uint8_t* dest, size_t maxLen, const char* src) {
 }
 
 
+// ── WriteResult ───────────────────────────────────────────────────────────────
+// Return type for all writer callables: (uint8_t*, size_t) -> WriteResult.
+//
+//   {false, 0}  no room; retry with a fresh buffer
+//   {false, n}  wrote n bytes, more to come; stop filling current buffer
+//   {true,  n}  wrote n final bytes; writer is done (caller may advance)
+//   {true,  0}  writer was already done (or item was empty/skipped)
+//
+// The "not done" signal tells the outer layer to stop filling the current
+// buffer immediately — the sub-writer couldn't complete in the space left.
+
+struct WriteResult {
+  bool   done;
+  size_t count;
+};
+
+
 // ── is_item_factory ───────────────────────────────────────────────────────────
 // Detects whether Callback is a 1-arg factory (Iterator) -> writer,
 // or a 3-arg direct writer (Iterator, uint8_t*, size_t) -> size_t.
@@ -60,7 +77,7 @@ struct is_item_factory<Callback, Iterator,
 // ── JSONListWriter ────────────────────────────────────────────────────────────
 // Stateful writer for the direct-writer path.
 // Callback: (Iterator, uint8_t*, size_t) -> size_t
-//   Return n > 0: wrote n bytes of this item.
+//   Return n > 0: wrote n bytes of this item (item is complete).
 //   Return 0:     item didn't fit; will be retried next call.
 
 template<typename Iterator, typename Callback>
@@ -72,8 +89,8 @@ struct JSONListWriter {
   JSONListWriter(Iterator begin, Iterator end, Callback cb_)
     : current(begin), begin_val(begin), end_val(end), cb(cb_), done(false) {}
 
-  size_t operator()(uint8_t* dest, size_t maxLen) {
-    if (done) return 0;
+  WriteResult operator()(uint8_t* dest, size_t maxLen) {
+    if (done) return {true, 0};
     size_t pos = 0;
 
     while (current != end_val) {
@@ -94,45 +111,62 @@ struct JSONListWriter {
       }
     }
 
-    return pos;
+    return {done, pos};
   }
 };
 
 
 // ── JSONListFactoryWriter ─────────────────────────────────────────────────────
 // Stateful writer for the factory path.
-// MakeItem: (Iterator) -> writer, where writer: (uint8_t*, size_t) -> size_t
-//   Item writers signal completion by returning 0 after their last bytes.
+// MakeItem: (Iterator) -> Writer, where Writer: (uint8_t*, size_t) -> WriteResult
+//
+// Empty items ({true, 0} on first call) are silently skipped.
+// Multi-call items are supported: the separator is committed only when
+// the first bytes of the item arrive, so empty items leave no separator.
 
 template<typename Iterator, typename MakeItem>
 struct JSONListFactoryWriter {
-  typedef std::function<size_t(uint8_t*, size_t)> ItemWriter;
+  typedef std::function<WriteResult(uint8_t*, size_t)> ItemWriter;
 
   Iterator current, end_val;
   MakeItem makeItem;
   ItemWriter item;          // empty std::function == no item in progress
-  bool first, done;
+  bool first, done, itemActive;  // itemActive: separator already written for current item
 
   JSONListFactoryWriter(Iterator begin, Iterator end, MakeItem makeItem_)
-    : current(begin), end_val(end), makeItem(makeItem_), first(true), done(false) {}
+    : current(begin), end_val(end), makeItem(makeItem_),
+      first(true), done(false), itemActive(false) {}
 
-  size_t operator()(uint8_t* dest, size_t maxLen) {
-    if (done) return 0;
+  WriteResult operator()(uint8_t* dest, size_t maxLen) {
+    if (done) return {true, 0};
     size_t pos = 0;
 
     while (current != end_val) {
-      if (pos + 2 > maxLen) break;
-      if (!item) item = makeItem(current);
+      if (!item) {
+        item       = makeItem(current);
+        itemActive = false;
+      }
 
-      size_t n = item(dest + pos + 1, maxLen - pos - 1);
-      if (n > 0) {
+      // Reserve a slot for the separator until the item produces its first byte.
+      size_t sepReserve = itemActive ? 0 : 1;
+      if (pos + sepReserve + 1 > maxLen) break;
+
+      auto [idone, n] = item(dest + pos + sepReserve, maxLen - pos - sepReserve);
+
+      if (n > 0 && !itemActive) {
         dest[pos] = first ? '[' : ',';
-        first = false;
-        pos += 1 + n;
-      } else {
-        // item writer is done; advance to next outer item
-        item = ItemWriter();
+        first      = false;
+        pos       += 1;
+        itemActive = true;
+      }
+      pos += n;
+
+      if (idone) {
+        item       = ItemWriter();
         ++current;
+        itemActive = false;
+      } else {
+        break;   // not done: either no room ({false,0}) or partial write ({false,n})
       }
     }
 
@@ -145,7 +179,7 @@ struct JSONListFactoryWriter {
       }
     }
 
-    return pos;
+    return {done, pos};
   }
 };
 
@@ -181,18 +215,18 @@ void respondJSONList(AsyncWebServerRequest* request, Iterator begin, Iterator en
   auto writer = writeJSONList(begin, end, cb);
   request->sendChunked(FPSTR(CONTENT_TYPE_JSON),
     [writer](uint8_t* data, size_t len, size_t) mutable -> size_t {
-      return writer(data, len);
+      auto [done, n] = writer(data, len);
+      return n;
     });
 }
 
 
 // ── KeyValuePair ──────────────────────────────────────────────────────────────
 // Holds one JSON object entry: a key writer and a value writer.
-// Both use the same (uint8_t*, size_t) -> size_t contract as item writers:
-//   return n > 0 while writing, then return 0 when done.
+// Both use the (uint8_t*, size_t) -> WriteResult contract.
 
 struct KeyValuePair {
-  typedef std::function<size_t(uint8_t*, size_t)> Writer;
+  typedef std::function<WriteResult(uint8_t*, size_t)> Writer;
   Writer key;
   Writer value;
 };
@@ -204,11 +238,11 @@ struct KeyValuePair {
 inline KeyValuePair::Writer makeStringKey(const char* s) {
   bool written = false;
   return KeyValuePair::Writer(
-    [s, written](uint8_t* buf, size_t len) mutable -> size_t {
-      if (written) return 0;
+    [s, written](uint8_t* buf, size_t len) mutable -> WriteResult {
+      if (written) return {true, 0};
       size_t n = writeJSONString(buf, len, s);
-      if (n) written = true;
-      return n;
+      if (n) { written = true; return {true, n}; }
+      return {false, 0};
     });
 }
 
@@ -216,11 +250,11 @@ inline KeyValuePair::Writer makeStringKey(const char* s) {
 inline KeyValuePair::Writer makeStringKey(String s) {
   bool written = false;
   return KeyValuePair::Writer(
-    [s, written](uint8_t* buf, size_t len) mutable -> size_t {
-      if (written) return 0;
+    [s, written](uint8_t* buf, size_t len) mutable -> WriteResult {
+      if (written) return {true, 0};
       size_t n = writeJSONString(buf, len, s.c_str());
-      if (n) written = true;
-      return n;
+      if (n) { written = true; return {true, n}; }
+      return {false, 0};
     });
 }
 inline KeyValuePair::Writer makeStringKey(const __FlashStringHelper* fs) {
@@ -237,13 +271,13 @@ inline KeyValuePair::Writer makeIntWriter(int32_t v) {
   String s(v);
   bool written = false;
   return KeyValuePair::Writer(
-    [s, written](uint8_t* buf, size_t len) mutable -> size_t {
-      if (written) return 0;
+    [s, written](uint8_t* buf, size_t len) mutable -> WriteResult {
+      if (written) return {true, 0};
       size_t n = s.length();
-      if (n > len) return 0;
+      if (n > len) return {false, 0};
       memcpy(buf, s.c_str(), n);
       written = true;
-      return n;
+      return {true, n};
     });
 }
 
@@ -263,22 +297,16 @@ struct JSONObjectWriter {
   ItemWriter keyWriter, valueWriter;
   Phase phase;
   bool first, done;
-  // Two-consecutive-zero protocol for Phase::Value:
-  // A value writer may return 0 for "no room, retry" (not done) OR for "truly done".
-  // We advance to the next entry only after two consecutive 0-returns from the same
-  // value writer, ensuring the second 0 on a fresh buffer unambiguously means "done".
-  bool valueRetryPending;
 
   JSONObjectWriter(Iterator begin, Iterator end, MakeItem mi)
     : current(begin), end_val(end), makeItem(mi),
-      phase(Phase::NeedItem), first(true), done(false), valueRetryPending(false) {}
+      phase(Phase::NeedItem), first(true), done(false) {}
 
-  size_t operator()(uint8_t* dest, size_t maxLen) {
-    if (done) return 0;
+  WriteResult operator()(uint8_t* dest, size_t maxLen) {
+    if (done) return {true, 0};
     size_t pos = 0;
-    bool stopEarly = false;   // set in Phase::Value to exit the while on first zero
 
-    while (pos < maxLen && !stopEarly) {
+    while (pos < maxLen) {
       if (current == end_val) {
         const size_t need = first ? 2 : 1;       // "{}" vs "}"
         if (pos + need > maxLen) break;
@@ -290,10 +318,9 @@ struct JSONObjectWriter {
 
       switch (phase) {
         case Phase::NeedItem: {
-          auto kv = makeItem(current);
-          keyWriter         = kv.key;
-          valueWriter       = kv.value;
-          valueRetryPending = false;
+          auto kv    = makeItem(current);
+          keyWriter   = kv.key;
+          valueWriter = kv.value;
           phase = Phase::Sep;
           continue;
         }
@@ -303,36 +330,29 @@ struct JSONObjectWriter {
           phase = Phase::Key;
           continue;
         case Phase::Key: {
-          size_t n = keyWriter(dest + pos, maxLen - pos);
+          auto [kdone, n] = keyWriter(dest + pos, maxLen - pos);
           pos += n;
-          if (n == 0) { phase = Phase::Colon; continue; }
-          break;     // wrote bytes; re-check loop condition
+          if (kdone) { phase = Phase::Colon; continue; }
+          goto exit_loop;   // key didn't fit; return what we have
         }
         case Phase::Colon:
           dest[pos++] = ':';
           phase = Phase::Value;
           continue;
         case Phase::Value: {
-          size_t n = valueWriter(dest + pos, maxLen - pos);
+          auto [vdone, n] = valueWriter(dest + pos, maxLen - pos);
           pos += n;
-          if (n == 0) {
-            if (valueRetryPending) {
-              // Second consecutive zero → writer is truly done
-              valueRetryPending = false;
-              ++current;
-              phase = Phase::NeedItem;
-            } else {
-              // First zero → may be "no room".  Exit; the next callback will clarify.
-              valueRetryPending = true;
-              stopEarly = true;
-            }
-          } else {
-            valueRetryPending = false;
+          if (vdone) {
+            ++current;
+            phase = Phase::NeedItem;
+            continue;
           }
-          continue;
+          // Not done: either no room or partial write — stop filling.
+          goto exit_loop;
         }
       }
     }
+    exit_loop:
 
     if (current == end_val && !done) {
       const size_t need = first ? 2 : 1;
@@ -343,7 +363,7 @@ struct JSONObjectWriter {
       }
     }
 
-    return pos;
+    return {done, pos};
   }
 };
 
@@ -367,8 +387,14 @@ writeJSONObject(Iterator begin, Iterator end, KeyCb keyCb, ValueCb valCb) {
   typedef std::function<KeyValuePair(Iterator)> MakeItem;
   MakeItem mi = [keyCb, valCb](Iterator it) -> KeyValuePair {
     return KeyValuePair{
-      [keyCb, it](uint8_t* buf, size_t len) -> size_t { return keyCb(it, buf, len); },
-      [valCb, it](uint8_t* buf, size_t len) -> size_t { return valCb(it, buf, len); }
+      [keyCb, it](uint8_t* buf, size_t len) -> WriteResult {
+        size_t n = keyCb(it, buf, len);
+        return {n > 0, n};
+      },
+      [valCb, it](uint8_t* buf, size_t len) -> WriteResult {
+        size_t n = valCb(it, buf, len);
+        return {n > 0, n};
+      }
     };
   };
   return JSONObjectWriter<Iterator, MakeItem>(begin, end, mi);
@@ -384,7 +410,8 @@ void respondJSONObject(AsyncWebServerRequest* request, Iterator begin, Iterator 
   auto writer = writeJSONObject(begin, end, mi);
   request->sendChunked(FPSTR(CONTENT_TYPE_JSON),
     [writer](uint8_t* data, size_t len, size_t) mutable -> size_t {
-      return writer(data, len);
+      auto [done, n] = writer(data, len);
+      return n;
     });
 }
 
@@ -395,7 +422,8 @@ void respondJSONObject(AsyncWebServerRequest* request, Iterator begin, Iterator 
   auto writer = writeJSONObject(begin, end, keyCb, valCb);
   request->sendChunked(FPSTR(CONTENT_TYPE_JSON),
     [writer](uint8_t* data, size_t len, size_t) mutable -> size_t {
-      return writer(data, len);
+      auto [done, n] = writer(data, len);
+      return n;
     });
 }
 
@@ -407,12 +435,12 @@ inline KeyValuePair::Writer makeProgmemRawWriter(const char* src) {  // src poin
   size_t total = strlen_P(src);
   size_t sent  = 0;
   return KeyValuePair::Writer(
-    [src, total, sent](uint8_t* buf, size_t maxLen) mutable -> size_t {
-      if (sent >= total) return 0;
+    [src, total, sent](uint8_t* buf, size_t maxLen) mutable -> WriteResult {
+      if (sent >= total) return {true, 0};
       size_t n = total - sent < maxLen ? total - sent : maxLen;
       memcpy_P(buf, src + sent, n);
       sent += n;
-      return n;
+      return {sent >= total, n};
     });
 }
 
@@ -425,12 +453,12 @@ inline KeyValuePair::Writer makeArduinoJsonWriter(JsonVariant v) {
   size_t total = measureJson(v);
   size_t sent  = 0;
   return KeyValuePair::Writer(
-    [v, total, sent](uint8_t* buf, size_t maxLen) mutable -> size_t {
-      if (sent >= total) return 0;
+    [v, total, sent](uint8_t* buf, size_t maxLen) mutable -> WriteResult {
+      if (sent >= total) return {true, 0};
       size_t n = total - sent < maxLen ? total - sent : maxLen;
       ChunkPrint cp(buf, sent, n);
       serializeJson(v, cp);
       sent += n;
-      return n;
+      return {sent >= total, n};
     });
 }
