@@ -1,6 +1,8 @@
 #include "wled.h"
 #include "json_chunked.h"
 
+using namespace json_chunked;
+
 #define JSON_PATH_STATE      1
 #define JSON_PATH_INFO       2
 #define JSON_PATH_STATE_INFO 3
@@ -961,11 +963,12 @@ static void setPaletteColors(JsonArray json, byte* tcp)
 }
 
 // makePaletteArrayWriter: builds and streams the color array for one palette entry.
-static KeyValuePair::Writer makePaletteArrayWriter(int i, int palettesCount, int umPalettesCount) {
+static json_chunked::Element makePaletteArrayWriter(int i, int palettesCount, int umPalettesCount) {
   auto doc = std::make_shared<StaticJsonDocument<1400>>();
   JsonArray arr = doc->to<JsonArray>();
   byte tcp[72];
-  switch (i) {
+  switch (i) {  
+    // Special palette codes
     case 0: setPaletteColors(arr, PartyColors_gc22); break;
     case 1: for (int j = 0; j < 4; j++) arr.add("r"); break;
     case 2: arr.add("c1"); break;
@@ -976,8 +979,9 @@ static KeyValuePair::Writer makePaletteArrayWriter(int i, int palettesCount, int
       for (int j = 0; j < 5; j++) arr.add("c2");
       for (int j = 0; j < 5; j++) arr.add("c3");
       arr.add("c1");
-      break;
+      break;          
     default:
+      // Real palettes
       if (i >= palettesCount + umPalettesCount) {
         setPaletteColors(arr, customPalettes[i - palettesCount - umPalettesCount]);
       } else if (i >= palettesCount) {
@@ -992,7 +996,7 @@ static KeyValuePair::Writer makePaletteArrayWriter(int i, int palettesCount, int
   }
   size_t total = measureJson(*doc);
   size_t sent  = 0;
-  return KeyValuePair::Writer(
+  return json_chunked::Element(
     [doc, total, sent](uint8_t* buf, size_t maxLen) mutable -> WriteResult {
       if (sent >= total) return {true, 0};
       size_t n = total - sent < maxLen ? total - sent : maxLen;
@@ -1021,12 +1025,12 @@ void respondPalettes(AsyncWebServerRequest* request, int page) {
   respondJSONObject(request, size_t(0), size_t(2),
     [maxPage, start, end, palettesCount, umPalettesCount](size_t idx) -> KeyValuePair {
       if (idx == 0) {
-        return KeyValuePair{ makeStringKey("m"), makeIntWriter(maxPage) };
+        return KeyValuePair{ "m", maxPage };
       }
       // idx == 1: "p" -> nested object of palette arrays
       return KeyValuePair{
-        makeStringKey("p"),
-        KeyValuePair::Writer(writeJSONObject(start, end,
+        "p",
+        json_chunked::Element(writeJSONObject(start, end,
           [palettesCount, umPalettesCount](int i) -> KeyValuePair {
             int paletteId;
             if (i >= palettesCount + umPalettesCount)
@@ -1036,7 +1040,7 @@ void respondPalettes(AsyncWebServerRequest* request, int page) {
             else
               paletteId = i;
             return KeyValuePair{
-              makeIntKeyWriter(paletteId),
+              String(paletteId),
               makePaletteArrayWriter(i, palettesCount, umPalettesCount)
             };
           }))
@@ -1168,9 +1172,9 @@ void serializeNodes(JsonObject root)
   }
 }
 
-// makePinItemWriter: build a streaming writer for one GPIO pin object.
+// writePinItem: build a streaming writer for one GPIO pin object.
 // Returns an immediately-done writer for pins that should be skipped.
-static KeyValuePair::Writer makePinItemWriter(int gpio) {
+static json_chunked::Element writePinItem(int gpio) {
   bool canInput    = PinManager::isPinOk(gpio, false);
   bool canOutput   = PinManager::isPinOk(gpio, true);
   bool isAllocated = PinManager::isPinAllocated(gpio);
@@ -1247,7 +1251,7 @@ static KeyValuePair::Writer makePinItemWriter(int gpio) {
 
   size_t total = measureJson(*doc);
   size_t sent  = 0;
-  return KeyValuePair::Writer(
+  return json_chunked::Element(
     [doc, total, sent](uint8_t* buf, size_t maxLen) mutable -> WriteResult {
       if (sent >= total) return {true, 0};
       size_t n = total - sent < maxLen ? total - sent : maxLen;
@@ -1263,8 +1267,8 @@ void respondPins(AsyncWebServerRequest* request) {
   respondJSONObject(request, size_t(0), size_t(1),
     [](size_t) -> KeyValuePair {
       return KeyValuePair{
-        makeStringKey("pins"),
-        KeyValuePair::Writer(writeJSONList(int(0), ENUM_PINS, makePinItemWriter))
+        "pins",
+        writeJSONList(int(0), ENUM_PINS, writePinItem)
       };
     });
 }
@@ -1406,7 +1410,7 @@ void respondModeData(AsyncWebServerRequest* request) {
       strncpy_P(buf, strip.getModeData(i), sizeof(buf) - 1);
       buf[sizeof(buf) - 1] = '\0';
       const char* p = strchr(buf, '@');
-      return writeJSONString(dest, maxLen, p ? p + 1 : "");
+      return quoteJsonString(dest, maxLen, p ? p + 1 : "");
     });
 }
 
@@ -1416,11 +1420,11 @@ void respondNodes(AsyncWebServerRequest* request) {
   // and streamed via ChunkPrint, no global buffer lock needed.
   auto makeItem = [](size_t /*idx*/) -> KeyValuePair {
     return KeyValuePair{
-      makeStringKey("nodes"),
-      KeyValuePair::Writer(writeJSONList(Nodes.begin(), Nodes.end(),
-        [](NodesMap::iterator it) -> KeyValuePair::Writer {
+      "nodes",
+      writeJSONList(Nodes.begin(), Nodes.end(),
+        [](NodesMap::iterator it) -> json_chunked::Element {
           if (it->second.ip[0] == 0)
-            return KeyValuePair::Writer([](uint8_t*, size_t) -> WriteResult { return {true, 0}; });
+            return json_chunked::Element([](uint8_t*, size_t) -> WriteResult { return {true, 0}; });
           auto doc = std::make_shared<StaticJsonDocument<192>>();
           JsonObject obj = doc->to<JsonObject>();
           obj[F("name")] = it->second.nodeName;
@@ -1430,7 +1434,7 @@ void respondNodes(AsyncWebServerRequest* request) {
           obj[F("vid")]  = it->second.build;
           size_t total = measureJson(*doc);
           size_t sent  = 0;
-          return KeyValuePair::Writer(
+          return json_chunked::Element(
             [doc, total, sent](uint8_t* buf, size_t maxLen) mutable -> WriteResult {
               if (sent >= total) return {true, 0};
               size_t n = total - sent < maxLen ? total - sent : maxLen;
@@ -1439,7 +1443,7 @@ void respondNodes(AsyncWebServerRequest* request) {
               sent += n;
               return {sent >= total, n};
             });
-        }))
+        })
     };
   };
   respondJSONObject(request, size_t(0), size_t(1), makeItem);
@@ -1453,7 +1457,7 @@ void respondModeNames(AsyncWebServerRequest* request) {
       buf[sizeof(buf) - 1] = '\0';
       char* p = strchr(buf, '@');
       if (p) *p = '\0';
-      return writeJSONString(dest, maxLen, buf);
+      return quoteJsonString(dest, maxLen, buf);
     });
 }
 
@@ -1478,19 +1482,19 @@ void respondJsonAll(AsyncWebServerRequest* request) {
   auto writer = writeJSONObject(size_t(0), size_t(4),
     [stateVar, infoVar](size_t idx) mutable -> KeyValuePair {
       switch (idx) {
-        case 0: return { makeStringKey("state"),    makeArduinoJsonWriter(stateVar) };
-        case 1: return { makeStringKey("info"),     makeArduinoJsonWriter(infoVar)  };
-        case 2: return { makeStringKey(F("effects")),
-                         KeyValuePair::Writer(writeJSONList(size_t(0), size_t(strip.getModeCount()),
+        case 0: return { "state", stateVar };
+        case 1: return { "info",  infoVar  };
+        case 2: return { F("effects"),
+                         json_chunked::Element(writeJSONList(size_t(0), size_t(strip.getModeCount()),
                            [](size_t i, uint8_t* dest, size_t maxLen) -> size_t {
                              char buf[256];
                              strncpy_P(buf, strip.getModeData(i), sizeof(buf) - 1);
                              buf[sizeof(buf) - 1] = '\0';
                              char* p = strchr(buf, '@');
                              if (p) *p = '\0';
-                             return writeJSONString(dest, maxLen, buf);
+                             return quoteJsonString(dest, maxLen, buf);
                            })) };
-        default: return { makeStringKey(F("palettes")),
+        default: return { F("palettes"),
                           makeProgmemRawWriter(JSON_palette_names) };
       }
     });
