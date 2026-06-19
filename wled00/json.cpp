@@ -922,46 +922,6 @@ void serializeInfo(JsonObject root)
   root["ip"] = s;
 }
 
-static void setPaletteColors(JsonArray json, CRGBPalette16 palette)
-{
-    for (int i = 0; i < 16; i++) {
-      JsonArray colors =  json.createNestedArray();
-      CRGB color = palette[i];
-      colors.add(i<<4);
-      colors.add(color.red);
-      colors.add(color.green);
-      colors.add(color.blue);
-    }
-}
-
-static void setPaletteColors(JsonArray json, byte* tcp)
-{
-    TRGBGradientPaletteEntryUnion* ent = (TRGBGradientPaletteEntryUnion*)(tcp);
-    TRGBGradientPaletteEntryUnion u;
-
-    // Count entries
-    unsigned count = 0;
-    do {
-        u = *(ent + count);
-        count++;
-    } while ( u.index != 255);
-
-    u = *ent;
-    int indexstart = 0;
-    while( indexstart < 255) {
-      indexstart = u.index;
-
-      JsonArray colors =  json.createNestedArray();
-      colors.add(u.index);
-      colors.add(u.r);
-      colors.add(u.g);
-      colors.add(u.b);
-
-      ent++;
-      u = *ent;
-    }
-}
-
 // streamPalette16: streams a CRGBPalette16 as [[pos,r,g,b], ...].
 // palette must outlive the returned Element (all call sites pass stable globals/members).
 static json_chunked::Element streamPalette16(const CRGBPalette16& palette) {
@@ -975,7 +935,7 @@ static json_chunked::Element streamPalette16(const CRGBPalette16& palette) {
 }
 
 // makePaletteArrayWriter: builds and streams the color array for one palette entry.
-static json_chunked::Element makePaletteArrayWriter(size_t i, int palettesCount, int umPalettesCount) {
+static json_chunked::Element makePaletteArrayWriter(size_t i, size_t palettesCount, size_t umPalettesCount) {
   // Dynamic palettes
   switch (i) {
     case 0: return streamPalette16(PartyColors_gc22);
@@ -1013,7 +973,7 @@ static json_chunked::Element makePaletteArrayWriter(size_t i, int palettesCount,
   }
 }
 
-void respondPalettes(AsyncWebServerRequest* request, int page) {
+void respondPalettes(AsyncWebServerRequest* request, size_t page) {
   const size_t customPalettesCount = customPalettes.size();
   const size_t umPalettesCount     = usermodPalettes.size();
   const size_t palettesCount       = FIXED_PALETTE_COUNT;
@@ -1054,84 +1014,8 @@ void respondPalettes(AsyncWebServerRequest* request, int page) {
     });
 }
 
-void serializePalettes(JsonObject root, int page)
-{
-  byte tcp[72];
-  #ifdef ESP8266
-  constexpr int itemPerPage = 5;
-  #else
-  constexpr int itemPerPage = 8;
-  #endif
 
-  const int customPalettesCount = customPalettes.size();
-  const int umPalettesCount     = usermodPalettes.size();
-  const int palettesCount = FIXED_PALETTE_COUNT; // palettesCount is number of palettes, not palette index
-
-  const int maxPage = (palettesCount + umPalettesCount + customPalettesCount) / itemPerPage;
-  if (page > maxPage) page = maxPage;
-
-  const int start = itemPerPage * page;
-  int end = min(start + itemPerPage, palettesCount + umPalettesCount + customPalettesCount);
-
-  root[F("m")] = maxPage; // inform caller how many pages there are
-  JsonObject palettes  = root.createNestedObject("p");
-
-  for (int i = start; i < end; i++) {
-    // compute the palette ID for this sequential index
-    int paletteId;
-    if (i >= palettesCount + umPalettesCount) // user custom palette (IDs 200, 199, ...)
-      paletteId = WLED_CUSTOM_PALETTE_ID_BASE - (i - palettesCount - umPalettesCount);
-    else if (i >= palettesCount)              // usermod palette (IDs 255, 254, ...)
-      paletteId = WLED_USERMOD_PALETTE_ID_BASE - (i - palettesCount);
-    else
-      paletteId = i;                          // fixed palette
-    JsonArray curPalette = palettes.createNestedArray(String(paletteId));
-    switch (i) {
-      case 0: //default palette
-        setPaletteColors(curPalette, PartyColors_gc22);
-        break;
-      case 1: //random
-           for (int j = 0; j < 4; j++) curPalette.add("r");
-        break;
-      case 2: //primary color only
-        curPalette.add("c1");
-        break;
-      case 3: //primary + secondary
-        curPalette.add("c1");
-        curPalette.add("c1");
-        curPalette.add("c2");
-        curPalette.add("c2");
-        break;
-      case 4: //primary + secondary + tertiary
-        curPalette.add("c3");
-        curPalette.add("c2");
-        curPalette.add("c1");
-        break;
-      case 5: //primary + secondary (+tertiary if not off), more distinct
-        for (int j = 0; j < 5; j++) curPalette.add("c1");
-        for (int j = 0; j < 5; j++) curPalette.add("c2");
-        for (int j = 0; j < 5; j++) curPalette.add("c3");
-        curPalette.add("c1");
-        break;
-      default:
-        if (i >= palettesCount + umPalettesCount) { // user custom palettes (lowest IDs in the custom range)
-          int custIdx = i - palettesCount - umPalettesCount;
-          setPaletteColors(curPalette, customPalettes[custIdx]);
-        } else if (i >= palettesCount) { // usermod palettes (IDs 255, 254, ...)
-          int umIdx = i - palettesCount;
-          setPaletteColors(curPalette, usermodPalettes[umIdx].palette);
-        } else if (i < DYNAMIC_PALETTE_COUNT + FASTLED_PALETTE_COUNT) // palette 6 - 12, fastled palettes
-          setPaletteColors(curPalette, *fastledPalettes[i - DYNAMIC_PALETTE_COUNT]);
-        else {
-          memcpy_P(tcp, (byte*)pgm_read_dword(&(gGradientPalettes[i - (DYNAMIC_PALETTE_COUNT + FASTLED_PALETTE_COUNT)])), sizeof(tcp));
-          setPaletteColors(curPalette, tcp);
-        }
-        break;
-    }
-  }
-}
-
-void serializeNetworks(JsonObject root)
+static void serializeNetworks(JsonObject root)
 {
   JsonArray networks = root.createNestedArray(F("networks"));
   int16_t status = WiFi.scanComplete();
@@ -1157,24 +1041,6 @@ void serializeNetworks(JsonObject root)
 
   if (WiFi.scanComplete() == WIFI_SCAN_FAILED) {
     WiFi.scanNetworks(true);
-  }
-}
-
-void serializeNodes(JsonObject root)
-{
-  JsonArray nodes = root.createNestedArray("nodes");
-
-  for (NodesMap::iterator it = Nodes.begin(); it != Nodes.end(); ++it)
-  {
-    if (it->second.ip[0] != 0)
-    {
-      JsonObject node = nodes.createNestedObject();
-      node[F("name")] = it->second.nodeName;
-      node["type"]    = it->second.nodeType;
-      node["ip"]      = it->second.ip.toString();
-      node[F("age")]  = it->second.age;
-      node[F("vid")]  = it->second.build;
-    }
   }
 }
 
@@ -1268,7 +1134,7 @@ static json_chunked::Element writePinItem(int gpio) {
     });
 }
 
-void respondPins(AsyncWebServerRequest* request) {
+static void respondPins(AsyncWebServerRequest* request) {
   constexpr int ENUM_PINS = WLED_NUM_PINS;
   respondJSONObject(request, size_t(0), size_t(1),
     [](size_t) -> KeyValuePair {
@@ -1279,137 +1145,7 @@ void respondPins(AsyncWebServerRequest* request) {
     });
 }
 
-void serializePins(JsonObject root)
-{
-  JsonArray pins = root.createNestedArray(F("pins"));
-  #ifdef ESP8266
-  constexpr int ENUM_PINS = WLED_NUM_PINS; // GPIO0-16 (A0 (17) is analog input only and always assigned to any analog input, even if set "unused") TODO: can currently not be handled
-  #else
-  constexpr int ENUM_PINS = WLED_NUM_PINS;
-  #endif
-  for (int gpio = 0; gpio < ENUM_PINS; gpio++) {
-    bool canInput = PinManager::isPinOk(gpio, false);
-    bool canOutput = PinManager::isPinOk(gpio, true);
-    bool isAllocated = PinManager::isPinAllocated(gpio);
-    // Skip pins that are neither usable nor allocated (truly unusable pins)
-    if (!canInput && !canOutput && !isAllocated) continue;
-
-    JsonObject pinObj = pins.createNestedObject();
-    pinObj["p"] = gpio;  // pin number
-
-    // Pin capabilities
-    // Touch capability is provided by appendGPIOinfo() via d.touch
-    uint8_t caps = 0;
-
-    #ifdef ARDUINO_ARCH_ESP32
-    if (PinManager::isAnalogPin(gpio)) caps |= PIN_CAP_ADC;
-
-    // PWM on all ESP32 variants: all output pins can use ledc PWM so this is redundant
-    //if (canOutput) caps |= PIN_CAP_PWM;
-
-    // Input-only pins (ESP32 classic: GPIO34-39)
-    if (canInput && !canOutput) caps |= PIN_CAP_INPUT_ONLY;
-
-    // Bootloader/strapping pins
-    #if defined(CONFIG_IDF_TARGET_ESP32S3)
-    if (gpio == 0) caps |= PIN_CAP_BOOT;  // pull low to enter bootloader mode
-    if (gpio == 45 || gpio == 46) caps |= PIN_CAP_BOOTSTRAP; // IO46 must be low to enter bootloader mode, IO45 controls flash voltage, keep low for 3.3V flash
-    #elif defined(CONFIG_IDF_TARGET_ESP32S2)
-    if (gpio == 0) caps |= PIN_CAP_BOOT; // pull low to enter bootloader mode
-    if (gpio == 45 || gpio == 46) caps |= PIN_CAP_BOOTSTRAP; // IO46 must be low to enter bootloader mode, IO45 controls flash voltage, keep low for 3.3V flash
-    #elif defined(CONFIG_IDF_TARGET_ESP32C3)
-    if (gpio == 9) caps |= PIN_CAP_BOOT; // pull low to enter bootloader mode
-    if (gpio == 2 || gpio == 8) caps |= PIN_CAP_BOOTSTRAP; // both GPIO2 and GPIO8 must be high to enter bootloader mode
-    #elif defined(CONFIG_IDF_TARGET_ESP32) // ESP32 classic
-    if (gpio == 0) caps |= PIN_CAP_BOOT; // pull low to enter bootloader mode
-    if (gpio == 2 || gpio == 12) caps |= PIN_CAP_BOOTSTRAP; // note: if GPIO12 must be low at boot, (high=1.8V flash mode), GPIO 2 must be low or floating to enter bootloader mode
-    #endif
-    #else
-    // ESP8266: GPIO 0-16 + GPIO17=A0
-    // if (gpio < 16) caps |= PIN_CAP_PWM;  // software PWM available on all GPIO except GPIO16
-    // ESP8266 strapping pins
-    if (gpio == 0) caps |= PIN_CAP_BOOT;
-    if (gpio == 2 || gpio == 15) caps |= PIN_CAP_BOOTSTRAP; // GPIO2 must be high, GPIO15 low to boot normally
-    if (gpio == 17) caps = PIN_CAP_INPUT_ONLY | PIN_CAP_ADC; // TODO: display as A0 pin
-    #endif
-
-    pinObj["c"] = caps;  // capabilities
-
-    // Add allocated status and owner
-    pinObj["a"] = isAllocated;  // allocated status
-
-    // check if this pin is used as a button (need to get button type for owner name)
-    int buttonIndex = PinManager::getButtonIndex(gpio); // returns -1 if not a button pin, otherwise returns index in buttons array
-
-    // Add owner ID and name
-    PinOwner owner = PinManager::getPinOwner(gpio);
-    if (isAllocated) {
-      pinObj["o"] = static_cast<uint8_t>(owner);  // owner ID (can be used for UI lookup)
-      pinObj["n"] = PinManager::getPinOwnerName(gpio);  // owner name (string)
-
-      // Relay pin
-      if (owner == PinOwner::Relay) {
-        pinObj["m"] = 1;  // mode: output
-        pinObj["s"] = digitalRead(rlyPin); // read state from hardware (digitalRead returns output state for output pins)
-      }
-      // Button pins, get type and state using isButtonPressed()
-      else if (buttonIndex >= 0) {
-        pinObj["m"] = 0;  // mode: input
-        pinObj["t"] = buttons[buttonIndex].type; // button type
-        pinObj["s"] = isButtonPressed(buttonIndex) ? 1 : 0;  // state
-
-        // for touch buttons, get raw reading value (useful for debugging threshold)
-        #if defined(CONFIG_IDF_TARGET_ESP32) || defined(CONFIG_IDF_TARGET_ESP32S2) || defined(CONFIG_IDF_TARGET_ESP32S3)
-        if (buttons[buttonIndex].type == BTN_TYPE_TOUCH || buttons[buttonIndex].type == BTN_TYPE_TOUCH_SWITCH) {
-          if (digitalPinToTouchChannel(gpio) >= 0) {
-            #ifdef SOC_TOUCH_VERSION_2 // ESP32 S2 and S3
-            pinObj["r"] = touchRead(gpio) >> 4; // Touch V2 returns larger values, right shift by 4 to match threshold range, see set.cpp
-            #else
-            pinObj["r"] = touchRead(gpio); // send raw value
-            #endif
-          }
-        }
-        #endif
-        // for analog buttons, get raw reading value
-        if (buttons[buttonIndex].type == BTN_TYPE_ANALOG || buttons[buttonIndex].type == BTN_TYPE_ANALOG_INVERTED) {
-          int analogRaw = 0;
-          #ifdef ESP8266
-          analogRaw = analogRead(A0) >> 2;   // convert 10bit read to 8bit, ESP8266 only has one analog pin
-          #else
-          if (digitalPinToAnalogChannel(gpio) >= 0) {
-            analogRaw = (analogRead(gpio)>>4); // right shift to match button value (8bit) see button.cpp
-          }
-          #endif
-          if (buttons[buttonIndex].type == BTN_TYPE_ANALOG_INVERTED) analogRaw = 255 - analogRaw;
-          pinObj["r"] = analogRaw; // send raw value
-        }
-      }
-      // other allocated output pins that are simple GPIO (BusOnOff, Multi Relay, etc.) TODO: expand for other pin owners as needed
-      else if (owner == PinOwner::BusOnOff || owner == PinOwner::UM_MultiRelay) {
-        pinObj["m"] = 1;  // mode: output
-        pinObj["s"] = digitalRead(gpio);  // read state from hardware (digitalRead returns output state for output pins)
-      }
-    }
-  }
-}
-
-// deserializes mode names string into JsonArray
-// also removes effect data extensions (@...) from deserialised names
-void serializeModeNames(JsonArray arr)
-{
-  char lineBuffer[256];
-  for (size_t i = 0; i < strip.getModeCount(); i++) {
-    strncpy_P(lineBuffer, strip.getModeData(i), sizeof(lineBuffer)/sizeof(char)-1);
-    lineBuffer[sizeof(lineBuffer)/sizeof(char)-1] = '\0'; // terminate string
-    if (lineBuffer[0] != 0) {
-      char* dataPtr = strchr(lineBuffer,'@');
-      if (dataPtr) *dataPtr = 0; // terminate mode data after name
-      arr.add(lineBuffer);
-    }
-  }
-}
-
-void respondModeData(AsyncWebServerRequest* request) {
+static void respondModeData(AsyncWebServerRequest* request) {
   respondJSONList(request, size_t(0), size_t(strip.getModeCount()),
     [](size_t i, uint8_t* dest, size_t maxLen) -> size_t {
       char buf[256];
@@ -1420,7 +1156,7 @@ void respondModeData(AsyncWebServerRequest* request) {
     });
 }
 
-void respondNodes(AsyncWebServerRequest* request) {
+static void respondNodes(AsyncWebServerRequest* request) {
   // Produces {"nodes":[{"name":..,"type":N,"ip":..,"age":N,"vid":N},...]}
   respondJSONObject(request, {
     { "nodes", writeJSONList(Nodes.begin(), Nodes.end(),
@@ -1439,7 +1175,7 @@ void respondNodes(AsyncWebServerRequest* request) {
   });
 }
 
-void respondModeNames(AsyncWebServerRequest* request) {
+static void respondModeNames(AsyncWebServerRequest* request) {
   respondJSONList(request, size_t(0), size_t(strip.getModeCount()),
     [](size_t i, uint8_t* dest, size_t maxLen) -> size_t {
       char buf[256];
@@ -1451,7 +1187,7 @@ void respondModeNames(AsyncWebServerRequest* request) {
     });
 }
 
-void respondJsonAll(AsyncWebServerRequest* request) {
+static void respondJsonAll(AsyncWebServerRequest* request) {
   if (!requestJSONBufferLock(JSON_LOCK_SERVEJSON)) {
     request->deferResponse();
     return;
