@@ -962,65 +962,71 @@ static void setPaletteColors(JsonArray json, byte* tcp)
     }
 }
 
-// makePaletteArrayWriter: builds and streams the color array for one palette entry.
-static json_chunked::Element makePaletteArrayWriter(int i, int palettesCount, int umPalettesCount) {
-  auto doc = std::make_shared<StaticJsonDocument<1400>>();
-  JsonArray arr = doc->to<JsonArray>();
-  byte tcp[72];
-  switch (i) {  
-    // Special palette codes
-    case 0: setPaletteColors(arr, PartyColors_gc22); break;
-    case 1: for (int j = 0; j < 4; j++) arr.add("r"); break;
-    case 2: arr.add("c1"); break;
-    case 3: arr.add("c1"); arr.add("c1"); arr.add("c2"); arr.add("c2"); break;
-    case 4: arr.add("c3"); arr.add("c2"); arr.add("c1"); break;
-    case 5:
-      for (int j = 0; j < 5; j++) arr.add("c1");
-      for (int j = 0; j < 5; j++) arr.add("c2");
-      for (int j = 0; j < 5; j++) arr.add("c3");
-      arr.add("c1");
-      break;          
-    default:
-      // Real palettes
-      if (i >= palettesCount + umPalettesCount) {
-        setPaletteColors(arr, customPalettes[i - palettesCount - umPalettesCount]);
-      } else if (i >= palettesCount) {
-        setPaletteColors(arr, usermodPalettes[i - palettesCount].palette);
-      } else if (i < DYNAMIC_PALETTE_COUNT + FASTLED_PALETTE_COUNT) {
-        setPaletteColors(arr, *fastledPalettes[i - DYNAMIC_PALETTE_COUNT]);
-      } else {
-        memcpy_P(tcp, (byte*)pgm_read_dword(&(gGradientPalettes[i - (DYNAMIC_PALETTE_COUNT + FASTLED_PALETTE_COUNT)])), sizeof(tcp));
-        setPaletteColors(arr, tcp);
-      }
-      break;
-  }
-  size_t total = measureJson(*doc);
-  size_t sent  = 0;
-  return json_chunked::Element(
-    [doc, total, sent](uint8_t* buf, size_t maxLen) mutable -> WriteResult {
-      if (sent >= total) return {true, 0};
-      size_t n = total - sent < maxLen ? total - sent : maxLen;
-      ChunkPrint cp(buf, sent, n);
-      serializeJson(*doc, cp);
-      sent += n;
-      return {sent >= total, n};
+// streamPalette16: streams a CRGBPalette16 as [[pos,r,g,b], ...].
+// palette must outlive the returned Element (all call sites pass stable globals/members).
+static json_chunked::Element streamPalette16(const CRGBPalette16& palette) {
+  return writeJSONList(0, 16,
+    // Indexes are ints because CRGBPalette16 operator[] doesn't accept size_t
+    [&palette](int idx) -> Element {
+      std::array<uint8_t,4> e = {uint8_t(idx<<4), palette[idx].red, palette[idx].green, palette[idx].blue};
+      return writeJSONList(size_t(0), size_t(4),
+        [e](size_t j) -> Element { return int32_t(e[j]); });
     });
 }
 
+// makePaletteArrayWriter: builds and streams the color array for one palette entry.
+static json_chunked::Element makePaletteArrayWriter(size_t i, int palettesCount, int umPalettesCount) {
+  // Dynamic palettes
+  switch (i) {
+    case 0: return streamPalette16(PartyColors_gc22);
+    case 1: { static const char* s[] = {"r","r","r","r"};                                                                        return writeJSONList(s, s+4,  [](const char** p) -> Element { return *p; }); }
+    case 2: { static const char* s[] = {"c1"};                                                                                   return writeJSONList(s, s+1,  [](const char** p) -> Element { return *p; }); }
+    case 3: { static const char* s[] = {"c1","c1","c2","c2"};                                                                    return writeJSONList(s, s+4,  [](const char** p) -> Element { return *p; }); }
+    case 4: { static const char* s[] = {"c3","c2","c1"};                                                                         return writeJSONList(s, s+3,  [](const char** p) -> Element { return *p; }); }
+    case 5: { static const char* s[] = {"c1","c1","c1","c1","c1","c2","c2","c2","c2","c2","c3","c3","c3","c3","c3","c1"};       return writeJSONList(s, s+16, [](const char** p) -> Element { return *p; }); }
+  }
+
+  // Custom palettes
+  if (i >= palettesCount + umPalettesCount)   return streamPalette16(customPalettes[i - palettesCount - umPalettesCount]);
+  // Usermod palettes
+  if (i >= palettesCount)                      return streamPalette16(usermodPalettes[i - palettesCount].palette);
+  // FastLED fixed palettes
+  if (i < DYNAMIC_PALETTE_COUNT + FASTLED_PALETTE_COUNT) return streamPalette16(*fastledPalettes[i - DYNAMIC_PALETTE_COUNT]);
+
+  // Gradient palette: packed uint8_t entries in PROGMEM — may be unaligned.
+  // pgm_read_dword reads the pointer out of the PROGMEM array; the pointer itself
+  // is used only for iteration (++ advances by sizeof==4, no dereference).
+  // Each field is read safely with pgm_read_byte in the callback.
+  {
+    // The pointer to the palette is dword aligned, so no need for pgm_read_dword here
+    const TRGBGradientPaletteEntryUnion* begin_ent = (const TRGBGradientPaletteEntryUnion*) gGradientPalettes[i - (DYNAMIC_PALETTE_COUNT + FASTLED_PALETTE_COUNT)];
+    const TRGBGradientPaletteEntryUnion* end_ent = begin_ent;
+    while (pgm_read_byte(&end_ent->index) != 255) end_ent++;
+    end_ent++;  // advance past the terminator so [begin_ent, end_ent) is inclusive
+    return writeJSONList(begin_ent, end_ent,
+      [](const TRGBGradientPaletteEntryUnion* ent) -> Element {
+        TRGBGradientPaletteEntryUnion e;
+        e.dword = pgm_read_dword(ent); // read the whole entry at once
+        return writeJSONList(size_t(0), size_t(4),
+          [e](size_t j) -> Element { return int32_t(e.bytes[j]); });
+      });
+  }
+}
+
 void respondPalettes(AsyncWebServerRequest* request, int page) {
-  const int customPalettesCount = customPalettes.size();
-  const int umPalettesCount     = usermodPalettes.size();
-  const int palettesCount       = FIXED_PALETTE_COUNT;
+  const size_t customPalettesCount = customPalettes.size();
+  const size_t umPalettesCount     = usermodPalettes.size();
+  const size_t palettesCount       = FIXED_PALETTE_COUNT;
   #ifdef ESP8266
   constexpr int itemPerPage = 5;
   #else
-  constexpr int itemPerPage = 8;
+  constexpr size_t itemPerPage = 8;
   #endif
-  const int total = palettesCount + umPalettesCount + customPalettesCount;
-  const int maxPage = total / itemPerPage;
+  const size_t total = palettesCount + umPalettesCount + customPalettesCount;
+  const size_t maxPage = total / itemPerPage;
   if (page > maxPage) page = maxPage;
-  const int start = itemPerPage * page;
-  const int end   = start + itemPerPage < total ? start + itemPerPage : total;
+  const size_t start = itemPerPage * page;
+  const size_t end   = start + itemPerPage < total ? start + itemPerPage : total;
 
   respondJSONObject(request, size_t(0), size_t(2),
     [maxPage, start, end, palettesCount, umPalettesCount](size_t idx) -> KeyValuePair {
@@ -1031,8 +1037,8 @@ void respondPalettes(AsyncWebServerRequest* request, int page) {
       return KeyValuePair{
         "p",
         json_chunked::Element(writeJSONObject(start, end,
-          [palettesCount, umPalettesCount](int i) -> KeyValuePair {
-            int paletteId;
+          [palettesCount, umPalettesCount](size_t i) -> KeyValuePair {
+            size_t paletteId;
             if (i >= palettesCount + umPalettesCount)
               paletteId = WLED_CUSTOM_PALETTE_ID_BASE  - (i - palettesCount - umPalettesCount);
             else if (i >= palettesCount)
