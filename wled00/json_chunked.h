@@ -52,18 +52,25 @@
  *  writeJSONObject({kvpair, kvpair, …})
  *    Initializer-list form; items are evaluated at the call site (eager Element
  *    construction, lazy byte-writing).  Returns Element so the result can be
- *    used as a nested value or passed directly to respondJSONObject.
+ *    used as a nested value or passed to respondJSONChunked.
+ *
+ * Sending responses
+ * -----------------
+ *  respondJSONChunked(request, Element)
+ *    Core responder: pipes any Element into request->sendChunked.  Use this
+ *    directly when you already have an Element (e.g. from writeJSONObject or
+ *    writeJSONList) or when composing writers by hand.
  *
  *  respondJSONList / respondJSONObject
- *    Sugar that calls writeJSONList / writeJSONObject and pipes into
- *    request->sendChunked.
+ *    Convenience wrappers: construct the writer and call respondJSONChunked.
+ *    respondJSONObject also has an initializer-list overload.
  *
  * Lifetime
  * --------
- * The sendChunked lambda captures the outer writer by value.  Per-item heap-
- * allocated documents (nodes, pins, palettes) are held via shared_ptr inside
- * Element closures; only one is live at a time.  No global JSON buffer lock
- * is needed for these endpoints.
+ * The sendChunked lambda captures the outer writer by value.  Any per-item
+ * state (shared_ptr to heap data, captured references to stable globals, raw
+ * PROGMEM pointers) is held inside Element closures; only one item writer is
+ * live at a time.  No global JSON buffer lock is needed for these endpoints.
  */
 
 #include <functional>
@@ -403,18 +410,6 @@ writeJSONList(Iterator begin, Iterator end, Callback cb) {
 }
 
 
-// ── respondJSONList ───────────────────────────────────────────────────────────
-
-template<typename Iterator, typename Callback>
-void respondJSONList(AsyncWebServerRequest* request, Iterator begin, Iterator end, Callback cb) {
-  auto writer = writeJSONList(begin, end, cb);
-  request->sendChunked(FPSTR(CONTENT_TYPE_JSON),
-    [writer](uint8_t* data, size_t len, size_t) mutable -> size_t {
-      WriteResult r = writer(data, len);
-      return r.count;
-    });
-}
-
 
 // ── JSONObjectWriter ──────────────────────────────────────────────────────────
 // MakeItem: (Iterator) -> KeyValuePair
@@ -540,37 +535,38 @@ inline Element writeJSONObject(std::initializer_list<KeyValuePair> items) {
   });
 }
 
+// ── respondJSONChunked ────────────────────────────────────────────────────────
+// Core responder: pipes any Element into request->sendChunked.
+
+void respondJSONChunked(AsyncWebServerRequest* request, Element writer) {
+  request->sendChunked(FPSTR(CONTENT_TYPE_JSON),
+    [writer](uint8_t* data, size_t len, size_t) mutable -> size_t {
+      WriteResult r = writer(data, len);
+      return r.count;
+    });
+}
+
+// ── respondJSONList ───────────────────────────────────────────────────────────
+
+template<typename Iterator, typename Callback>
+void respondJSONList(AsyncWebServerRequest* request, Iterator begin, Iterator end, Callback cb) {
+  respondJSONChunked(request, writeJSONList(begin, end, cb));
+}
 
 // ── respondJSONObject ─────────────────────────────────────────────────────────
 
 template<typename Iterator, typename MakeItem>
 void respondJSONObject(AsyncWebServerRequest* request, Iterator begin, Iterator end, MakeItem mi) {
-  auto writer = writeJSONObject(begin, end, mi);
-  request->sendChunked(FPSTR(CONTENT_TYPE_JSON),
-    [writer](uint8_t* data, size_t len, size_t) mutable -> size_t {
-      WriteResult r = writer(data, len);
-      return r.count;
-    });
+  respondJSONChunked(request, writeJSONObject(begin, end, mi));
 }
 
 template<typename Iterator, typename KeyCb, typename ValueCb>
 void respondJSONObject(AsyncWebServerRequest* request, Iterator begin, Iterator end, KeyCb keyCb, ValueCb valCb) {
-  auto writer = writeJSONObject(begin, end, keyCb, valCb);
-  request->sendChunked(FPSTR(CONTENT_TYPE_JSON),
-    [writer](uint8_t* data, size_t len, size_t) mutable -> size_t {
-      WriteResult r = writer(data, len);
-      return r.count;
-    });
+  respondJSONChunked(request, writeJSONObject(begin, end, keyCb, valCb));
 }
 
-
 inline void respondJSONObject(AsyncWebServerRequest* request, std::initializer_list<KeyValuePair> items) {
-  Element writer = writeJSONObject(items);
-  request->sendChunked(FPSTR(CONTENT_TYPE_JSON),
-    [writer](uint8_t* data, size_t len, size_t) mutable -> size_t {
-      WriteResult r = writer(data, len);
-      return r.count;
-    });
+  respondJSONChunked(request, writeJSONObject(items));
 }
 
 

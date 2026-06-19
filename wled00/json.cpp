@@ -1134,20 +1134,18 @@ static json_chunked::Element writePinItem(int gpio) {
     });
 }
 
-static void respondPins(AsyncWebServerRequest* request) {
+static Element writePins() {
   constexpr int ENUM_PINS = WLED_NUM_PINS;
-  respondJSONObject(request, size_t(0), size_t(1),
+  return writeJSONObject(size_t(0), size_t(1),
     [](size_t) -> KeyValuePair {
-      return KeyValuePair{
-        "pins",
-        writeJSONList(int(0), ENUM_PINS, writePinItem)
-      };
+      return KeyValuePair{ "pins", writeJSONList(int(0), ENUM_PINS, writePinItem) };
     });
 }
 
-static void respondModeData(AsyncWebServerRequest* request) {
-  respondJSONList(request, size_t(0), size_t(strip.getModeCount()),
+static Element writeModeData() {
+  return writeJSONList(size_t(0), size_t(strip.getModeCount()),
     [](size_t i, uint8_t* dest, size_t maxLen) -> size_t {
+      // Extract the portion of ModeData after the '@' character
       char buf[256];
       strncpy_P(buf, strip.getModeData(i), sizeof(buf) - 1);
       buf[sizeof(buf) - 1] = '\0';
@@ -1156,9 +1154,9 @@ static void respondModeData(AsyncWebServerRequest* request) {
     });
 }
 
-static void respondNodes(AsyncWebServerRequest* request) {
+static Element writeNodes() {
   // Produces {"nodes":[{"name":..,"type":N,"ip":..,"age":N,"vid":N},...]}
-  respondJSONObject(request, {
+  return writeJSONObject({
     { "nodes", writeJSONList(Nodes.begin(), Nodes.end(),
         [](NodesMap::iterator it) -> json_chunked::Element {
           if (it->second.ip[0] == 0)
@@ -1175,9 +1173,10 @@ static void respondNodes(AsyncWebServerRequest* request) {
   });
 }
 
-static void respondModeNames(AsyncWebServerRequest* request) {
-  respondJSONList(request, size_t(0), size_t(strip.getModeCount()),
+static Element writeModeNames() {
+  return writeJSONList(size_t(0), size_t(strip.getModeCount()),
     [](size_t i, uint8_t* dest, size_t maxLen) -> size_t {
+      // Extract the portion of ModeData before the '@' character, which is the user-friendly name
       char buf[256];
       strncpy_P(buf, strip.getModeData(i), sizeof(buf) - 1);
       buf[sizeof(buf) - 1] = '\0';
@@ -1205,27 +1204,14 @@ static void respondJsonAll(AsyncWebServerRequest* request) {
   JsonVariant stateVar = stateObj;
   JsonVariant infoVar  = infoObj;
 
-  auto writer = writeJSONObject(size_t(0), size_t(4),
-    [stateVar, infoVar](size_t idx) mutable -> KeyValuePair {
-      switch (idx) {
-        case 0: return { "state", stateVar };
-        case 1: return { "info",  infoVar  };
-        case 2: return { F("effects"),
-                         json_chunked::Element(writeJSONList(size_t(0), size_t(strip.getModeCount()),
-                           [](size_t i, uint8_t* dest, size_t maxLen) -> size_t {
-                             char buf[256];
-                             strncpy_P(buf, strip.getModeData(i), sizeof(buf) - 1);
-                             buf[sizeof(buf) - 1] = '\0';
-                             char* p = strchr(buf, '@');
-                             if (p) *p = '\0';
-                             return quoteJsonString(dest, maxLen, buf);
-                           })) };
-        default: return { F("palettes"),
-                          makeProgmemRawWriter(JSON_palette_names) };
-      }
-    });
+  auto writer = writeJSONObject({
+    { "state",       stateVar },
+    { "info",        infoVar  },
+    { F("effects"),  writeModeNames() },
+    { F("palettes"), makeProgmemRawWriter(JSON_palette_names) }
+  });
 
-  bool lock_released = false;
+  bool lock_released = false; // this variable is declared purely to live in the lambda below
   request->sendChunked(FPSTR(CONTENT_TYPE_JSON),
     [writer, lock_released](uint8_t* data, size_t len, size_t) mutable -> size_t {
       WriteResult r = writer(data, len);
@@ -1274,13 +1260,13 @@ void serveJson(AsyncWebServerRequest* request)
   if      (url.indexOf("state")    > 0) { isAll = false; subJson = json_target::state; }
   else if (url.indexOf("info")     > 0) { isAll = false; subJson = json_target::info; }
   else if (url.indexOf("si")       > 0) { isAll = false; subJson = json_target::state_info; }
-  else if (url.indexOf(F("nodes")) > 0) { respondNodes(request); return; }
-  else if (url.indexOf(F("eff"))   > 0) { respondModeNames(request); return; }
+  else if (url.indexOf(F("nodes")) > 0) { respondJSONChunked(request, writeNodes()); return; }
+  else if (url.indexOf(F("eff"))   > 0) { respondJSONChunked(request, writeModeNames()); return; }
   else if (url.indexOf(F("palx"))  > 0) { respondPalettes(request, request->hasParam(F("page")) ? request->getParam(F("page"))->value().toInt() : 0); return; }
-  else if (url.indexOf(F("fxda"))  > 0) { respondModeData(request); return; }
+  else if (url.indexOf(F("fxda"))  > 0) { respondJSONChunked(request, writeModeData()); return; }
   else if (url.indexOf(F("net"))   > 0) { isAll = false; subJson = json_target::networks; }
   else if (url.indexOf(F("cfg"))   > 0) { isAll = false; subJson = json_target::config; }
-  else if (url.indexOf(F("pins"))  > 0) { respondPins(request); return; }
+  else if (url.indexOf(F("pins"))  > 0) { respondJSONChunked(request, writePins()); return; }
   #ifdef WLED_ENABLE_JSONLIVE
   else if (url.indexOf("live")     > 0) {
     serveLiveLeds(request);
