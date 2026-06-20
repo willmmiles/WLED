@@ -16,7 +16,9 @@
  *    {false, n}   wrote n bytes; sub-writer not finished — stop filling the
  *                 current buffer and flush what has been collected so far
  *    {true,  n}   wrote n final bytes; writer is done, caller may advance
- *    {true,  0}   writer already finished (or item was empty/skipped)
+ *    {true,  0}   writer already finished, or item is empty/skipped.
+ *                 In list context (factory form) a {true,0} on the first call
+ *                 silently omits the item — no separator is emitted.
  *
  *  Element  — unified type for all serialization slots: list items, object
  *            keys, and object values.  Implicitly constructs from:
@@ -45,6 +47,9 @@
  *    cb is either:
  *      (Iterator, uint8_t*, size_t) -> size_t   direct: cb writes one item
  *      (Iterator) -> Element                      factory: one writer per item
+ *    In the factory form, returning an Element whose first call returns {true,0}
+ *    silently skips that entry — useful for filtering sparse ranges without
+ *    disturbing separators.
  *
  *  writeJSONObject(begin, end, makeItem)
  *    makeItem: (Iterator) -> KeyValuePair
@@ -71,6 +76,10 @@
  * state (shared_ptr to heap data, captured references to stable globals, raw
  * PROGMEM pointers) is held inside Element closures; only one item writer is
  * live at a time.  No global JSON buffer lock is needed for these endpoints.
+ * 
+ * 
+ * This code was developed by Claude Sonnet <noreply@anthropic.com>, guided by
+ * Will Miles <will@willmiles.net>.
  */
 
 #include <functional>
