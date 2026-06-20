@@ -1053,10 +1053,6 @@ static json_chunked::Element writePinItem(int gpio) {
   if (!canInput && !canOutput && !isAllocated)
     return [](uint8_t*, size_t) -> WriteResult { return {true, 0}; };
 
-  auto doc = std::make_shared<StaticJsonDocument<384>>();
-  JsonObject pinObj = doc->to<JsonObject>();
-  pinObj["p"] = gpio;
-
   uint8_t caps = 0;
   #ifdef ARDUINO_ARCH_ESP32
   if (PinManager::isAnalogPin(gpio)) caps |= PIN_CAP_ADC;
@@ -1079,28 +1075,35 @@ static json_chunked::Element writePinItem(int gpio) {
   if (gpio == 2 || gpio == 15) caps |= PIN_CAP_BOOTSTRAP;
   if (gpio == 17) caps = PIN_CAP_INPUT_ONLY | PIN_CAP_ADC;
   #endif
-  pinObj["c"] = caps;
-  pinObj["a"] = isAllocated;
 
-  int buttonIndex = PinManager::getButtonIndex(gpio);
-  PinOwner owner  = PinManager::getPinOwner(gpio);
+  // Build fields dynamically; all values are read eagerly here on the calling
+  // stack, then moved into a shared_ptr for the async streaming lifetime.
+  using KVVec = std::vector<KeyValuePair>;
+  auto fields = std::make_shared<KVVec>();
+  fields->reserve(9);
+  fields->push_back({"p", gpio});
+  fields->push_back({"c", caps});
+  fields->push_back({"a", isAllocated});
+
   if (isAllocated) {
-    pinObj["o"] = static_cast<uint8_t>(owner);
-    pinObj["n"] = PinManager::getPinOwnerName(gpio);
+    PinOwner owner      = PinManager::getPinOwner(gpio);
+    int      buttonIndex = PinManager::getButtonIndex(gpio);
+    fields->push_back({"o", static_cast<uint8_t>(owner)});
+    fields->push_back({"n", String(PinManager::getPinOwnerName(gpio))});
     if (owner == PinOwner::Relay) {
-      pinObj["m"] = 1;
-      pinObj["s"] = digitalRead(rlyPin);
+      fields->push_back({"m", 1});
+      fields->push_back({"s", digitalRead(rlyPin)});
     } else if (buttonIndex >= 0) {
-      pinObj["m"] = 0;
-      pinObj["t"] = buttons[buttonIndex].type;
-      pinObj["s"] = isButtonPressed(buttonIndex) ? 1 : 0;
+      fields->push_back({"m", 0});
+      fields->push_back({"t", buttons[buttonIndex].type});
+      fields->push_back({"s", isButtonPressed(buttonIndex) ? 1 : 0});
       #if defined(CONFIG_IDF_TARGET_ESP32) || defined(CONFIG_IDF_TARGET_ESP32S2) || defined(CONFIG_IDF_TARGET_ESP32S3)
       if (buttons[buttonIndex].type == BTN_TYPE_TOUCH || buttons[buttonIndex].type == BTN_TYPE_TOUCH_SWITCH) {
         if (digitalPinToTouchChannel(gpio) >= 0) {
           #ifdef SOC_TOUCH_VERSION_2
-          pinObj["r"] = touchRead(gpio) >> 4;
+          fields->push_back({"r", touchRead(gpio) >> 4});
           #else
-          pinObj["r"] = touchRead(gpio);
+          fields->push_back({"r", touchRead(gpio)});
           #endif
         }
       }
@@ -1113,25 +1116,16 @@ static json_chunked::Element writePinItem(int gpio) {
         if (digitalPinToAnalogChannel(gpio) >= 0) analogRaw = (analogRead(gpio) >> 4);
         #endif
         if (buttons[buttonIndex].type == BTN_TYPE_ANALOG_INVERTED) analogRaw = 255 - analogRaw;
-        pinObj["r"] = analogRaw;
+        fields->push_back({"r", analogRaw});
       }
     } else if (owner == PinOwner::BusOnOff || owner == PinOwner::UM_MultiRelay) {
-      pinObj["m"] = 1;
-      pinObj["s"] = digitalRead(gpio);
+      fields->push_back({"m", 1});
+      fields->push_back({"s", digitalRead(gpio)});
     }
   }
 
-  size_t total = measureJson(*doc);
-  size_t sent  = 0;
-  return json_chunked::Element(
-    [doc, total, sent](uint8_t* buf, size_t maxLen) mutable -> WriteResult {
-      if (sent >= total) return {true, 0};
-      size_t n = total - sent < maxLen ? total - sent : maxLen;
-      ChunkPrint cp(buf, sent, n);
-      serializeJson(*doc, cp);
-      sent += n;
-      return {sent >= total, n};
-    });
+  return writeJSONObject(fields->begin(), fields->end(),
+    [fields](KVVec::iterator it) -> KeyValuePair { return *it; });
 }
 
 static Element writePins() {
