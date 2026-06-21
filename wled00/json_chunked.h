@@ -161,11 +161,17 @@ struct Element {
   std::function<WriteResult(uint8_t*, size_t)> fn;
 
   Element() = default;
+  // Explicitly default the copy/move constructors so they don't get caught by the template constructor below.
+  Element(const Element&) = default;
+  Element(Element&&) = default;
+  Element& operator=(const Element&) = default;
+  Element& operator=(Element&&) = default;  
 
   // From any callable with the Element signature (JSONListWriter, lambdas, …)
   template<typename F,
     typename = typename std::enable_if<
       is_element_fn<typename std::decay<F>::type>::value
+      && !std::is_same<typename std::decay<F>::type, Element>::value  // don't capture copies
     >::type>
   Element(F&& f) : fn(std::forward<F>(f)) {}
 
