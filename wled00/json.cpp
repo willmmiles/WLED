@@ -922,6 +922,11 @@ void serializeInfo(JsonObject root)
   root["ip"] = s;
 }
 
+static json_chunked::WriteResult json_int32_list(uint8_t* dest, size_t maxLen, const uint8_t val[4])  {
+  int r = snprintf_P((char*)dest, maxLen, PSTR("[%d,%d,%d,%d]"), val[0], val[1], val[2], val[3]);
+  return (r <= maxLen) ? json_chunked::WriteResult{true, (size_t) r} : json_chunked::WriteResult{false, 0};
+}
+
 // streamPalette16: streams a CRGBPalette16 as [[pos,r,g,b], ...].
 // palette must outlive the returned Element (all call sites pass stable globals/members).
 static json_chunked::Element streamPalette16(const CRGBPalette16& palette) {
@@ -929,8 +934,9 @@ static json_chunked::Element streamPalette16(const CRGBPalette16& palette) {
     // Indexes are ints because CRGBPalette16 operator[] doesn't accept size_t
     [&palette](int idx) -> Element {
       std::array<uint8_t,4> e = {uint8_t(idx<<4), palette[idx].red, palette[idx].green, palette[idx].blue};
-      return writeJSONList(size_t(0), size_t(4),
-        [e](size_t j) -> Element { return int32_t(e[j]); });
+      return Element { [e](uint8_t* dest, size_t maxLen) -> json_chunked::WriteResult {
+        return json_int32_list((uint8_t*)dest, maxLen, e.data());
+      }};
     });
 }
 
@@ -939,11 +945,12 @@ static json_chunked::Element makePaletteArrayWriter(size_t i, size_t palettesCou
   // Dynamic palettes
   switch (i) {
     case 0: return streamPalette16(PartyColors_gc22);
-    case 1: { static const char* s[] = {"r","r","r","r"};                                                                        return writeJSONList(s, s+4,  [](const char** p) -> Element { return *p; }); }
-    case 2: { static const char* s[] = {"c1"};                                                                                   return writeJSONList(s, s+1,  [](const char** p) -> Element { return *p; }); }
-    case 3: { static const char* s[] = {"c1","c1","c2","c2"};                                                                    return writeJSONList(s, s+4,  [](const char** p) -> Element { return *p; }); }
-    case 4: { static const char* s[] = {"c3","c2","c1"};                                                                         return writeJSONList(s, s+3,  [](const char** p) -> Element { return *p; }); }
-    case 5: { static const char* s[] = {"c1","c1","c1","c1","c1","c2","c2","c2","c2","c2","c3","c3","c3","c3","c3","c1"};       return writeJSONList(s, s+16, [](const char** p) -> Element { return *p; }); }
+    // The pre-serialized progmem strings here are smaller than the list of pointers to the elements (!)
+    case 1: return makeProgmemRawWriter(PSTR("[\"r\",\"r\",\"r\",\"r\"]"));
+    case 2: return makeProgmemRawWriter(PSTR("[\"c1\"]"));
+    case 3: return makeProgmemRawWriter(PSTR("[\"c1\",\"c1\",\"c2\",\"c2\"]"));
+    case 4: return makeProgmemRawWriter(PSTR("[\"c3\",\"c2\",\"c1\"]"));
+    case 5: return makeProgmemRawWriter(PSTR("[\"c1\",\"c1\",\"c1\",\"c1\",\"c1\",\"c2\",\"c2\",\"c2\",\"c2\",\"c2\",\"c3\",\"c3\",\"c3\",\"c3\",\"c3\",\"c1\"]"));
   }
 
   // Custom palettes
@@ -967,8 +974,9 @@ static json_chunked::Element makePaletteArrayWriter(size_t i, size_t palettesCou
       [](const TRGBGradientPaletteEntryUnion* ent) -> Element {
         TRGBGradientPaletteEntryUnion e;
         e.dword = pgm_read_dword(ent); // read the whole entry at once
-        return writeJSONList(size_t(0), size_t(4),
-          [e](size_t j) -> Element { return int32_t(e.bytes[j]); });
+        return Element { [e](uint8_t* dest, size_t maxLen) -> json_chunked::WriteResult  {
+          return json_int32_list((uint8_t*)dest, maxLen, e.bytes);
+        }};
       });
   }
 }
