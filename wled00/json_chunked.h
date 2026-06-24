@@ -179,10 +179,12 @@ struct Element {
   Element(const char* s) {
     bool written = false;
     fn = [s, written](uint8_t* buf, size_t len) mutable -> WriteResult {
-      if (written) return {true, 0};
-      size_t n = quoteJsonString(buf, len, s);
-      if (n) { written = true; return {true, n}; }
-      return {false, 0};
+      size_t n = 0;
+      if (!written) {
+        n = quoteJsonString(buf, len, s);
+        written = (n>0);
+      }
+      return {written, n};
     };
   }
 
