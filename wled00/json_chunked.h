@@ -431,9 +431,10 @@ writeJSONList(Iterator begin, Iterator end, Callback cb) {
 // ── JSONObjectWriter ──────────────────────────────────────────────────────────
 // MakeItem: (Iterator) -> KeyValuePair
 
-template<typename Iterator, typename MakeItem>
+template<typename Iterator>
 struct JSONObjectWriter {
   enum class Phase : uint8_t { NeedItem, Sep, Key, Colon, Value };
+  typedef std::function<KeyValuePair(Iterator)> MakeItem;
 
   Iterator current, end_val;
   MakeItem makeItem;
@@ -442,7 +443,7 @@ struct JSONObjectWriter {
   bool     first, done;
 
   JSONObjectWriter(Iterator begin, Iterator end, MakeItem mi)
-    : current(begin), end_val(end), makeItem(mi),
+    : current(begin), end_val(end), makeItem(std::move(mi)),
       phase(Phase::NeedItem), first(true), done(false) {}
 
   WriteResult operator()(uint8_t* dest, size_t maxLen) {
@@ -462,8 +463,8 @@ struct JSONObjectWriter {
       switch (phase) {
         case Phase::NeedItem: {
           auto kv    = makeItem(current);
-          keyWriter   = kv.key;
-          valueWriter = kv.value;
+          keyWriter   = std::move(kv.key);
+          valueWriter = std::move(kv.value);
           phase = Phase::Sep;
           continue;
         }
@@ -510,31 +511,30 @@ struct JSONObjectWriter {
 // Factory form: makeItem(Iterator) -> KeyValuePair
 
 template<typename Iterator, typename MakeItem>
-JSONObjectWriter<Iterator, MakeItem>
+JSONObjectWriter<Iterator>
 writeJSONObject(Iterator begin, Iterator end, MakeItem mi) {
-  return JSONObjectWriter<Iterator, MakeItem>(begin, end, mi);
+  return JSONObjectWriter<Iterator>(begin, end, std::move(mi));
 }
 
 // Two-callback form: keyCb(Iterator, uint8_t*, size_t) -> size_t
 //                    valCb(Iterator, uint8_t*, size_t) -> size_t
 
 template<typename Iterator, typename KeyCb, typename ValueCb>
-JSONObjectWriter<Iterator, std::function<KeyValuePair(Iterator)>>
+JSONObjectWriter<Iterator>
 writeJSONObject(Iterator begin, Iterator end, KeyCb keyCb, ValueCb valCb) {
-  using MakeItem = std::function<KeyValuePair(Iterator)>;
-  MakeItem mi = [keyCb, valCb](Iterator it) -> KeyValuePair {
-    return {
-      Element([keyCb, it](uint8_t* buf, size_t len) -> WriteResult {
-        size_t n = keyCb(it, buf, len);
-        return {n > 0, n};
-      }),
-      Element([valCb, it](uint8_t* buf, size_t len) -> WriteResult {
-        size_t n = valCb(it, buf, len);
-        return {n > 0, n};
-      })
-    };
-  };
-  return JSONObjectWriter<Iterator, MakeItem>(begin, end, mi);
+  return JSONObjectWriter<Iterator>(begin, end,
+    [keyCb, valCb](Iterator it) -> KeyValuePair {
+      return {
+        [keyCb, it](uint8_t* buf, size_t len) -> WriteResult {
+          size_t n = keyCb(it, buf, len);
+          return {n > 0, n};
+        },
+        [valCb, it](uint8_t* buf, size_t len) -> WriteResult {
+          size_t n = valCb(it, buf, len);
+          return {n > 0, n};
+        }
+      };
+    });
 }
 
 
@@ -544,20 +544,28 @@ writeJSONObject(Iterator begin, Iterator end, KeyCb keyCb, ValueCb valCb) {
 // because sendChunked fires its callback asynchronously after this function returns).
 inline Element writeJSONObject(std::initializer_list<KeyValuePair> items) {
   typedef std::vector<KeyValuePair> KVVec;
+#if __cplusplus >= 201402L  
+  KVVec vec(items.begin(), items.end());
+  return writeJSONObject(size_t{0}, vec.size(),
+      [vec = std::move(vec)](size_t i) -> KeyValuePair { return std::move(vec[i]); });
+#else
   std::shared_ptr<KVVec> vec = std::make_shared<KVVec>(items.begin(), items.end());
-  auto writer = writeJSONObject(vec->begin(), vec->end(),
-      [](KVVec::iterator it) -> KeyValuePair { return *it; });
-  return Element([vec, writer](uint8_t* buf, size_t len) mutable -> WriteResult {
-      return writer(buf, len);
-  });
+  return writeJSONObject(size_t{0}, vec->size(),
+      [vec](size_t i) -> KeyValuePair { return std::move((*vec)[i]); });
+#endif      
 }
 
 // ── respondJSONChunked ────────────────────────────────────────────────────────
 // Core responder: pipes any Element into request->sendChunked.
 
-void respondJSONChunked(AsyncWebServerRequest* request, Element writer) {
+void respondJSONChunked(AsyncWebServerRequest* request, Element writer) {    
   request->sendChunked(FPSTR(CONTENT_TYPE_JSON),
-    [writer](uint8_t* data, size_t len, size_t) mutable -> size_t {
+#if __cplusplus >= 201402L
+    [writer = std::move(writer)]
+#else
+    [writer]
+#endif    
+    (uint8_t* data, size_t len, size_t) mutable -> size_t {
       WriteResult r = writer(data, len);
       return r.count;
     });
