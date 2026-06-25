@@ -922,9 +922,9 @@ void serializeInfo(JsonObject root)
   root["ip"] = s;
 }
 
-static json_chunked::WriteResult json_int32_list(uint8_t* dest, size_t maxLen, const uint8_t val[4])  {
+static size_t json_int32_list(uint8_t* dest, size_t maxLen, const uint8_t val[4])  {
   int r = snprintf_P((char*)dest, maxLen, PSTR("[%d,%d,%d,%d]"), val[0], val[1], val[2], val[3]);
-  return (r <= maxLen) ? json_chunked::WriteResult{true, (size_t) r} : json_chunked::WriteResult{false, 0};
+  return (r <= (int) maxLen) ? r : 0;
 }
 
 // streamPalette16: streams a CRGBPalette16 as [[pos,r,g,b], ...].
@@ -932,11 +932,9 @@ static json_chunked::WriteResult json_int32_list(uint8_t* dest, size_t maxLen, c
 static json_chunked::Element streamPalette16(const CRGBPalette16& palette) {
   return writeJSONList(0, 16,
     // Indexes are ints because CRGBPalette16 operator[] doesn't accept size_t
-    [&palette](int idx) -> Element {
+    [&palette](int idx, uint8_t* dest, size_t maxLen) -> size_t {
       std::array<uint8_t,4> e = {uint8_t(idx<<4), palette[idx].red, palette[idx].green, palette[idx].blue};
-      return Element { [e](uint8_t* dest, size_t maxLen) -> json_chunked::WriteResult {
-        return json_int32_list((uint8_t*)dest, maxLen, e.data());
-      }};
+      return json_int32_list((uint8_t*)dest, maxLen, e.data());
     });
 }
 
@@ -969,14 +967,12 @@ static json_chunked::Element makePaletteArrayWriter(size_t i, size_t palettesCou
     const TRGBGradientPaletteEntryUnion* begin_ent = (const TRGBGradientPaletteEntryUnion*) gGradientPalettes[i - (DYNAMIC_PALETTE_COUNT + FASTLED_PALETTE_COUNT)];
     const TRGBGradientPaletteEntryUnion* end_ent = begin_ent;
     while (pgm_read_byte(&end_ent->index) != 255) end_ent++;
-    end_ent++;  // advance past the terminator so [begin_ent, end_ent) is inclusive
-    return writeJSONList(begin_ent, end_ent,
-      [](const TRGBGradientPaletteEntryUnion* ent) -> Element {
+    end_ent++;  // advance past the terminator so [begin_ent, end_ent) is inclusive    
+    return writeJSONList(0, end_ent - begin_ent,
+      [begin_ent](int idx, uint8_t* dest, size_t maxLen) -> size_t {
         TRGBGradientPaletteEntryUnion e;
-        e.dword = pgm_read_dword(ent); // read the whole entry at once
-        return Element { [e](uint8_t* dest, size_t maxLen) -> json_chunked::WriteResult  {
-          return json_int32_list((uint8_t*)dest, maxLen, e.bytes);
-        }};
+        e.dword = pgm_read_dword(begin_ent + idx); // read the whole entry at once
+        return json_int32_list((uint8_t*)dest, maxLen, e.bytes);
       });
   }
 }
@@ -1132,27 +1128,15 @@ static json_chunked::Element writePinItem(int gpio) {
     }
   }
 
-  return writeJSONObject(fields->begin(), fields->end(),
-    [fields](KVVec::iterator it) -> KeyValuePair { return *it; });
+  return writeJSONObject(0U, fields->size(),
+    [fields](size_t i) -> KeyValuePair { return std::move((*fields)[i]); });
 }
 
 static Element writePins() {
-  constexpr int ENUM_PINS = WLED_NUM_PINS;
+  constexpr size_t ENUM_PINS = WLED_NUM_PINS;
   return writeJSONObject(size_t(0), size_t(1),
     [](size_t) -> KeyValuePair {
-      return KeyValuePair{ "pins", writeJSONList(int(0), ENUM_PINS, writePinItem) };
-    });
-}
-
-static Element writeModeData() {
-  return writeJSONList(size_t(0), size_t(strip.getModeCount()),
-    [](size_t i, uint8_t* dest, size_t maxLen) -> size_t {
-      // Extract the portion of ModeData after the '@' character
-      char buf[256];
-      strncpy_P(buf, strip.getModeData(i), sizeof(buf) - 1);
-      buf[sizeof(buf) - 1] = '\0';
-      const char* p = strchr(buf, '@');
-      return quoteJsonString(dest, maxLen, p ? p + 1 : "");
+      return KeyValuePair{ "pins", writeJSONList(size_t(0), ENUM_PINS, writePinItem) };
     });
 }
 
@@ -1173,6 +1157,18 @@ static Element writeNodes() {
         })
     }
   });
+}
+
+static Element writeModeData() {
+  return writeJSONList(size_t(0), size_t(strip.getModeCount()),
+    [](size_t i, uint8_t* dest, size_t maxLen) -> size_t {
+      // Extract the portion of ModeData after the '@' character
+      char buf[256];
+      strncpy_P(buf, strip.getModeData(i), sizeof(buf) - 1);
+      buf[sizeof(buf) - 1] = '\0';
+      const char* p = strchr(buf, '@');
+      return quoteJsonString(dest, maxLen, p ? p + 1 : "");
+    });
 }
 
 static Element writeModeNames() {
