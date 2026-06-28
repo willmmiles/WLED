@@ -1,3 +1,5 @@
+#include <valarray>
+
 #include "wled.h"
 #include "json_chunked.h"
 
@@ -1082,32 +1084,31 @@ static json_chunked::Element writePinItem(int gpio) {
 
   // Build fields dynamically; all values are read eagerly here on the calling
   // stack, then moved into a shared_ptr for the async streaming lifetime.
-  using KVVec = std::vector<KeyValuePair>;
-  auto fields = std::make_shared<KVVec>();
-  fields->reserve(9);
-  fields->push_back({"p", gpio});
-  fields->push_back({"c", caps});
-  fields->push_back({"a", isAllocated});
+  auto fields = std::valarray<KeyValuePair>(9); // 9 is largest number of fields we may write for a pin (see below)
+  auto num_fields = 0U;
+  fields[num_fields++] = {"p", gpio};
+  fields[num_fields++] = {"c", caps};
+  fields[num_fields++] = {"a", isAllocated};
 
   if (isAllocated) {
     PinOwner owner      = PinManager::getPinOwner(gpio);
     int      buttonIndex = PinManager::getButtonIndex(gpio);
-    fields->push_back({"o", static_cast<uint8_t>(owner)});
-    fields->push_back({"n", String(PinManager::getPinOwnerName(gpio))});
+    fields[num_fields++] = {"o", static_cast<uint8_t>(owner)};
+    fields[num_fields++] = {"n", String(PinManager::getPinOwnerName(gpio))};
     if (owner == PinOwner::Relay) {
-      fields->push_back({"m", 1});
-      fields->push_back({"s", digitalRead(rlyPin)});
+      fields[num_fields++] = {"m", 1};
+      fields[num_fields++] = {"s", digitalRead(rlyPin)} ;
     } else if (buttonIndex >= 0) {
-      fields->push_back({"m", 0});
-      fields->push_back({"t", buttons[buttonIndex].type});
-      fields->push_back({"s", isButtonPressed(buttonIndex) ? 1 : 0});
+      fields[num_fields++] = {"m", 0};
+      fields[num_fields++] = {"t", buttons[buttonIndex].type};
+      fields[num_fields++] = {"s", isButtonPressed(buttonIndex) ? 1 : 0};
       #if defined(CONFIG_IDF_TARGET_ESP32) || defined(CONFIG_IDF_TARGET_ESP32S2) || defined(CONFIG_IDF_TARGET_ESP32S3)
       if (buttons[buttonIndex].type == BTN_TYPE_TOUCH || buttons[buttonIndex].type == BTN_TYPE_TOUCH_SWITCH) {
         if (digitalPinToTouchChannel(gpio) >= 0) {
           #ifdef SOC_TOUCH_VERSION_2
-          fields->push_back({"r", touchRead(gpio) >> 4});
+          fields[num_fields++] = {"r", touchRead(gpio) >> 4};
           #else
-          fields->push_back({"r", touchRead(gpio)});
+          fields[num_fields++] = {"r", touchRead(gpio)};
           #endif
         }
       }
@@ -1120,16 +1121,16 @@ static json_chunked::Element writePinItem(int gpio) {
         if (digitalPinToAnalogChannel(gpio) >= 0) analogRaw = (analogRead(gpio) >> 4);
         #endif
         if (buttons[buttonIndex].type == BTN_TYPE_ANALOG_INVERTED) analogRaw = 255 - analogRaw;
-        fields->push_back({"r", analogRaw});
+        fields[num_fields++] = {"r", analogRaw};
       }
     } else if (owner == PinOwner::BusOnOff || owner == PinOwner::UM_MultiRelay) {
-      fields->push_back({"m", 1});
-      fields->push_back({"s", digitalRead(gpio)});
+      fields[num_fields++] = {"m", 1};
+      fields[num_fields++] = {"s", digitalRead(gpio)};
     }
   }
 
-  return writeJSONObject(0U, fields->size(),
-    [fields](size_t i) -> KeyValuePair { return std::move((*fields)[i]); });
+  return writeJSONObject(0U, num_fields,
+    [JC_CAPTURE_BY_MOVE(fields)](size_t i) mutable -> KeyValuePair { return std::move(fields[i]); });
 }
 
 static Element writePins() {
@@ -1142,17 +1143,32 @@ static Element writePins() {
 
 static Element writeNodes() {
   // Produces {"nodes":[{"name":..,"type":N,"ip":..,"age":N,"vid":N},...]}
+  // We first flatten the NodesMap to a local copy to avoid any concurrent modification issues while streaming the JSON.
+  // TODO: some kind of locking on Nodes...  
+  //auto nodes = std::shared_ptr<NodeStruct[]>(new NodeStruct[Nodes.size()], std::default_delete<NodeStruct[]>()); // lame fake std::vector, but std::vector is too heavy in terms of flash
+  auto nodes = std::valarray<NodeStruct>(Nodes.size());
+  auto idx = 0U;
+  for(auto& pair : Nodes) {
+    if (pair.second.ip[0] != 0) {
+      nodes[idx++] = pair.second;
+    }
+  }
+
   return writeJSONObject({
-    { "nodes", writeJSONList(Nodes.begin(), Nodes.end(),
-        [](NodesMap::iterator it) -> json_chunked::Element {
-          if (it->second.ip[0] == 0)
-            return json_chunked::Element([](uint8_t*, size_t) -> WriteResult { return {true, 0}; });
+    { "nodes", writeJSONList(0U, idx,
+#if __cplusplus >= 201402L
+    [nodes = std::move(nodes)]
+#else
+    [nodes]
+#endif    
+      (size_t idx) -> json_chunked::Element {
+          auto& node = nodes[idx];
           return writeJSONObject({
-            { "name",   String(it->second.nodeName) },
-            { "type",   it->second.nodeType         },
-            { "ip",     it->second.ip.toString()    },
-            { F("age"), it->second.age              },
-            { F("vid"), it->second.build            }
+            { "name",   node.nodeName },
+            { "type",   node.nodeType         },
+            { "ip",     node.ip.toString()    },
+            { F("age"), node.age              },
+            { F("vid"), node.build            }
           });
         })
     }
