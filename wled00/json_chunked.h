@@ -86,6 +86,9 @@
 #include <initializer_list>
 #include <type_traits>
 #include <valarray>
+#include <new>
+#include <cstring>
+#include <cstdio>
 #include <ESPAsyncWebServer.h>
 #include "src/dependencies/json/ArduinoJson-v6.h"
 #include "src/dependencies/json/AsyncJson-v6.h"   // ChunkPrint
@@ -161,10 +164,113 @@ struct is_element_fn<F, typename std::enable_if<
   >::type> : std::true_type {};
 
 
+// ── inplace_fn ────────────────────────────────────────────────────────────────
+// Lightweight owning type-erasure used in place of std::function for Element.
+//
+// std::function emits, per target type, both an _M_invoke thunk (the call) AND an
+// _M_manager thunk (copy/move/destroy/typeid dispatch).  The manager is dead
+// weight for the common case here: targets that capture only trivially-copyable
+// state (pointers, ints, iterators).  inplace_fn stores such a target inline and
+// needs NO per-type management code — copy is a memcpy and destroy is a no-op,
+// shared across every trivial instantiation.  Only targets that are non-trivial
+// OR too large to inline fall back to a heap allocation with per-type clone/destroy
+// ops (mirroring std::function's own SBO-or-heap behaviour).
+//
+// Target requirement: copy-constructible (Element is a value type).
+template<typename Sig>
+class inplace_fn;
+
+template<typename Ret, typename... Args>
+class inplace_fn<Ret(Args...)> {
+  static const size_t N = 24;   // inline buffer; larger/non-trivial targets go to heap
+
+  struct Ops {
+    void* (*clone)(const void*);   // heap-clone a target, return new storage
+    void  (*destroy)(void*);       // destroy + free a heap target
+  };
+
+  // ops_ == nullptr : target lives inline in buf_ and is trivially copyable
+  //                   (copy = memcpy(buf_), destroy = no-op).
+  // ops_ != nullptr : target lives on the heap at ptr_; use ops_ to copy/destroy.
+  union {
+    typename std::aligned_storage<N, alignof(long long)>::type buf_;
+    void* ptr_;
+  };
+  Ret       (*invoke_)(const void*, Args...);
+  const Ops*  ops_;
+
+  const void* target() const { return ops_ ? ptr_ : static_cast<const void*>(&buf_); }
+
+  template<typename Fn> static Ret invoke_thunk(const void* p, Args... args) {
+    // targets may be 'mutable'; call through a non-const ref (matches std::function)
+    return (*const_cast<Fn*>(static_cast<const Fn*>(p)))(static_cast<Args>(args)...);
+  }
+  template<typename Fn> static void* clone_thunk(const void* p) { return new Fn(*static_cast<const Fn*>(p)); }
+  template<typename Fn> static void  destroy_thunk(void* p)     { delete static_cast<Fn*>(p); }
+  template<typename Fn> static const Ops* heap_ops() {
+    static const Ops o{ &clone_thunk<Fn>, &destroy_thunk<Fn> };
+    return &o;
+  }
+
+  template<typename Fn>
+  using fits_inline = std::integral_constant<bool,
+      (sizeof(Fn) <= N) && std::is_trivially_copyable<Fn>::value
+                        && std::is_trivially_destructible<Fn>::value>;
+
+  template<typename Fn> void emplace(Fn&& f, std::true_type /*inline*/) {
+    using D = typename std::decay<Fn>::type;
+    new (&buf_) D(std::forward<Fn>(f));
+    invoke_ = &invoke_thunk<D>;
+    ops_    = nullptr;
+  }
+  template<typename Fn> void emplace(Fn&& f, std::false_type /*heap*/) {
+    using D = typename std::decay<Fn>::type;
+    ptr_    = new D(std::forward<Fn>(f));
+    invoke_ = &invoke_thunk<D>;
+    ops_    = heap_ops<D>();
+  }
+
+  void reset() noexcept { if (ops_) ops_->destroy(ptr_); invoke_ = nullptr; ops_ = nullptr; }
+  void swap_storage(inplace_fn& o) noexcept {     // both states are trivially relocatable
+    std::swap(invoke_, o.invoke_);
+    std::swap(ops_, o.ops_);
+    typename std::aligned_storage<N, alignof(long long)>::type t;
+    std::memcpy(&t, &buf_, N); std::memcpy(&buf_, &o.buf_, N); std::memcpy(&o.buf_, &t, N);
+  }
+
+public:
+  inplace_fn() noexcept : invoke_(nullptr), ops_(nullptr) {}
+
+  template<typename Fn, typename = typename std::enable_if<
+      !std::is_same<typename std::decay<Fn>::type, inplace_fn>::value>::type>
+  inplace_fn(Fn&& f) { emplace(std::forward<Fn>(f), fits_inline<typename std::decay<Fn>::type>{}); }
+
+  inplace_fn(const inplace_fn& o) : invoke_(o.invoke_), ops_(o.ops_) {
+    if (ops_) ptr_ = ops_->clone(o.ptr_);
+    else      buf_ = o.buf_;
+  }
+  inplace_fn(inplace_fn&& o) noexcept : invoke_(o.invoke_), ops_(o.ops_) {
+    if (ops_) { ptr_ = o.ptr_; o.invoke_ = nullptr; o.ops_ = nullptr; }
+    else        buf_ = o.buf_;
+  }
+  inplace_fn& operator=(const inplace_fn& o) { inplace_fn t(o); swap_storage(t); return *this; }
+  inplace_fn& operator=(inplace_fn&& o) noexcept { inplace_fn t(std::move(o)); swap_storage(t); return *this; }
+
+  template<typename Fn, typename = typename std::enable_if<
+      !std::is_same<typename std::decay<Fn>::type, inplace_fn>::value>::type>
+  inplace_fn& operator=(Fn&& f) { inplace_fn t(std::forward<Fn>(f)); swap_storage(t); return *this; }
+
+  ~inplace_fn() { reset(); }
+
+  Ret operator()(Args... args) const { return invoke_(target(), static_cast<Args>(args)...); }
+  explicit operator bool() const noexcept { return invoke_ != nullptr; }
+};
+
+
 // ── Element ────────────────────────────────────────────────────────────────────
 // Unified serialization slot type.  See file header for implicit conversions.
 struct Element {
-  std::function<WriteResult(uint8_t*, size_t)> fn;
+  inplace_fn<WriteResult(uint8_t*, size_t)> fn;
 
   Element() = default;
   // Explicitly default the copy/move constructors so they don't get caught by the template constructor below.
@@ -232,16 +338,20 @@ struct Element {
   }
 
   // int32_t → unquoted decimal integer (use makeIntKeyWriter for quoted keys)
+  // Captures the integer (not a formatted String) and renders on demand into a
+  // stack buffer: the closure stays trivially copyable, so Element stores it
+  // inline with no heap allocation and no per-type manager code.
   Element(int32_t v) {
-    String s(v);
     bool written = false;
-    fn = [s, written](uint8_t* buf, size_t len) mutable -> WriteResult {
+    fn = [v, written](uint8_t* buf, size_t len) mutable -> WriteResult {
       if (written) return {true, 0};
-      size_t n = s.length();
-      if (n > len) return {false, 0};
-      memcpy(buf, s.c_str(), n);
+      char tmp[12];
+      int n = snprintf(tmp, sizeof(tmp), "%ld", (long)v);
+      if (n < 0) { written = true; return {true, 0}; }
+      if ((size_t)n > len) return {false, 0};
+      memcpy(buf, tmp, n);
       written = true;
-      return {true, n};
+      return {true, (size_t)n};
     };
   }
 
