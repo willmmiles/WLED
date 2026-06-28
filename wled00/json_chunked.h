@@ -85,10 +85,16 @@
 #include <functional>
 #include <initializer_list>
 #include <type_traits>
-#include <vector>
+#include <valarray>
 #include <ESPAsyncWebServer.h>
 #include "src/dependencies/json/ArduinoJson-v6.h"
 #include "src/dependencies/json/AsyncJson-v6.h"   // ChunkPrint
+
+#if __cplusplus >= 201402L
+  #define JC_CAPTURE_BY_MOVE(x) x = std::move(x)
+#else
+  #define JC_CAPTURE_BY_MOVE(x) x 
+#endif  
 
 
 namespace json_chunked {
@@ -540,19 +546,12 @@ writeJSONObject(Iterator begin, Iterator end, KeyCb keyCb, ValueCb valCb) {
 
 // Initializer-list form: writeJSONObject({ {"key", val}, {"key2", val2} })
 // Items (KeyValuePair values) are constructed at the call site and copied into a
-// heap vector so the returned Element can outlive the current stack frame (needed
+// heap array so the returned Element can outlive the current stack frame (needed
 // because sendChunked fires its callback asynchronously after this function returns).
 inline Element writeJSONObject(std::initializer_list<KeyValuePair> items) {
-  typedef std::vector<KeyValuePair> KVVec;
-#if __cplusplus >= 201402L  
-  KVVec vec(items.begin(), items.end());
+  std::valarray<KeyValuePair> vec(items);
   return writeJSONObject(size_t{0}, vec.size(),
-      [vec = std::move(vec)](size_t i) -> KeyValuePair { return std::move(vec[i]); });
-#else
-  std::shared_ptr<KVVec> vec = std::make_shared<KVVec>(items.begin(), items.end());
-  return writeJSONObject(size_t{0}, vec->size(),
-      [vec](size_t i) -> KeyValuePair { return std::move((*vec)[i]); });
-#endif      
+      [JC_CAPTURE_BY_MOVE(vec)](size_t i) -> KeyValuePair { return std::move(vec[i]); });
 }
 
 // ── respondJSONChunked ────────────────────────────────────────────────────────
@@ -560,12 +559,7 @@ inline Element writeJSONObject(std::initializer_list<KeyValuePair> items) {
 
 void respondJSONChunked(AsyncWebServerRequest* request, Element writer) {    
   request->sendChunked(FPSTR(CONTENT_TYPE_JSON),
-#if __cplusplus >= 201402L
-    [writer = std::move(writer)]
-#else
-    [writer]
-#endif    
-    (uint8_t* data, size_t len, size_t) mutable -> size_t {
+    [JC_CAPTURE_BY_MOVE(writer)] (uint8_t* data, size_t len, size_t) mutable -> size_t {
       WriteResult r = writer(data, len);
       return r.count;
     });
