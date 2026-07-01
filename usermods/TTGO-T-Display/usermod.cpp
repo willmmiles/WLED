@@ -23,24 +23,6 @@
 #include "WiFi.h"
 #include <Wire.h>
 
-// #ifndef TFT_DISPOFF
-// #define TFT_DISPOFF 0x28
-// #endif
-
-// #ifndef TFT_SLPIN
-// #define TFT_SLPIN   0x10
-// #endif
-
-// #define TFT_MOSI            19
-// #define TFT_SCLK            18
-// #define TFT_CS              5
-// #define TFT_DC              16
-// #define TFT_RST             23
-
-//#define TFT_BL          4  // Display backlight control pin
-//#define ADC_EN          14  // Used for enabling battery voltage measurements - not used in this program
-//#define WLED_WATCHDOG_TIMEOUT 3
-
 // How often we are redrawing screen
 #define USER_LOOP_REFRESH_RATE_MS 5000
 
@@ -48,6 +30,7 @@ class TTGO_T_DisplayMod : public Usermod {
 
   // Member variables  
   bool enabled = true;
+  bool ready = false;
   TFT_eSPI tft; // Invoke custom library
   // needRedraw marks if redraw is required to prevent often redrawing.
   bool needRedraw = true;
@@ -62,7 +45,9 @@ class TTGO_T_DisplayMod : public Usermod {
 
   long lastUpdate_mod = 0;
   long lastRedraw = 0;
+#ifdef TFT_BL  
   bool displayTurnedOff = false;
+#endif  
 
   // string that are used multiple time (this will save some flash memory)
   static const char _name[];
@@ -75,36 +60,39 @@ TTGO_T_DisplayMod() : Usermod()
 
 //gets called once at boot. Do all initialization that doesn't depend on network here
 void setup() override {
-    // Reserve pins
-    if (
+  if (!ready) {
+    // Reserve pins. allocateMultiplePins() validates every pin before allocating
+    // any of them, so a failure here leaves no pins allocated (no manual rollback needed).
+    // Pins the active TFT_eSPI User_Setup doesn't define (e.g. parallel-bus displays,
+    // or lines hardwired to GND/3V3) are simply left out of the array below.
+    const int8_t pins[] = {
 #ifdef TFT_MISO
-        !PinManager::allocatePin(TFT_MISO, true, (PinOwner) getId()) ||
+      TFT_MISO,
 #endif
-
 #ifdef TFT_MOSI
-        !PinManager::allocatePin(TFT_MOSI, true, (PinOwner) getId()) ||
+      TFT_MOSI,
 #endif
 #ifdef TFT_SCLK
-        !PinManager::allocatePin(TFT_SCLK, true, (PinOwner) getId()) ||
+      TFT_SCLK,
 #endif
 #ifdef TFT_CS
-        !PinManager::allocatePin(TFT_CS, true, (PinOwner) getId()) ||
+      TFT_CS,
 #endif
 #ifdef TFT_DC
-        !PinManager::allocatePin(TFT_DC, true, (PinOwner) getId()) ||
+      TFT_DC,
 #endif
 #ifdef TFT_RST
-        !PinManager::allocatePin(TFT_RST, true, (PinOwner) getId()) ||
+      TFT_RST,
 #endif
 #ifdef TFT_BL
-        !PinManager::allocatePin(TFT_BL, true, (PinOwner) getId()) ||
-#endif
+      TFT_BL,
+#endif      
 #ifdef TOUCH_CS
-        !PinManager::allocatePin(TOUCH_CS, true, (PinOwner) getId()) ||
+      TOUCH_CS,
 #endif
-    0) {
+    };
+    if (!PinManager::allocateMultiplePins(pins, sizeof(pins)/sizeof(pins[0]), (PinOwner) getId(), true)) {
       DEBUG_PRINTLN("TFT: Failed to allocate pins!");
-      enabled = false;
       return;
     }
 
@@ -121,21 +109,29 @@ void setup() override {
     tft.print("Loading...");
     DEBUG_PRINTLN("TFT Loading...");
 
+#ifdef TFT_BL    
     if (TFT_BL > 0) { // TFT_BL has been set in the TFT_eSPI library in the User Setup file TTGO_T_Display.h
          pinMode(TFT_BL, OUTPUT); // Set backlight pin to output mode
          digitalWrite(TFT_BL, TFT_BACKLIGHT_ON); // Turn backlight on. 
     }
+#endif    
 
     // tft.setRotation(3);
+    ready = true;
+  }
 }
 
 
 void loop() override {
+  if (!ready) return; 
+
   if (!enabled) {
+#ifdef TFT_BL
     if (!displayTurnedOff) {
       digitalWrite(TFT_BL, !TFT_BACKLIGHT_ON); // Turn backlight off. 
       displayTurnedOff = true;
     }
+#endif
     return;
   }
 
@@ -145,12 +141,6 @@ void loop() override {
   }
   lastUpdate_mod = millis();
   
-  // Turn off display after 5 minutes with no change.
-   if(!displayTurnedOff && millis() - lastRedraw > 5*60*1000) {
-    digitalWrite(TFT_BL, !TFT_BACKLIGHT_ON); // Turn backlight off. 
-    displayTurnedOff = true;
-  } 
-
   // Check if values which are shown on display changed from the last time.
   if (((apActive) ? String(apSSID) : WiFi.SSID()) != knownSsid) {
     needRedraw = true;
@@ -165,23 +155,28 @@ void loop() override {
   }
 
   if (!needRedraw) {
+  // Turn off display after 5 minutes with no change.
+#ifdef TFT_BL
+  if(!displayTurnedOff && millis() - lastRedraw > 5*60*1000) {
+    digitalWrite(TFT_BL, !TFT_BACKLIGHT_ON); // Turn backlight off. 
+    displayTurnedOff = true;
+  } 
+#endif  
     return;
   }
   needRedraw = false;
   
+#ifdef TFT_BL
   if (displayTurnedOff)
   {
     digitalWrite(TFT_BL, TFT_BACKLIGHT_ON); // Turn backlight on.
     displayTurnedOff = false;
   }
+#endif  
   lastRedraw = millis();
 
   // Update last known values.
-  #if defined(ESP8266)
-  knownSsid = apActive ? WiFi.softAPSSID() : WiFi.SSID();
-  #else
-  knownSsid = WiFi.SSID();
-  #endif
+  knownSsid = apActive ? apSSID : WiFi.SSID();
   knownIp = apActive ? IPAddress(4, 3, 2, 1) : WiFi.localIP();
   knownBrightness = bri;
   knownMode = strip.getMainSegment().mode;
@@ -262,10 +257,18 @@ void addToJsonInfo(JsonObject& root) {
   if (user.isNull()) user = root.createNestedObject("u");
 
   auto state = user.createNestedArray(FPSTR(_name));
+  if (!ready) {
+    state.add(PSTR("Pin allocation failure"));
+    return;
+  }
   if (enabled) {
-    state.add(displayTurnedOff ? "Off" : "On");
+#ifdef TFT_BL    
+    state.add(displayTurnedOff ? PSTR("Off") : PSTR("On"));
+#else
+    state.add(PSTR("On"));
+#endif    
   } else {
-    state.add("Disabled");
+    state.add(PSTR("Disabled"));
   }
 }
 
