@@ -23,6 +23,8 @@
 #include "WiFi.h"
 #include <Wire.h>
 
+#define DISPLAY_HAS_BACKLIGHT defined(TFT_BL) && defined(TFT_BACKLIGHT_ON) && (TFT_BL >= 0)
+
 // How often we are redrawing screen
 #define USER_LOOP_REFRESH_RATE_MS 5000
 
@@ -45,7 +47,7 @@ class TTGO_T_DisplayMod : public Usermod {
 
   long lastUpdate_mod = 0;
   long lastRedraw = 0;
-#ifdef TFT_BL  
+#if DISPLAY_HAS_BACKLIGHT
   bool displayTurnedOff = false;
 #endif  
 
@@ -65,33 +67,33 @@ void setup() override {
     // any of them, so a failure here leaves no pins allocated (no manual rollback needed).
     // Pins the active TFT_eSPI User_Setup doesn't define (e.g. parallel-bus displays,
     // or lines hardwired to GND/3V3) are simply left out of the array below.
-    const int8_t pins[] = {
+    const static PinManagerPinType pins[] PROGMEM = {
 #ifdef TFT_MISO
-      TFT_MISO,
+      { TFT_MISO, INPUT },
 #endif
 #ifdef TFT_MOSI
-      TFT_MOSI,
+      { TFT_MOSI, OUTPUT },
 #endif
 #ifdef TFT_SCLK
-      TFT_SCLK,
+      { TFT_SCLK, OUTPUT },
 #endif
 #ifdef TFT_CS
-      TFT_CS,
+      { TFT_CS, OUTPUT },
 #endif
 #ifdef TFT_DC
-      TFT_DC,
+      { TFT_DC, OUTPUT },
 #endif
 #ifdef TFT_RST
-      TFT_RST,
+      { TFT_RST, OUTPUT },
 #endif
 #ifdef TFT_BL
-      TFT_BL,
+      { TFT_BL, OUTPUT },
 #endif      
 #ifdef TOUCH_CS
-      TOUCH_CS,
+      { TOUCH_CS, OUTPUT },
 #endif
     };
-    if (!PinManager::allocateMultiplePins(pins, sizeof(pins)/sizeof(pins[0]), (PinOwner) getId(), true)) {
+    if (!PinManager::allocateMultiplePins(pins, sizeof(pins)/sizeof(pins[0]), (PinOwner) getId())) {
       DEBUG_PRINTLN("TFT: Failed to allocate pins!");
       return;
     }
@@ -109,8 +111,8 @@ void setup() override {
     tft.print("Loading...");
     DEBUG_PRINTLN("TFT Loading...");
 
-#ifdef TFT_BL    
-    if (TFT_BL > 0) { // TFT_BL has been set in the TFT_eSPI library in the User Setup file TTGO_T_Display.h
+#if DISPLAY_HAS_BACKLIGHT
+    if (TFT_BL >= 0) { // TFT_BL has been set in the TFT_eSPI library in the User Setup file TTGO_T_Display.h
          pinMode(TFT_BL, OUTPUT); // Set backlight pin to output mode
          digitalWrite(TFT_BL, TFT_BACKLIGHT_ON); // Turn backlight on. 
     }
@@ -126,7 +128,7 @@ void loop() override {
   if (!ready) return; 
 
   if (!enabled) {
-#ifdef TFT_BL
+#if DISPLAY_HAS_BACKLIGHT
     if (!displayTurnedOff) {
       digitalWrite(TFT_BL, !TFT_BACKLIGHT_ON); // Turn backlight off. 
       displayTurnedOff = true;
@@ -156,7 +158,7 @@ void loop() override {
 
   if (!needRedraw) {
   // Turn off display after 5 minutes with no change.
-#ifdef TFT_BL
+#if DISPLAY_HAS_BACKLIGHT
   if(!displayTurnedOff && millis() - lastRedraw > 5*60*1000) {
     digitalWrite(TFT_BL, !TFT_BACKLIGHT_ON); // Turn backlight off. 
     displayTurnedOff = true;
@@ -166,7 +168,7 @@ void loop() override {
   }
   needRedraw = false;
   
-#ifdef TFT_BL
+#if DISPLAY_HAS_BACKLIGHT
   if (displayTurnedOff)
   {
     digitalWrite(TFT_BL, TFT_BACKLIGHT_ON); // Turn backlight on.
@@ -252,7 +254,7 @@ void loop() override {
   * Creating an "u" object allows you to add custom key/value pairs to the Info section of the WLED web UI.
   * Below it is shown how this could be used for e.g. a light sensor
   */
-void addToJsonInfo(JsonObject& root) {
+void addToJsonInfo(JsonObject& root) override {
   JsonObject user = root["u"];
   if (user.isNull()) user = root.createNestedObject("u");
 
@@ -262,7 +264,7 @@ void addToJsonInfo(JsonObject& root) {
     return;
   }
   if (enabled) {
-#ifdef TFT_BL    
+#if DISPLAY_HAS_BACKLIGHT    
     state.add(displayTurnedOff ? PSTR("Off") : PSTR("On"));
 #else
     state.add(PSTR("On"));
