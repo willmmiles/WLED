@@ -458,28 +458,33 @@ void Segment::handleRandomPalette() {
 // strip must be suspended (strip.suspend()) before calling this function
 // this function may call fill() to clear pixels if spacing or mapping changed (which requires setting _vWidth, _vHeight, _vLength or beginDraw())
 void Segment::setGeometry(uint16_t i1, uint16_t i2, uint8_t grp, uint8_t spc, uint16_t ofs, uint16_t i1Y, uint16_t i2Y, uint8_t m12) {
-  // Sanitise inputs  
+  // Sanitise inputs
   if (i2 <= i1) { // For any values, this means deactivate the segment; we check i2 before i1 for this case
     i2 = 0;
-  } else {
-    // Clamp i2 to maximum length
-    if (i2 > Segment::maxWidth*Segment::maxHeight) {
-      i2 = MIN(i2,strip.getLengthTotal());
-    } else if (i2 > Segment::maxWidth) {
-      i2 = Segment::maxWidth;
-    } else if (i2 < 1) {
-      i2 = 1;
-    }     
-  }
+  } 
+
   // If i1 is invalid, use old value
   // Valid range is inside maxWidth, or in trailing segment range
   if ((i1 >= Segment::maxWidth) && (i1 < Segment::maxWidth*Segment::maxHeight || i1 >= strip.getLengthTotal())) {
     i1 = start;
   }
 
+  // Check i2 validity
+  if (i2 > 0) {
+    // Clamp i2 to maximum length
+    if ((i1 >= Segment::maxWidth*Segment::maxHeight) && (i2 >= Segment::maxWidth*Segment::maxHeight)) {
+      // Trailing strip after 2D
+      i2 = MIN(i2,strip.getLengthTotal());
+      i1Y = 0;  // 2D Y values are not used for trailing strip
+      i2Y = 1;
+    } else if (i2 > Segment::maxWidth) {
+      i2 = Segment::maxWidth;
+    }
+  }
+
   #ifndef WLED_DISABLE_2D
   if (Segment::maxHeight>1) { // 2D
-    if (i1Y >= Segment::maxHeight) i1Y = startY;
+    if (i1Y >= Segment::maxHeight) i1Y = 0;   // Unlike i1, doesn't inherit old value
     if (i2Y > Segment::maxHeight) {
       i2Y = Segment::maxHeight;
     } else if (i2Y < 1) {
@@ -517,7 +522,6 @@ void Segment::setGeometry(uint16_t i1, uint16_t i2, uint8_t grp, uint8_t spc, ui
   
   unsigned oldLength = length();
 
-  stateChanged = true; // send UDP/WS broadcast
   markForReset();
   stopTransition(); // we can't use transition if segment dimensions changed
   stateChanged = true;      // send UDP/WS broadcast
@@ -536,6 +540,7 @@ void Segment::setGeometry(uint16_t i1, uint16_t i2, uint8_t grp, uint8_t spc, ui
   auto newLength = length();
   if ((newLength > 0) && (newLength != oldLength)) {
     // allocate render buffer (always entire segment), prefer IRAM/PSRAM. Note: impact on FPS with PSRAM buffer is low (<2% with QSPI PSRAM) on S2/S3
+    // Note we don't pass BFRALLOC_CLEAR as resetIfRequired() will initialize the buffer later
     p_free(pixels);
     pixels = static_cast<uint32_t*>(allocate_buffer(length() * sizeof(uint32_t), BFRALLOC_PREFER_PSRAM | BFRALLOC_NOBYTEACCESS));
     if (!pixels) {
