@@ -202,7 +202,6 @@ void loop() override {
   //   tft.print(apPass);
   // else
   //   tft.print(knownIp);
-  DEBUG_PRINTLN("Print known AP");
   if (apActive) {
     tft.print("AP IP: ");
     tft.print(knownIp);
@@ -211,7 +210,6 @@ void loop() override {
     tft.print(apPass);
   }
   else {
-    DEBUG_PRINTLN("Print IP");
     tft.print("IP: ");
     tft.print(knownIp);
     tft.setCursor(1,46);
@@ -227,25 +225,17 @@ void loop() override {
   char lineBuffer[tftcharwidth+1];
   extractModeName(knownMode, JSON_mode_names, lineBuffer, tftcharwidth);
   tft.print(lineBuffer);
-  DEBUG_PRINTLN("Print mode name");
 
   // Fourth row with palette name
   tft.setCursor(1, 90);
   extractModeName(knownPalette, JSON_palette_names, lineBuffer, tftcharwidth);
   tft.print(lineBuffer);
-  DEBUG_PRINTLN("Print palette");
 
   // Fifth row with estimated mA usage
   tft.setCursor(1, 112);
   // Print estimated milliamp usage (must specify the LED type in LED prefs for this to be a reasonable estimate).
-  //tft.print(strip.currentMilliamps);
   tft.print(BusManager::currentMilliamps());
-  DEBUG_PRINTLN(BusManager::currentMilliamps());
-  DEBUG_PRINTLN(" mA (estimated)");
-  //tft.print("test ");
-  tft.print("mA (estimated)");
-  DEBUG_PRINTLN("Print estimated current");
-  
+  tft.print("mA (estimated)");  
 }
 
 
