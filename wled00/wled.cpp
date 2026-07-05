@@ -779,8 +779,7 @@ void WLED::initConnection()
     WiFi.config(IPAddress((uint32_t)0), IPAddress((uint32_t)0), IPAddress((uint32_t)0));  
   } else {
     if (selectedWiFi >= multiWiFi.size()) selectedWiFi = 0; // guard: ensure valid index
-    if (multiWiFi[selectedWiFi].staticIP != IPAddress((uint32_t)0) &&
-      multiWiFi[selectedWiFi].staticGW != IPAddress((uint32_t)0)) { // guard: compare as IPAddress to avoid pointer overload
+	if (uint32_t(multiWiFi[selectedWiFi].staticIP) != 0U && uint32_t(multiWiFi[selectedWiFi].staticGW) != 0U) {  // explicit cast to uint32_t ensures we check the IPv4 adress, not IPv6
       WiFi.config(multiWiFi[selectedWiFi].staticIP, multiWiFi[selectedWiFi].staticGW, multiWiFi[selectedWiFi].staticSN, dnsAddress);
     } else {
       WiFi.config(IPAddress((uint32_t)0), IPAddress((uint32_t)0), IPAddress((uint32_t)0));
