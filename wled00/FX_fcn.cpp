@@ -484,7 +484,11 @@ void Segment::setGeometry(uint16_t i1, uint16_t i2, uint8_t grp, uint8_t spc, ui
 
   #ifndef WLED_DISABLE_2D
   if (Segment::maxHeight>1) { // 2D
-    if (i1Y >= Segment::maxHeight) i1Y = 0;   // Unlike i1, doesn't inherit old value
+    if (i1Y >= Segment::maxHeight) {
+      // Unlike i1 (X), Y values don't inherit old values if invalid
+      // This behaviour preserved for backwards compatibility
+      i1Y = 0;   
+    }
     if (i2Y > Segment::maxHeight) {
       i2Y = Segment::maxHeight;
     } else if (i2Y < 1) {
