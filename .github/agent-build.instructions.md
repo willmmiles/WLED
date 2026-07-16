@@ -57,7 +57,7 @@ Use these timeout values when running builds:
    - If the build fails, fix the issue before proceeding
 3. **For web UI changes**: manually test the interface (see below)
 4. Compare your changes to the previous source code:
-    - All **previous comments have been preserved** or updated to reflect the new behaviour.
+    - All **previous comments have been preserved** or were updated to reflect the new behaviour.
     - All code changes are correct and necessary to achieve desired behaviour.
     - No unrelated code has been deleted accidentally.
     - Any duplication of already existing functionality is strictly necessary.
