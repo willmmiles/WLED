@@ -475,6 +475,22 @@ const char PAGE_dmxmap[] PROGMEM = R"=====()=====";
 // features (e.g. 'inject', 'defaults') fail loudly instead of being ignored.
 const MANIFEST_ALLOWED_KEYS = new Set(['header', 'schemaVersion', '$schema']);
 
+// Resolve `rel` (a manifest-supplied path) against `baseDir`, failing via `fail`
+// if it lands outside `baseDir`.  Usermod manifests are third-party build inputs,
+// so a stray `..` -- or an absolute path -- in an output/srcDir/spec file must not
+// let the build read from, or write to, anywhere outside the usermod's own folder.
+// path.resolve (not path.join) is used deliberately: it treats an absolute `rel`
+// as absolute, so "/etc/passwd" is caught by the escape check rather than being
+// quietly reinterpreted as a subpath.
+function resolveWithin(baseDir, rel, fail, what) {
+  const abs = path.resolve(baseDir, rel);
+  const rp = path.relative(baseDir, abs);
+  if (path.isAbsolute(rp) || rp === '..' || rp.startsWith('..' + path.sep)) {
+    fail(what + " '" + rel + "' resolves outside the usermod folder");
+  }
+  return abs;
+}
+
 // Turn a usermod manifest (cdata.json) into one chunks job per header op.
 // The manifest is an externally-tagged object: `header` is an array of
 // header-operations, each of which produces one generated header file.
@@ -520,16 +536,29 @@ function manifestToJobs(manifestArg) {
     if (!Array.isArray(op.specs) || op.specs.length === 0) {
       fail("header[" + i + "] is missing a non-empty 'specs' array");
     }
+    // Constrain every manifest-supplied path to the usermod folder (see
+    // resolveWithin).  srcDir is resolved first so spec files can be checked
+    // against it.
+    const srcDir = resolveWithin(modDir, op.srcDir || 'data', fail, "header[" + i + "] srcDir");
+    op.specs.forEach((s, j) => {
+      if (typeof s !== 'object' || s === null || Array.isArray(s)) {
+        fail("header[" + i + "].specs[" + j + "] must be an object");
+      }
+      if (typeof s.file !== 'string' || s.file.length === 0) {
+        fail("header[" + i + "].specs[" + j + "] is missing a string 'file'");
+      }
+      resolveWithin(srcDir, s.file, fail, "header[" + i + "].specs[" + j + "] file");
+    });
     // Two ops writing the same file would declare two SCons builders for one
     // target (an error); catch it here with a clear message instead.
-    const out = path.join(modDir, op.output);
+    const out = resolveWithin(modDir, op.output, fail, "header[" + i + "] output");
     if (seenOut.has(out)) {
       fail("header[" + i + "] output '" + op.output + "' collides with an earlier header op; each must write a distinct file");
     }
     seenOut.add(out);
     return {
       kind: 'chunks',
-      srcDir: path.join(modDir, op.srcDir || 'data'),
+      srcDir: srcDir,
       out: out,
       specs: op.specs,
       manifestPath: manifestPath, // the manifest itself is an input
