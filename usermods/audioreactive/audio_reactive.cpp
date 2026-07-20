@@ -1385,17 +1385,17 @@ class AudioReactive : public Usermod {
       useBandPassFilter = false; // filter cuts lowest and highest frequency bands from FFT result (use on very noisy mic inputs)
       useMicFilter = true;       // filter fixes aliasing to base & highest frequency bands and reduces noise floor (recommended for all mic inputs)
 
-      #if !defined(CONFIG_IDF_TARGET_ESP32S2) && !defined(CONFIG_IDF_TARGET_ESP32C3) && !defined(CONFIG_IDF_TARGET_ESP32C5)
+      #if defined(CONFIG_IDF_TARGET_ESP32) || defined(CONFIG_IDF_TARGET_ESP32S3)  // PDM is only supported on S3 and classic esp32
         if ((i2sckPin == I2S_PIN_NO_CHANGE) && (i2ssdPin >= 0) && (i2swsPin >= 0) && ((dmType == 1) || (dmType == 4)) ) dmType = 5;   // dummy user support: SCK == -1 --means--> PDM microphone
       #endif
 
       switch (dmType) {
-      #if !defined(CONFIG_IDF_TARGET_ESP32) || (ESP_IDF_VERSION_MAJOR > 4)  // legacy ADC driver is not available any more in esp-idf V5.x.y
         // stub cases for not-yet-supported I2S modes on other ESP32 chips
+      #if !defined(CONFIG_IDF_TARGET_ESP32) || (ESP_IDF_VERSION_MAJOR > 4)  // legacy ADC driver is not available any more in esp-idf V5.x.y
         case 0:  //ADC analog
-        #if defined(CONFIG_IDF_TARGET_ESP32S2) || defined(CONFIG_IDF_TARGET_ESP32C3) || defined(CONFIG_IDF_TARGET_ESP32C5)
+      #endif
+      #if !defined(CONFIG_IDF_TARGET_ESP32) && !defined(CONFIG_IDF_TARGET_ESP32S3)  // PDM is only supported on S3 and classic esp32
         case 5:  //PDM Microphone
-        #endif
       #endif
         case 1:
           DEBUGSR_PRINT(F("AR: Generic I2S Microphone - ")); DEBUGSR_PRINTLN(F(I2S_MIC_CHANNEL_TEXT));
@@ -1422,7 +1422,7 @@ class AudioReactive : public Usermod {
           delay(100);
           if (audioSource) audioSource->initialize(i2swsPin, i2ssdPin, i2sckPin, mclkPin);
           break;
-        #if  !defined(CONFIG_IDF_TARGET_ESP32S2) && !defined(CONFIG_IDF_TARGET_ESP32C3) && !defined(CONFIG_IDF_TARGET_ESP32C5)
+        #if defined(CONFIG_IDF_TARGET_ESP32) || defined(CONFIG_IDF_TARGET_ESP32S3)  // PDM is only supported on S3 and classic esp32
         case 5:
           DEBUGSR_PRINT(F("AR: Generic PDM Microphone - ")); DEBUGSR_PRINTLN(F(I2S_PDM_MIC_CHANNEL_TEXT));
           audioSource = new I2SSource(SAMPLE_RATE, BLOCK_SIZE, 1.0f/4.0f);
@@ -2094,7 +2094,7 @@ class AudioReactive : public Usermod {
     #if !defined(CONFIG_IDF_TARGET_ESP32) || (ESP_IDF_VERSION_MAJOR > 4)  // legacy ADC driver is not available any more in esp-idf V5.x.y
       if (dmType == 0) dmType = SR_DMTYPE;   // MCU does not support analog
     #endif
-    #if defined(CONFIG_IDF_TARGET_ESP32S2) || defined(CONFIG_IDF_TARGET_ESP32C3) || defined(CONFIG_IDF_TARGET_ESP32C5)
+    #if !defined(CONFIG_IDF_TARGET_ESP32) && !defined(CONFIG_IDF_TARGET_ESP32S3)  // PDM is only supported on S3 and classic esp32
       if (dmType == 5) dmType = SR_DMTYPE;   // MCU does not support PDM
     #endif
 
@@ -2147,7 +2147,7 @@ class AudioReactive : public Usermod {
       uiScript.print(F("addOption(dd,'ES7243',2);"));
       uiScript.print(F("addOption(dd,'SPH0654',3);"));
       uiScript.print(F("addOption(dd,'Generic I2S with Mclk',4);"));
-    #if !defined(CONFIG_IDF_TARGET_ESP32S2) && !defined(CONFIG_IDF_TARGET_ESP32C3) && !defined(CONFIG_IDF_TARGET_ESP32C5) && !defined(CONFIG_IDF_TARGET_ESP32C6) && !defined(CONFIG_IDF_TARGET_ESP32C61)
+    #if defined(CONFIG_IDF_TARGET_ESP32) || defined(CONFIG_IDF_TARGET_ESP32S3)  // PDM is only supported on S3 and classic esp32
       uiScript.print(F("addOption(dd,'Generic PDM',5);"));
     #endif
     uiScript.print(F("addOption(dd,'ES8388',6);"));
@@ -2186,7 +2186,7 @@ class AudioReactive : public Usermod {
       uiScript.print(F("addInfo(uxp,0,'<i>sd/data/dout</i>','I2S SD');"));
       uiScript.print(F("addInfo(uxp,1,'<i>ws/clk/lrck</i>','I2S WS');"));
       uiScript.print(F("addInfo(uxp,2,'<i>sck/bclk</i>','I2S SCK');"));
-      #if !defined(CONFIG_IDF_TARGET_ESP32S2) && !defined(CONFIG_IDF_TARGET_ESP32C3) && !defined(CONFIG_IDF_TARGET_ESP32C5) && !defined(CONFIG_IDF_TARGET_ESP32S3)
+      #if defined(CONFIG_IDF_TARGET_ESP32)
         uiScript.print(F("addInfo(uxp,3,'<i>only use -1, 0, 1 or 3</i>','I2S MCLK');"));
       #else
         uiScript.print(F("addInfo(uxp,3,'<i>master clock</i>','I2S MCLK');"));
