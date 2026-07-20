@@ -299,6 +299,19 @@ describe('Usermod manifests', () => {
         { output: 'dup.h', srcDir: 'data', specs: [{ ...spec, name: 'PAGE_b' }] },
       ] },
       error: /collides with an earlier header op/ },
+    // Path traversal: no manifest-supplied path may escape the usermod folder.
+    'an output escaping the usermod folder': {
+      json: { header: [{ output: '../escape.h', specs: [spec] }] },
+      error: /output '\.\.\/escape\.h' resolves outside the usermod folder/ },
+    'an absolute output path': {
+      json: { header: [{ output: '/tmp/evil.h', specs: [spec] }] },
+      error: /resolves outside the usermod folder/ },
+    'a srcDir escaping the usermod folder': {
+      json: { header: [{ output: 'x.h', srcDir: '../../elsewhere', specs: [spec] }] },
+      error: /srcDir '\.\.\/\.\.\/elsewhere' resolves outside the usermod folder/ },
+    'a spec file escaping the usermod folder': {
+      json: { header: [{ output: 'x.h', srcDir: 'data', specs: [{ ...spec, file: '../../../../etc/hosts' }] }] },
+      error: /file '.*etc\/hosts' resolves outside the usermod folder/ },
   };
 
   for (const [desc, { raw, json, error }] of Object.entries(invalidManifests)) {
