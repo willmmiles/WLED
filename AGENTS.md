@@ -185,6 +185,7 @@ class MyUsermod : public Usermod {
     bool enabled = false;
     static const char _name[];
   public:
+    MyUsermod() : Usermod(_name) {};
     void setup() override { /* ... */ }                                    // runs once at start-up
     void loop() override { /* ... */ }                                     // runs once per main loop iteration
     void addToConfig(JsonObject& root) override { /* ... */ }              // persist settings to cfg.json
