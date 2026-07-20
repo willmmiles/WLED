@@ -181,13 +181,16 @@ describe('Dependency graph (--emit-deps / --depfile)', () => {
     }
   });
 
-  it('records cdata.js and package.json as inputs of every header', async () => {
+  it('records cdata.js, package.json and package-lock.json as inputs of every header', async () => {
     await runCdata(`--emit-deps --depfile "${depfile}"`);
     const dep = fs.readFileSync(depfile, 'utf8');
     for (const line of dep.split('\n')) {
       if (!line || line.startsWith('#') || !line.includes(':')) continue;
       assert.match(line, /tools\/cdata\.js/, 'every rule should depend on cdata.js');
-      assert.match(line, /package\.json/, 'every rule should depend on package.json');
+      assert.match(line, /(^|\s)package\.json(\s|$)/, 'every rule should depend on package.json');
+      // The lock file pins minifier versions, so an npm install that changes them
+      // (without touching package.json) must still invalidate every header.
+      assert.match(line, /package-lock\.json/, 'every rule should depend on package-lock.json');
     }
   });
 

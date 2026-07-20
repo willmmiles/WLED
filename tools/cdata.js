@@ -538,16 +538,21 @@ function manifestToJobs(manifestArg) {
 }
 
 // A job's inputs, split by how a change to them is detected:
-//   files - exact files whose *content* feeds the output: this script and
-//           package.json (they affect every generated output), the manifest, and
-//           a chunks job's listed specs.
+//   files - exact files whose *content* feeds the output: this script,
+//           package.json and package-lock.json (they affect every generated
+//           output), the manifest, and a chunks job's listed specs.
 //   dirs  - folders an html job depends on wholesale.  It inlines arbitrary
 //           resources from its source folder, so a file appearing or disappearing
 //           there changes the result.  We depend on the folder itself, not a
 //           snapshot of its current files, so that added/removed files count as a
 //           dependency change rather than being silently ignored.
+// package-lock.json pins the exact minifier/inliner versions, so an `npm install`
+// that changes them (without touching package.json) must still invalidate every
+// header -- the compressed bytes they emit can change.  A missing lock file is
+// tolerated downstream (isJobStale ignores absent inputs; the build system drops
+// non-existent depfile sources).
 function jobInputs(job) {
-  const files = [__filename, 'package.json'];
+  const files = [__filename, 'package.json', 'package-lock.json'];
   const dirs = [];
   if (job.kind === 'html') {
     dirs.push(path.dirname(job.src));
