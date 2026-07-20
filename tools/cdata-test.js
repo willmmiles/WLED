@@ -278,6 +278,23 @@ describe('Usermod manifests', () => {
     fs.rmSync(multi);
   });
 
+  it('emits a valid raw string for a plaintext spec with no delimiters', async () => {
+    const pt = path.join(modDir, 'plain.json');
+    fs.writeFileSync(pt, JSON.stringify({
+      header: [{ output: 'html_plain.h', srcDir: 'data',
+        specs: [{ file: 'page.htm', name: 'PAGE_plain', method: 'plaintext' }] }],
+    }));
+    await runCdata(`"${pt}"`);
+    const out = fs.readFileSync(path.join(modDir, 'html_plain.h'), 'utf8');
+    // A safe matching delimiter pair is filled in, so the literal is R"=====(...)====="
+    // rather than an invalid bare R"...".
+    assert.match(out, /const char PAGE_plain\[\] PROGMEM = R"=====\(/);
+    assert.match(out, /\)=====";/);
+    assert.doesNotMatch(out, /R"[^=]/); // never a bare/undelimited raw string
+    fs.rmSync(pt);
+    fs.rmSync(path.join(modDir, 'html_plain.h'));
+  });
+
   // The build hard-fails on any invalid manifest (cdata.js is the single
   // validator; the Python layer only forwards paths).  Each case asserts the
   // CLI exits non-zero with a message identifying the specific problem.
@@ -312,6 +329,20 @@ describe('Usermod manifests', () => {
     'a spec file escaping the usermod folder': {
       json: { header: [{ output: 'x.h', srcDir: 'data', specs: [{ ...spec, file: '../../../../etc/hosts' }] }] },
       error: /file '.*etc\/hosts' resolves outside the usermod folder/ },
+    // Spec value validation: bad values must fail loudly, not reach codegen.
+    'a spec name that is not a C identifier': {
+      json: { header: [{ output: 'x.h', srcDir: 'data', specs: [{ ...spec, name: 'not a name!' }] }] },
+      error: /needs a 'name' that is a valid C identifier/ },
+    'an unknown spec method': {
+      json: { header: [{ output: 'x.h', srcDir: 'data', specs: [{ ...spec, method: 'zip' }] }] },
+      error: /invalid 'method' "zip"/ },
+    'an unknown spec filter': {
+      json: { header: [{ output: 'x.h', srcDir: 'data', specs: [{ ...spec, filter: 'htlm-minify' }] }] },
+      error: /invalid 'filter' "htlm-minify"/ },
+    'a plaintext spec with only one delimiter': {
+      json: { header: [{ output: 'x.h', srcDir: 'data',
+        specs: [{ file: 'page.htm', name: 'PAGE_x', method: 'plaintext', prepend: '=====(' }] }] },
+      error: /must set both 'prepend' and 'append'/ },
   };
 
   for (const [desc, { raw, json, error }] of Object.entries(invalidManifests)) {
