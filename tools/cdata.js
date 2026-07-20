@@ -184,7 +184,14 @@ async function specToChunk(srcDir, s) {
     } else {
       const minified = await minify(str, s.filter);
       console.info("Minified " + s.file + " from " + originalLength + " to " + minified.length + " bytes");
-      chunk += `const char ${s.name}[] PROGMEM = R"${s.prepend || ""}${minified}${s.append || ""}";\n\n`;
+      // prepend/append together delimit the C++ raw string: R"delim(...)delim".
+      // Default to a safe matching pair when the spec supplies neither, so a
+      // plaintext spec is never emitted as a bare R"..." -- which is invalid C++
+      // because it has no parentheses.  (manifestToJobs rejects supplying only one
+      // of the two, so an unmatched delimiter can't slip through here.)
+      const prepend = s.prepend !== undefined ? s.prepend : "=====(";
+      const append  = s.append  !== undefined ? s.append  : ")=====";
+      chunk += `const char ${s.name}[] PROGMEM = R"${prepend}${minified}${append}";\n\n`;
       return s.mangle ? s.mangle(chunk) : chunk;
     }
   } else if (s.method == "binary") {
@@ -475,6 +482,14 @@ const char PAGE_dmxmap[] PROGMEM = R"=====()=====";
 // features (e.g. 'inject', 'defaults') fail loudly instead of being ignored.
 const MANIFEST_ALLOWED_KEYS = new Set(['header', 'schemaVersion', '$schema']);
 
+// The processing a spec's 'method' selects, and (for text methods) the optional
+// 'filter' minifier.  A manifest is validated against these up front so a typo
+// fails loudly with manifest context, rather than surfacing as an "Unknown
+// method/filter" throw deep in the build (or, worse, silently generating invalid
+// C++).  SPEC_FILTERS must stay in sync with the branches in minify().
+const SPEC_METHODS = new Set(['plaintext', 'gzip', 'binary']);
+const SPEC_FILTERS = new Set(['plain', 'css-minify', 'js-minify', 'html-minify']);
+
 // Resolve `rel` (a manifest-supplied path) against `baseDir`, failing via `fail`
 // if it lands outside `baseDir`.  Usermod manifests are third-party build inputs,
 // so a stray `..` -- or an absolute path -- in an output/srcDir/spec file must not
@@ -541,13 +556,36 @@ function manifestToJobs(manifestArg) {
     // against it.
     const srcDir = resolveWithin(modDir, op.srcDir || 'data', fail, "header[" + i + "] srcDir");
     op.specs.forEach((s, j) => {
+      const where = "header[" + i + "].specs[" + j + "]";
       if (typeof s !== 'object' || s === null || Array.isArray(s)) {
-        fail("header[" + i + "].specs[" + j + "] must be an object");
+        fail(where + " must be an object");
       }
       if (typeof s.file !== 'string' || s.file.length === 0) {
-        fail("header[" + i + "].specs[" + j + "] is missing a string 'file'");
+        fail(where + " is missing a string 'file'");
       }
-      resolveWithin(srcDir, s.file, fail, "header[" + i + "].specs[" + j + "] file");
+      resolveWithin(srcDir, s.file, fail, where + " file");
+      // 'name' is emitted verbatim as a C identifier (const char <name>[] ...); a
+      // value with spaces or punctuation would break -- or inject into -- the
+      // generated header, so require a strict identifier.
+      if (typeof s.name !== 'string' || !/^[A-Za-z_][A-Za-z0-9_]*$/.test(s.name)) {
+        fail(where + " needs a 'name' that is a valid C identifier");
+      }
+      if (!SPEC_METHODS.has(s.method)) {
+        fail(where + " has an invalid 'method' " + JSON.stringify(s.method) +
+             " (expected one of: " + [...SPEC_METHODS].join(', ') + ")");
+      }
+      // filter is optional (absent means no minification); reject only a value
+      // that minify() would not understand.
+      if (s.filter !== undefined && !SPEC_FILTERS.has(s.filter)) {
+        fail(where + " has an invalid 'filter' " + JSON.stringify(s.filter) +
+             " (expected one of: " + [...SPEC_FILTERS].join(', ') + ")");
+      }
+      // A plaintext spec's raw-string delimiters must be supplied as a matching
+      // pair; supplying only one would emit an unbalanced R"delim(...)" .  Neither
+      // is fine -- specToChunk fills in a safe default pair.
+      if (s.method === 'plaintext' && (s.prepend === undefined) !== (s.append === undefined)) {
+        fail(where + " must set both 'prepend' and 'append' raw-string delimiters, or neither");
+      }
     });
     // Two ops writing the same file would declare two SCons builders for one
     // target (an error); catch it here with a clear message instead.
