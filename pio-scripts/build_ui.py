@@ -1,7 +1,6 @@
 Import("env")
 import os
 import re
-import subprocess
 from pathlib import Path   # For OS-agnostic path manipulation
 import shutil
 from SCons.Script import Exit
@@ -36,47 +35,36 @@ CDATA_JS = PROJECT_DIR / "tools" / "cdata.js"
 # --- Dependency graph -----------------------------------------------------------
 #
 # cdata.js is the single source of truth for which web UI headers exist and what
-# they depend on; it emits that graph as a Makefile-style ".d" depfile.  We read
-# that cached depfile to declare a single SCons Command -- covering the main UI
-# and every usermod -- with its complete list of target headers and input files.
-# The actual build (one node invocation) then runs as a normal build node, at
-# build time, ordered ahead of anything that #includes the generated headers.
-
-def _graph_inputs(manifests):
-    """Files whose change may alter the *shape* of the graph (which outputs exist
-    / what depends on what), so the cached depfile can no longer be trusted."""
-    inputs = [CDATA_JS, PROJECT_DIR / "package.json"]
-    for name in ("platformio.ini", "platformio_override.ini"):
-        p = PROJECT_DIR / name
-        if p.exists():
-            inputs.append(p)
-    inputs.extend(Path(m) for m in manifests)
-    return inputs
-
-
-def _depfile_structure_current(depfile, manifests):
-    """True if the depfile exists and is newer than every structural input."""
-    if not depfile.exists():
-        return False
-    depfile_mtime = depfile.stat().st_mtime
-    for src in _graph_inputs(manifests):
-        try:
-            if src.stat().st_mtime > depfile_mtime:
-                return False
-        except OSError:
-            pass
-    return True
-
-
+# they depend on.  Every time it builds, it leaves behind a Makefile-style ".d"
+# depfile describing that graph.  We treat that file purely as a *cache from the
+# previous build*: if it is present we feed its targets/sources to a single SCons
+# Command (covering the main UI and every usermod) so SCons tracks the web UI's
+# inputs and outputs natively; if it is absent -- the first build, or it was
+# deleted -- we simply force the build once and read the depfile it leaves behind.
+#
 def _resolve_dep(token):
     """Un-escape a depfile token ("\\ " -> " ") and resolve it against the project."""
     token = token.strip().replace('\\ ', ' ')
     return os.path.normpath(os.path.join(str(PROJECT_DIR), token))
 
 
+def _expand_source(ap):
+    """Map one dependency token to concrete source files.  An html job records its
+    whole source *folder* as the dependency; expanding it to the folder's current
+    files -- walked fresh every build -- means SCons sees today's file set, so
+    adding or removing a file there changes the dependency set and marks the UI
+    build out of date.  A regular file maps to itself.  A missing path yields
+    nothing: a stale token for a just-removed file must not become a non-existent
+    SCons source (which would abort the build)."""
+    if os.path.isdir(ap):
+        return [os.path.join(root, n) for root, _dirs, names in os.walk(ap) for n in names]
+    return [ap] if os.path.exists(ap) else []
+
+
 def _parse_depfile(depfile):
     """Read a Makefile-style depfile into (targets, sources) lists of absolute
-    paths.  Paths are project-relative with forward slashes (no Windows
+    paths.  Directory tokens are expanded to their current files (see
+    _expand_source).  Paths are project-relative with forward slashes (no Windows
     drive-letter colons); spaces within a path are escaped as "\\ ", so the
     dependency list is split only on *unescaped* whitespace."""
     targets, sources, seen = [], [], set()
@@ -89,31 +77,11 @@ def _parse_depfile(depfile):
         for dep in re.split(r'(?<!\\)\s+', deps.strip()):
             if not dep:
                 continue
-            ap = _resolve_dep(dep)
-            if ap not in seen:
-                seen.add(ap)
-                sources.append(ap)
+            for ap in _expand_source(_resolve_dep(dep)):
+                if ap not in seen:
+                    seen.add(ap)
+                    sources.append(ap)
     return targets, sources
-
-
-def _emit_depfile(depfile, manifests):
-    """Write the dependency graph WITHOUT building the UI.  `--emit-deps` only
-    enumerates files (Node builtins, no node_modules, no minify), so this is a
-    cheap graph-description step -- not a build -- used only when the cached
-    depfile is missing or structurally stale, so the Command below can be
-    declared with a complete and current target/source list."""
-    depfile.parent.mkdir(parents=True, exist_ok=True)
-    cmd = [node_ex, str(CDATA_JS), "--emit-deps", "--depfile", str(depfile)]
-    for m in manifests:
-        cmd += ["--manifest", m]
-    try:
-        subprocess.run(cmd, cwd=str(PROJECT_DIR), check=True)
-    except subprocess.CalledProcessError:
-        # cdata.js has already printed the specific reason (e.g. an invalid
-        # usermod manifest) to stderr.  Stop the build cleanly with that message
-        # rather than surfacing a Python CalledProcessError traceback.
-        print('\x1b[0;31;43m' + 'Web UI dependency scan failed -- see the cdata.js error above.' + '\x1b[0m')
-        Exit(1)
 
 
 def _ensure_node_modules(env):
@@ -159,18 +127,10 @@ def _register_ui_build(xenv, result):
     manifests = list(xenv.get("WLED_UI_MANIFESTS", []))
     depfile = Path(xenv.subst("$BUILD_DIR")).resolve() / "ui_deps.d"
 
-    # Make sure the cached graph is present and structurally current so the
-    # Command is declared with the right targets/sources.  This launches node
-    # only to (re)describe the graph, and only when a manifest / cdata.js /
-    # platformio.ini changed -- never to build the UI.  The build itself is the
-    # deferred Command below.
-    if not _depfile_structure_current(depfile, manifests):
-        _emit_depfile(depfile, manifests)
-
-    targets, sources = _parse_depfile(depfile)
-
-    # The single node invocation that builds the whole web UI (main + usermods),
-    # run as a normal build node when SCons finds a target stale.
+    # The single node invocation that builds the whole web UI (main + usermods)
+    # and refreshes the depfile.  The manifest set is baked into the action, so
+    # adding or removing a usermod changes the command's build signature and
+    # re-runs it -- which is how a new usermod's headers get built and recorded.
     node_cmd = " ".join(
         ['node', '"%s"' % CDATA_JS, '--depfile', '"%s"' % depfile]
         + ['--manifest "%s"' % m for m in manifests]
@@ -183,11 +143,24 @@ def _register_ui_build(xenv, result):
             print('\x1b[0;31;43m' + 'Web UI build failed check https://kno.wled.ge/advanced/compiling-wled/' + '\x1b[0m')
         return rc
 
-    ui_cmd = env.Command(
-        target=[env.File(t) for t in targets],
-        source=[env.File(s) for s in sources],
-        action=env.VerboseAction(_build_ui, "Building web UI"),
-    )
+    action = env.VerboseAction(_build_ui, "Building web UI")
+
+    # Feed the previous build's depfile to SCons when we have one; otherwise force
+    # a single build and pick up the depfile it leaves behind for next time.
+    targets, sources = _parse_depfile(depfile) if depfile.exists() else ([], [])
+    if targets:
+        ui_cmd = env.Command(
+            target=[env.File(t) for t in targets],
+            source=[env.File(s) for s in sources],
+            action=action,
+        )
+    else:
+        # First build (or a deleted depfile): we know cdata.js must run and do not
+        # yet know what it produces.  Make the depfile the target and force the
+        # run; the order-only prerequisite wired below still guarantees the
+        # generated headers land before any C++ that #includes them compiles.
+        ui_cmd = env.Command(target=[env.File(str(depfile))], source=[], action=action)
+        env.AlwaysBuild(ui_cmd)
 
     # By default SCons removes a builder's targets before running its action.
     # Because every header is a target of this one Command, editing any single

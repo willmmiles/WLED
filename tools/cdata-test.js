@@ -191,12 +191,20 @@ describe('Dependency graph (--emit-deps / --depfile)', () => {
     }
   });
 
-  it('escapes spaces in dependency paths so each stays one token', async () => {
-    // wled00/data/icons-ui/Read Me.txt has a space in its name
+  it("records an html job's whole source folder, not a snapshot of its files", async () => {
+    // An html job inlines arbitrary resources from its source folder, so the
+    // folder itself is the dependency.  That is what lets a file added to or
+    // removed from wled00/data (e.g. wled00/data/icons-ui/Read Me.txt) count as a
+    // dependency change -- rather than listing today's files and missing the next
+    // one that appears.
     await runCdata(`--emit-deps --depfile "${depfile}"`);
     const dep = fs.readFileSync(depfile, 'utf8');
-    assert.match(dep, /icons-ui\/Read\\ Me\.txt/);     // escaped: one token
-    assert.doesNotMatch(dep, /icons-ui\/Read Me\.txt/); // never an unescaped space
+    const uiRule = dep.split('\n').find(l => l.startsWith('wled00/html_ui.h:'));
+    assert(uiRule, 'no dependency rule for wled00/html_ui.h');
+    assert.match(uiRule, /(^|\s)wled00\/data(\s|$)/, 'html_ui.h should depend on its source folder');
+    // The folder is listed as one token, so individual files inside it -- and any
+    // spaces in their names -- are not enumerated here.
+    assert.doesNotMatch(uiRule, /Read/);
   });
 });
 
