@@ -634,6 +634,30 @@ describe('Usermod UI contributions', () => {
       assert.doesNotMatch(html, /##VERSION##/);
     });
 
+    // The contribution set is configuration, not an input file, so no mtime moves when
+    // a usermod joins or leaves the build.  Without the fingerprint recorded in the
+    // header, dropping a usermod left its code compiled into the page indefinitely.
+    it('rebuilds when the contribution set changes, and only then', async () => {
+      const manifest = `--manifest "${path.join(modDir, 'cdata.json')}"`;
+      await runCdata(`-f ${manifest}`);
+      assert.match(decodeIndexPage(), /WLED\.module\("powermanager"/);
+
+      // Dropping the usermod must take its code with it, with no forced rebuild.
+      const dropped = await runCdata('');
+      assert.doesNotMatch(dropped.stdout, /already built/);
+      assert.doesNotMatch(decodeIndexPage(), /WLED\.module\("powermanager"/,
+                          'the departed usermod is still compiled into the page');
+
+      // Adding it back must bring it back.
+      const added = await runCdata(manifest);
+      assert.doesNotMatch(added.stdout, /already built/);
+      assert.match(decodeIndexPage(), /WLED\.module\("powermanager"/);
+
+      // An unchanged set must still be a no-op: this must not defeat incremental builds.
+      const again = await runCdata(manifest);
+      assert.match(again.stdout, /already built/);
+    });
+
     it('fails the build if a contributed script would close its own tag', async () => {
       const evil = path.join(modDir, 'evil.json');
       fs.writeFileSync(path.join(modDir, 'ui', 'evil.js'), 'var s = "</script>";\n');

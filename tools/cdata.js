@@ -27,6 +27,7 @@ const fs = require("node:fs");
 const path = require("path");
 const vm = require("node:vm");
 const zlib = require("node:zlib");
+const crypto = require("node:crypto");
 const packageJson = require("../package.json");
 
 // The heavy third-party packages (web-resource-inliner, clean-css,
@@ -248,6 +249,37 @@ function applyUiContributions(html, contributions, apiScript = "") {
   return out;
 }
 
+// Which usermod UI a generated page carries, as a stable one-line string.  This is part
+// of the job's configuration rather than one of its input files, so an mtime comparison
+// cannot see it change: dropping a usermod from the build leaves every input older than
+// the output, and the page would keep the departed usermod's code indefinitely.  Recording
+// it in the output and comparing on the next run closes that hole in both directions.
+// Paths are project-relative so the value does not depend on where the tree is checked out.
+// The module names are spelled out because they are useful on their own -- the header is
+// the only place that records which usermods a built page carries -- and the digest covers
+// the rest of the descriptor, so a usermod that keeps its name but changes which files it
+// contributes still counts as a change.
+function uiFingerprint(ui) {
+  if (!ui || ui.length === 0) return "none";
+  const detail = ui.map((c) => c.module + ":" + c.sources.map((s) => s.type + "=" + toDepPath(s.file)).join(",")).join(" ");
+  const digest = crypto.createHash("sha1").update(detail).digest("hex").slice(0, 12);
+  return ui.map((c) => c.module).join(", ") + " [" + digest + "]";
+}
+
+// Read back the fingerprint a previous run recorded, or null if the file predates this
+// (or is not one of ours) -- in which case it must be rebuilt to find out.
+function readUiFingerprint(resultFile) {
+  let head;
+  try {
+    head = fs.readFileSync(resultFile, "utf8").slice(0, 4096);
+  } catch (e) {
+    if (e.code === 'ENOENT') return null;
+    throw e;
+  }
+  const m = head.match(/^\/\/ usermod UI: (.*)$/m);
+  return m ? m[1] : null;
+}
+
 async function writeHtmlGzipped(sourceFile, resultFile, page, inlineCss = true, ui = []) {
   console.info("Reading " + sourceFile);
   let html = await inlineHtml(sourceFile, inlineCss);
@@ -278,6 +310,7 @@ async function writeHtmlGzipped(sourceFile, resultFile, page, inlineCss = true, 
   console.info("Minified and compressed " + sourceFile + " from " + originalLength + " to " + result.length + " bytes");
   const array = hexdump(result);
   let src = singleHeader;
+  src += `// usermod UI: ${uiFingerprint(ui)}\n\n`;
   src += `const uint16_t PAGE_${page}_length = ${result.length};\n`;
   src += `const uint8_t PAGE_${page}[] PROGMEM = {\n${array}\n};\n\n`;
   console.info("Writing " + resultFile);
@@ -923,6 +956,9 @@ function isJobStale(job) {
     if (e.code === 'ENOENT') return true;
     throw e;
   }
+  // The set of usermods contributing to a page is configuration, not an input file, so
+  // no mtime reflects it changing (see uiFingerprint).
+  if (job.kind === 'html' && readUiFingerprint(job.out) !== uiFingerprint(job.ui)) return true;
   const { files, dirs } = jobInputs(job);
   const inputs = files.slice();
   for (const d of dirs) {
