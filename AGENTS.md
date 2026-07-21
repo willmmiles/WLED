@@ -292,6 +292,18 @@ For additional lifecycle hooks (`connected`, `handleOverlayDraw`, `handleButton`
 - Don't allocate `Wire` I2C pins to the usermod - it would cause a pin conflict, as global I2C pins are already allocated to `PinOwner::HW_I2C`.
 - Use this pattern to check for an incomplete I2C setup: `if (i2c_scl<0 || i2c_sda<0) {enabled = false; return;}`.
 
+### Usermod web UI
+
+A usermod's `cdata.json` manifest declares what `tools/cdata.js` builds for it. A `header` op compresses the usermod's own pages into a generated `.h` it includes and serves itself. A `ui` op instead contributes `.css`/`.htm`/`.js` to a core UI bundle: the files are spliced into `wled00/data/index.htm` before minification, so they ship in the one gzipped payload — no extra endpoint, no JS in C++ string literals. Each contributed script is wrapped as `WLED.module("<module>", function(WLED) {...})` and gets a namespaced facade (slots, templates, lifecycle events, guarded callbacks) defined in `wled00/data/um.js`; that file is only bundled when something contributes. A manifest needs at least one of `header` / `ui`. Reference: `tools/cdata.schema.json`, [kno.wled.ge/advanced/custom-features](https://kno.wled.ge/advanced/custom-features/#extending-the-main-web-ui).
+
+```json
+{
+  "ui": [
+    { "target": "index", "srcDir": "ui", "module": "example", "sources": [ "example.css", "panel.htm", "example.js" ] }
+  ]
+}
+```
+
 ### Usermod IDs
 
 A unique ID (registered in `wled00/const.h` and overriding `getId()`) is **only required** when a usermod needs one or more of the following:
