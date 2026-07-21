@@ -27,6 +27,14 @@ var lastinfo = {};
 var isM = false, mw = 0, mh=0;
 var bsOpts = null; // blending style options snapshot, used for dynamic filtering based on matrix mode (iOS compatibility)
 var ws, wsRpt=0;
+// Location hash / id of each main tab, in display order.  Usermod UI modules append to this
+// through registerTab(); the sliding tab strip is sized from its length.
+var tabs = ["Colors", "Effects", "Segments", "Presets"];
+// Usermod UI extension API -- inert stub, so the hook calls below cost nothing on a build
+// with no usermod UI.  When a usermod contributes UI through the "ui" section of its
+// cdata.json, tools/cdata.js appends data/um.js after this file and it replaces this object
+// with the real implementation.  See um.js for the module author's API.
+var WLED = {module(){}, _emit(){}, _refill(){}, _fill(){}};
 var _selFxInterval = null; // interval ID for selected effect position update
 var cfg = {
 	theme:{base:"dark", bg:{url:"", rnd: false, rndGrayscale: false, rndBlur: false}, alpha:{bg:0.6,tab:0.8}, color:{bg:""}},
@@ -302,6 +310,7 @@ function onLoad()
 		} catch(e) {
 			showToast("Init failed: " + e, true);
 		}
+		WLED._emit('load'); // usermod UI modules, see um.js
 	})();
 	resetUtil();
 
@@ -343,21 +352,12 @@ function openTab(tabI, force = false)
 	_C.classList.toggle('smooth', false);
 	_C.style.setProperty('--i', iSlide);
 	updateTablinks(tabI);
-	switch (tabI) {
-		case 0: window.location.hash = "Colors"; break;
-		case 1: window.location.hash = "Effects"; break;
-		case 2: window.location.hash = "Segments"; break;
-		case 3: window.location.hash = "Presets"; break;
-	}
+	if (tabs[tabI]) window.location.hash = tabs[tabI];
 }
 
 function handleLocationHash() {
-	switch (window.location.hash) {
-		case "#Colors": openTab(0); break;
-		case "#Effects": openTab(1); break;
-		case "#Segments": openTab(2); break;
-		case "#Presets": openTab(3); break;
-	}
+	let i = tabs.indexOf(window.location.hash.slice(1));
+	if (i >= 0) openTab(i);
 }
 
 var timeout;
@@ -682,6 +682,7 @@ function parseInfo(i) {
 //	}
 	// Check for version upgrades on page load
 	checkVersionUpgrade(i);
+	WLED._emit('info', i); // usermod UI modules, see um.js
 }
 
 //https://stackoverflow.com/questions/2592092/executing-script-elements-inserted-with-innerhtml
@@ -740,6 +741,7 @@ ${inforow("Environment",i.arch + " " + i.core + ( i.lwip ? " (" + i.lwip + ")" :
 ${i.repo?inforow("GitHub","<a href=\"https://github.com/"+i.repo+"\" target=\"_blank\" rel=\"noopener noreferrer\">" + i.repo + "</a>"):""}
 </table>`;
 	gId('kv').innerHTML = cn;
+	WLED._refill('info'); // re-attach usermod UI rows, the table above replaced them
 	//  update all sliders in Info
 	d.querySelectorAll('#kv .sliderdisplay').forEach((sd,i) => {
 		let s = sd.previousElementSibling;
@@ -924,6 +926,7 @@ function populateSegments(s)
 	} else {
 		gId("ledmap").classList.add('hide');
 	}
+	WLED._fill('segment', s.seg||[], s); // usermod UI modules, see um.js
 	tooltip("#Segments");
 }
 
@@ -1460,6 +1463,7 @@ function makeWS() {
 		//ws.send("{'v':true}"); // unnecessary (https://github.com/wled/WLED/blob/master/wled00/ws.cpp#L18)
 		wsRpt = 0;
 		reqsLegal = true;
+		WLED._emit('ws', ws); // usermod UI modules may attach their own listeners, see um.js
 	}
 }
 
@@ -1507,6 +1511,7 @@ function readState(s,command=false)
 	if (isEmpty(i)) {
 		showToast('No segments!', true);
 		updateUI();
+		WLED._emit('state', s); // usermod UI modules, see um.js
 		return true;
 	} else if (i.id == s.mainseg) {
 		// fallback if no segments are selected but we have mainseg
@@ -1605,6 +1610,7 @@ function readState(s,command=false)
 	selectedFx = i.fx;
 	redrawPalPrev(); // if any color changed (random palette did at least)
 	updateUI();
+	WLED._emit('state', s); // usermod UI modules, see um.js
 	return true;
 }
 
@@ -3106,7 +3112,24 @@ function unfocusSliders()
 }
 
 // sliding UI
-const _C = d.querySelector('.container'), N = 4;
+const _C = d.querySelector('.container');
+
+// Size the sliding tab strip to the current number of tabs.  Called whenever that number,
+// or the layout mode that overrides it, changes.  simplifyUI() folds every panel into the
+// Colors tab, so in that mode the strip is a single full-width column.
+function updateTabStrip()
+{
+	_C.style.setProperty('--n', simplifiedUI ? 1 : tabs.length);
+	_C.style.width = (pcMode || simplifiedUI) ? '100%' : (tabs.length*100) + '%';
+}
+
+// Register a tab appended by a usermod UI module (see um.js); `name` is its element id,
+// which doubles as its location hash.
+function registerTab(name)
+{
+	tabs.push(name);
+	updateTabStrip();
+}
 
 let iSlide = 0, x0 = null, scrollS = 0, locked = false;
 
@@ -3142,7 +3165,7 @@ function move(e)
 	var f = +(s*dx/wW).toFixed(2);
 
 	if((clientX != 0) &&
-		(iSlide > 0 || s < 0) && (iSlide < N - 1 || s > 0) &&
+		(iSlide > 0 || s < 0) && (iSlide < tabs.length - 1 || s > 0) &&
 		f > 0.12 &&
 		gEBCN("tabcontent")[iSlide].scrollTop == scrollS)
 	{
@@ -3181,7 +3204,7 @@ function togglePcMode(fromB = false)
 	gId('buttonPcm').className = (pcMode) ? "active":"";
 	gId('bot').style.height = (pcMode && !cfg.comp.pcmbot) ? "0":"auto";
 	sCol('--bh', gId('bot').clientHeight + "px");
-	_C.style.width = (pcMode || simplifiedUI)?'100%':'400%';
+	updateTabStrip();
 }
 
 function mergeDeep(target, ...sources)
@@ -3289,8 +3312,7 @@ function simplifyUI() {
 
 	// Disable PC Mode as it does not exist in simple UI
 	if (pcMode) togglePcMode(true);
-	_C.style.width = '100%'
-	_C.style.setProperty('--n', 1);
+	updateTabStrip();
 
 	gId("Colors").classList.add("simplified");
 	// Put effects below palett list
@@ -3611,7 +3633,7 @@ function updateVersionInfo(version, neverAsk, alwaysReport) {
 }
 
 size();
-_C.style.setProperty('--n', N);
+updateTabStrip();
 
 window.addEventListener('resize', size, true);
 window.addEventListener('hashchange', handleLocationHash);
