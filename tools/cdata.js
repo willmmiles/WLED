@@ -180,13 +180,24 @@ function loadUiContributions(contributions) {
 // Splice loaded contributions into an inlined HTML document: styles before the
 // final </head>, templates and module scripts before the final </body>.
 //
+// `apiScript` is the source of the extension API (UI_API_SCRIPT) that the
+// contributed wrappers call into.  It is emitted first, and only when something
+// is actually contributed, so a UI with no usermod code does not carry it.
+//
 // Order is the order the contributions are given in (manifest order on the
 // command line) and, within one, the order of its sources -- nothing is sorted,
 // so the output follows from the inputs alone.  A contribution's templates are
 // emitted before its script, so the script can find them the moment it runs.
-function applyUiContributions(html, contributions) {
+function applyUiContributions(html, contributions, apiScript = "") {
   let head = "";
   let body = "";
+  if (contributions.length > 0 && apiScript !== "") {
+    if (UI_FORBIDDEN_TEXT.script.re.test(apiScript)) {
+      throw new Error(UI_API_SCRIPT + ": the extension API must not contain '" +
+                      UI_FORBIDDEN_TEXT.script.tag + "', which would terminate the enclosing tag early");
+    }
+    body += "<script>" + apiScript + "</script>";
+  }
   for (const c of contributions) {
     let scripts = "";
     for (const s of c.sources) {
@@ -233,7 +244,8 @@ async function writeHtmlGzipped(sourceFile, resultFile, page, inlineCss = true, 
   // and compressed as a single payload.
   if (ui.length > 0) {
     console.info("Adding UI contributions from " + ui.length + " usermod(s) to " + sourceFile);
-    html = applyUiContributions(html, loadUiContributions(ui));
+    const apiScript = adoptVersionAndRepo(fs.readFileSync(UI_API_SCRIPT, "utf8"));
+    html = applyUiContributions(html, loadUiContributions(ui), apiScript);
   }
   const originalLength = html.length;
   html = await minify(html, "html-minify");
@@ -318,6 +330,14 @@ function listDirsRecursive(folderPath) {
   }
   return out;
 }
+
+// The main UI's usermod extension API: it defines the global WLED object whose
+// WLED.module() the generated wrappers call.  index.htm deliberately does not
+// reference it -- it is not free, and a build with no usermod UI must not pay for
+// it, so index.js carries an inert stub instead.  When at least one usermod does
+// contribute, this file is spliced in ahead of the contributed code (it loads
+// after index.js and replaces the stub; the core only calls into it at runtime).
+const UI_API_SCRIPT = "wled00/data/um.js";
 
 // Every generated header, described as data so a single code path can both build
 // it and report its input dependencies.
