@@ -480,7 +480,7 @@ const char PAGE_dmxmap[] PROGMEM = R"=====()=====";
 // Top-level keys a usermod manifest (cdata.json) is allowed to carry.  Any other
 // key is a validation error: the schema is closed so typos and not-yet-supported
 // features (e.g. 'inject', 'defaults') fail loudly instead of being ignored.
-const MANIFEST_ALLOWED_KEYS = new Set(['header', 'schemaVersion', '$schema']);
+const MANIFEST_ALLOWED_KEYS = new Set(['header', 'ui', 'schemaVersion', '$schema']);
 
 // The processing a spec's 'method' selects, and (for text methods) the optional
 // 'filter' minifier.  A manifest is validated against these up front so a typo
@@ -489,6 +489,33 @@ const MANIFEST_ALLOWED_KEYS = new Set(['header', 'schemaVersion', '$schema']);
 // C++).  SPEC_FILTERS must stay in sync with the branches in minify().
 const SPEC_METHODS = new Set(['plaintext', 'gzip', 'binary']);
 const SPEC_FILTERS = new Set(['plain', 'css-minify', 'js-minify', 'html-minify']);
+
+// A 'ui' op contributes source files to one of WLED's own web UI bundles instead
+// of generating a header of its own.  'target' names the bundle: the value is the
+// `page` of the mainJobs entry that builds it.  The enum is deliberately tiny --
+// only the main UI can be extended today -- and an unknown target is an error so
+// a typo does not silently drop a usermod's UI from the firmware.
+const UI_TARGETS = new Set(['index']);
+const UI_OP_ALLOWED_KEYS = new Set(['target', 'api', 'srcDir', 'module', 'sources']);
+const UI_SOURCE_ALLOWED_KEYS = new Set(['file', 'type']);
+
+// The contract between contributed code and the loader in the core UI.  Bumping
+// this is how a future, incompatible loader stops older usermods from being
+// bundled into a UI that would not run them correctly, so anything else fails.
+const UI_API_VERSION = 1;
+
+// How a contributed file is spliced into the bundle.  The type is inferred from
+// the file extension unless the source spells out a 'type'; an extension we do
+// not recognise is an error rather than a guess.
+const UI_SOURCE_TYPES = new Set(['css', 'template', 'script']);
+const UI_TYPE_BY_EXT = { '.css': 'css', '.htm': 'template', '.html': 'template', '.js': 'script' };
+
+// A module name is emitted both into an HTML id attribute and into a JS string
+// literal, and a template's base file name into an HTML id; restrict both to
+// characters that need no escaping in either context.  (The file name pattern
+// additionally allows '.', which is common in names like "panel.tpl.htm".)
+const UI_MODULE_RE = /^[A-Za-z0-9][A-Za-z0-9_-]*$/;
+const UI_BASENAME_RE = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
 
 // Resolve `rel` (a manifest-supplied path) against `baseDir`, failing via `fail`
 // if it lands outside `baseDir`.  Usermod manifests are third-party build inputs,
@@ -506,10 +533,100 @@ function resolveWithin(baseDir, rel, fail, what) {
   return abs;
 }
 
+// Validate a manifest's `ui` array and turn it into contribution descriptors:
+//   { target, module, sources: [{ file, type, basename }], manifestPath }
+// A contribution is not a job -- it has no output of its own -- so all this does
+// is resolve and check; the splicing happens when the target bundle is built.
+// `fail` and `modDir` come from manifestToJobs, which owns the error reporting.
+function parseUiOps(ops, modDir, manifestPath, fail) {
+  const seenTarget = new Set();
+  return ops.map((op, i) => {
+    const where = "ui[" + i + "]";
+    if (typeof op !== 'object' || op === null || Array.isArray(op)) {
+      fail(where + " must be an object");
+    }
+    for (const key of Object.keys(op)) {
+      if (!UI_OP_ALLOWED_KEYS.has(key)) fail(where + " has an unknown key '" + key + "'");
+    }
+    if (typeof op.target !== 'string' || op.target.length === 0) {
+      fail(where + " is missing a string 'target' (expected one of: " + [...UI_TARGETS].join(', ') + ")");
+    }
+    if (!UI_TARGETS.has(op.target)) {
+      fail(where + " has an unknown 'target' " + JSON.stringify(op.target) +
+           " (expected one of: " + [...UI_TARGETS].join(', ') + ")");
+    }
+    // One contribution per bundle per manifest: two ops for the same target would
+    // leave the relative order of their scripts -- and so their side effects --
+    // decided by nothing the author can see.  Ship several files in one op instead.
+    if (seenTarget.has(op.target)) {
+      fail(where + " target '" + op.target + "' duplicates an earlier ui op; a manifest may contribute to each target only once");
+    }
+    seenTarget.add(op.target);
+    // The loader contract the contributed code was written against.  Absent means
+    // the baseline version.
+    if (op.api !== undefined && op.api !== UI_API_VERSION) {
+      fail(where + " requests unsupported 'api' " + JSON.stringify(op.api) +
+           " (only " + UI_API_VERSION + " is supported)");
+    }
+    // 'module' defaults to the usermod's own folder name, which is not guaranteed
+    // to be usable as an HTML id / JS string, hence the same check either way --
+    // but a different hint, since only an explicit value is the author's typo.
+    const moduleName = op.module !== undefined ? op.module : path.basename(modDir);
+    if (typeof moduleName !== 'string' || !UI_MODULE_RE.test(moduleName)) {
+      fail(op.module !== undefined
+        ? where + " has an invalid 'module' " + JSON.stringify(op.module) + " (must match " + UI_MODULE_RE + ")"
+        : where + " cannot use the usermod folder name " + JSON.stringify(moduleName) +
+          " as its 'module' (must match " + UI_MODULE_RE + "); set 'module' explicitly");
+    }
+    if (!Array.isArray(op.sources) || op.sources.length === 0) {
+      fail(where + " is missing a non-empty 'sources' array");
+    }
+    // Constrain every manifest-supplied path to the usermod folder, exactly as a
+    // header op does (see resolveWithin).
+    const srcDir = resolveWithin(modDir, op.srcDir || 'data', fail, where + " srcDir");
+    const sources = op.sources.map((s, j) => {
+      const swhere = where + ".sources[" + j + "]";
+      // A source is either a bare filename or { file, type }, where an explicit
+      // type overrides what the extension implies.
+      const src = typeof s === 'string' ? { file: s } : s;
+      if (typeof src !== 'object' || src === null || Array.isArray(src)) {
+        fail(swhere + " must be a filename string or an object");
+      }
+      for (const key of Object.keys(src)) {
+        if (!UI_SOURCE_ALLOWED_KEYS.has(key)) fail(swhere + " has an unknown key '" + key + "'");
+      }
+      if (typeof src.file !== 'string' || src.file.length === 0) {
+        fail(swhere + " is missing a string 'file'");
+      }
+      if (src.type !== undefined && !UI_SOURCE_TYPES.has(src.type)) {
+        fail(swhere + " has an invalid 'type' " + JSON.stringify(src.type) +
+             " (expected one of: " + [...UI_SOURCE_TYPES].join(', ') + ")");
+      }
+      const type = src.type !== undefined ? src.type : UI_TYPE_BY_EXT[path.extname(src.file).toLowerCase()];
+      if (type === undefined) {
+        fail(swhere + " file '" + src.file + "' has an unrecognized extension (known: " +
+             Object.keys(UI_TYPE_BY_EXT).join(', ') + "); set an explicit 'type'");
+      }
+      // A template's id is built from the file's bare name, so a usermod can ship
+      // several templates without having to invent ids for them.
+      const basename = path.basename(src.file, path.extname(src.file));
+      if (!UI_BASENAME_RE.test(basename)) {
+        fail(swhere + " file '" + src.file + "' has a name that cannot be used in an HTML id (must match " + UI_BASENAME_RE + ")");
+      }
+      return { file: resolveWithin(srcDir, src.file, fail, swhere + " file"), type: type, basename: basename };
+    });
+    return { target: op.target, module: moduleName, sources: sources, manifestPath: manifestPath };
+  });
+}
+
 // Turn a usermod manifest (cdata.json) into the build work it describes.
 // The manifest is an externally-tagged object whose top-level keys each name one
-// kind of contribution; today only `header` exists, an array of
-// header-operations, each of which produces one generated header file.
+// kind of contribution:
+//   header - header-operations, each producing one generated header file that is
+//            private to the usermod
+//   ui     - contributions folded into one of WLED's own web UI bundles
+// At least one of them must be present; a manifest that contributes nothing is
+// almost certainly a mistake.
 //
 // Returns { jobs, ui }: `jobs` are self-contained build jobs the caller can hand
 // straight to buildJob(), `ui` collects contributions that have no output of
@@ -543,12 +660,20 @@ function manifestToJobs(manifestArg) {
   if ('schemaVersion' in manifest && manifest.schemaVersion !== 1) {
     fail("unsupported schemaVersion " + JSON.stringify(manifest.schemaVersion) + " (expected 1 or absent)");
   }
-  if (!Array.isArray(manifest.header) || manifest.header.length === 0) {
+  const hasHeader = manifest.header !== undefined;
+  const hasUi = manifest.ui !== undefined;
+  if (!hasHeader && !hasUi) {
+    fail("must define at least one of 'header' or 'ui'");
+  }
+  if (hasHeader && (!Array.isArray(manifest.header) || manifest.header.length === 0)) {
     fail("missing or empty 'header' array");
+  }
+  if (hasUi && (!Array.isArray(manifest.ui) || manifest.ui.length === 0)) {
+    fail("missing or empty 'ui' array");
   }
 
   const seenOut = new Set();
-  const jobs = manifest.header.map((op, i) => {
+  const jobs = (manifest.header || []).map((op, i) => {
     if (typeof op !== 'object' || op === null || Array.isArray(op)) {
       fail("header[" + i + "] must be an object");
     }
@@ -610,7 +735,7 @@ function manifestToJobs(manifestArg) {
     };
   });
 
-  return { jobs, ui: [] };
+  return { jobs, ui: hasUi ? parseUiOps(manifest.ui, modDir, manifestPath, fail) : [] };
 }
 
 // A job's inputs, split by how a change to them is detected:

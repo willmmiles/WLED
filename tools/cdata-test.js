@@ -305,8 +305,10 @@ describe('Usermod manifests', () => {
       json: { header: [{ specs: [spec] }] }, error: /missing a string 'output'/ },
     'an empty header array': {
       json: { header: [] }, error: /missing or empty 'header' array/ },
-    'no header key at all': {
-      json: { schemaVersion: 1 }, error: /missing or empty 'header' array/ },
+    // A manifest may omit 'header' (a ui-only usermod), but it has to contribute
+    // something -- an empty manifest is a mistake, not a valid no-op.
+    'a manifest that contributes nothing': {
+      json: { schemaVersion: 1 }, error: /must define at least one of 'header' or 'ui'/ },
     'an unsupported schemaVersion': {
       json: { schemaVersion: 2, header: [{ output: 'x.h', specs: [spec] }] },
       error: /unsupported schemaVersion 2/ },
