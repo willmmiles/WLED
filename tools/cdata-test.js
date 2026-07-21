@@ -7,12 +7,13 @@ const os = require('os');
 const path = require('path');
 const child_process = require('child_process');
 const util = require('util');
+const zlib = require('node:zlib');
 const execPromise = util.promisify(child_process.exec);
 
 // Importing the build script must be side-effect free: with NODE_ENV=test it
 // defines its helpers but must not run a build.
 process.env.NODE_ENV = 'test';
-require('./cdata.js');
+const { applyUiContributions } = require('./cdata.js');
 
 // The CLI decides whether to build from NODE_ENV, so child processes must not
 // inherit the test harness's NODE_ENV=test (which suppresses the build).
@@ -355,4 +356,233 @@ describe('Usermod manifests', () => {
       fs.rmSync(bad);
     });
   }
+});
+
+// A manifest's `ui` section contributes source files to one of WLED's own web UI
+// bundles instead of generating a header of its own: the files are spliced into
+// the page and minified and compressed along with it.
+describe('Usermod UI contributions', () => {
+  // A stand-in for the inlined index.htm.  All the splice needs is the two
+  // closing tags it anchors on.
+  const page = '<!doctype html><html><head><style>a{}</style></head><body><div id="app"></div></body></html>';
+  // The shape loadUiContributions() produces, built by hand so the splice itself
+  // can be exercised as the pure string operation it is.
+  const src = (file, type, contents) =>
+    ({ file, type, contents, basename: path.basename(file, path.extname(file)) });
+  const contribution = (module, ...sources) => ({ module, sources });
+
+  describe('splicing into the page', () => {
+    it('inserts css before the final </head>', () => {
+      const out = applyUiContributions(page, [contribution('pm', src('pm.css', 'css', '.pm{color:red}'))]);
+      assert.match(out, /<style>\.pm\{color:red\}<\/style><\/head>/);
+      // A css-only contribution adds nothing to the body.
+      assert.strictEqual(out.slice(out.indexOf('<body>')), page.slice(page.indexOf('<body>')));
+    });
+
+    it('inserts templates and scripts before the final </body>, templates first', () => {
+      // The script is listed first on purpose: within one contribution the
+      // templates are always emitted first, so the script can find them.
+      const out = applyUiContributions(page, [
+        contribution('pm', src('pm.js', 'script', 'go();'), src('panel.htm', 'template', '<p>hi</p>')),
+      ]);
+      const template = out.indexOf('<template id="um-pm-panel"><p>hi</p></template>');
+      const script = out.indexOf('WLED.module("pm"');
+      assert(template > 0, 'the template was not spliced in');
+      assert(out.indexOf('<div id="app">') < template, 'contributions belong at the end of the body');
+      assert(template < script, "a contribution's templates must precede its script");
+      assert(script < out.indexOf('</body>'), 'contributions belong before </body>');
+    });
+
+    it('wraps a script so a trailing comment cannot swallow the closing brace', () => {
+      const out = applyUiContributions(page, [contribution('pm', src('pm.js', 'script', 'go(); // trailing'))]);
+      assert(out.includes('<script>WLED.module("pm",function(WLED){\ngo(); // trailing\n});</script>'),
+        'the module wrapper text (including its newlines) is not what modules are compiled against');
+    });
+
+    it('keeps contributions in the order they were supplied, never sorted', () => {
+      const out = applyUiContributions(page, [
+        contribution('zeta', src('z.css', 'css', '.z{}'), src('z.js', 'script', 'Z();')),
+        contribution('alpha', src('a.css', 'css', '.a{}'), src('a.js', 'script', 'A();')),
+      ]);
+      // Manifest order decides the order contributed code runs in; sorting would
+      // make that depend on the module names instead.
+      assert(out.indexOf('.z{}') < out.indexOf('.a{}'), 'css must follow manifest order');
+      assert(out.indexOf('"zeta"') < out.indexOf('"alpha"'), 'scripts must follow manifest order');
+    });
+
+    it('emits the extension API ahead of any contributed code', () => {
+      const out = applyUiContributions(page, [contribution('pm', src('pm.js', 'script', 'go();'))], 'API();');
+      assert(out.includes('<script>API();</script>'), 'the extension API was not spliced in');
+      assert(out.indexOf('API();') < out.indexOf('WLED.module'), 'the API must load before the modules using it');
+    });
+
+    it('leaves the page untouched when nothing is contributed', () => {
+      // index.js carries an inert stub, so a build with no usermod UI must not
+      // pay for the extension API.
+      assert.strictEqual(applyUiContributions(page, [], 'API();'), page);
+    });
+
+    // Contributed files are third-party build inputs: text that closes the tag
+    // they are wrapped in would spill the rest of the file into the document.
+    for (const [type, file, contents] of [
+      ['script', 'pm.js', 'var s = "</script>";'],
+      ['css', 'pm.css', '.pm{content:"</style>"}'],
+      ['template', 'pm.htm', '<p></template></p>'],
+    ]) {
+      it(`rejects a ${type} source that closes its own tag early`, () => {
+        assert.throws(
+          () => applyUiContributions(page, [contribution('pm', src(file, type, contents))]),
+          new RegExp(file.replace('.', '\\.') + ': a contributed ' + type + ' file must not contain'));
+      });
+    }
+  });
+
+  describe('manifest validation', () => {
+    let modDir;
+    const depfile = () => path.join(modDir, 'deps.d');
+    const write = (name, json) => {
+      const p = path.join(modDir, name);
+      fs.writeFileSync(p, JSON.stringify(json));
+      return p;
+    };
+    // A manifest's ui section is validated before anything is built, so these run
+    // against --emit-deps: that proves it, and keeps them cheap.
+    const emitDeps = (manifestPath) =>
+      runCdata(`--emit-deps --depfile "${depfile()}" --manifest "${manifestPath}"`);
+    // A well-formed op, with the parts a case is testing overridden.
+    const uiOp = (op) => ({ ui: [{ target: 'index', srcDir: 'ui', ...op }] });
+
+    before(() => {
+      modDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cdata-ui-'));
+      fs.mkdirSync(path.join(modDir, 'ui'));
+      fs.writeFileSync(path.join(modDir, 'ui', 'pm.js'), 'go();\n');
+    });
+    after(() => fs.rmSync(modDir, { recursive: true, force: true }));
+
+    it('accepts a manifest that contributes ui and no header', async () => {
+      const { stdout } = await emitDeps(write('uionly.json', uiOp({ sources: ['pm.js'] })));
+      assert.match(stdout, /Wrote dependency graph/);
+    });
+
+    it('makes contributed sources and the manifest inputs of the bundle', async () => {
+      await emitDeps(write('deps.json', uiOp({ sources: ['pm.js'] })));
+      const rule = fs.readFileSync(depfile(), 'utf8').split('\n').find(l => l.startsWith('wled00/html_ui.h:'));
+      assert(rule, 'no dependency rule for wled00/html_ui.h');
+      // Without these, editing a usermod's UI would not rebuild the page it is
+      // compiled into.
+      assert.match(rule, /ui\/pm\.js(\s|$)/, 'a contributed source must be an input of the bundle');
+      assert.match(rule, /deps\.json(\s|$)/, 'the contributing manifest must be an input of the bundle');
+    });
+
+    it('warns that legacy single-manifest mode skips ui contributions', async () => {
+      // That mode does not build a core bundle, so there is nothing to splice
+      // into -- but dropping the usermod's UI in silence would look like a bug.
+      const { stderr } = await runCdata(`"${write('legacy.json', uiOp({ sources: ['pm.js'] }))}"`);
+      assert.match(stderr, /skipped in legacy single-manifest mode/);
+    });
+
+    it("rejects a folder name that cannot be used as the default module name", async () => {
+      // 'module' defaults to the usermod folder's name, which ends up in an HTML
+      // id and a JS string literal; an unusable one must say so, not be mangled.
+      const oddDir = path.join(modDir, 'power manager');
+      fs.mkdirSync(oddDir);
+      fs.writeFileSync(path.join(oddDir, 'cdata.json'), JSON.stringify(uiOp({ sources: ['pm.js'] })));
+      await assert.rejects(emitDeps(path.join(oddDir, 'cdata.json')),
+        /ui\[0\] cannot use the usermod folder name "power manager" as its 'module'.*set 'module' explicitly/);
+    });
+
+    const invalidUi = {
+      'a ui op with no target': {
+        json: { ui: [{ srcDir: 'ui', sources: ['pm.js'] }] },
+        error: /ui\[0\] is missing a string 'target'/ },
+      'an unknown target': {
+        json: uiOp({ target: 'settings', sources: ['pm.js'] }),
+        error: /ui\[0\] has an unknown 'target' "settings" \(expected one of: index\)/ },
+      'an unsupported api version': {
+        json: uiOp({ api: 2, sources: ['pm.js'] }),
+        error: /ui\[0\] requests unsupported 'api' 2/ },
+      'an empty sources array': {
+        json: uiOp({ sources: [] }),
+        error: /ui\[0\] is missing a non-empty 'sources' array/ },
+      'a source whose extension implies no type': {
+        json: uiOp({ sources: ['pm.txt'] }),
+        error: /ui\[0\]\.sources\[0\] file 'pm\.txt' has an unrecognized extension/ },
+      'a module name that is not id-safe': {
+        json: uiOp({ module: 'power manager', sources: ['pm.js'] }),
+        error: /ui\[0\] has an invalid 'module' "power manager"/ },
+      'two ui ops for the same target': {
+        json: { ui: [
+          { target: 'index', srcDir: 'ui', sources: ['pm.js'] },
+          { target: 'index', srcDir: 'ui', sources: ['pm.js'] },
+        ] },
+        error: /ui\[1\] target 'index' duplicates an earlier ui op/ },
+      // Path traversal: a ui op's paths are constrained exactly as a header op's.
+      'a srcDir escaping the usermod folder': {
+        json: uiOp({ srcDir: '../../elsewhere', sources: ['pm.js'] }),
+        error: /ui\[0\] srcDir '\.\.\/\.\.\/elsewhere' resolves outside the usermod folder/ },
+      'a source file escaping the usermod folder': {
+        json: uiOp({ sources: ['../../../../etc/hosts.js'] }),
+        error: /ui\[0\]\.sources\[0\] file '.*etc\/hosts\.js' resolves outside the usermod folder/ },
+    };
+
+    for (const [desc, { json, error }] of Object.entries(invalidUi)) {
+      it(`rejects ${desc}`, async () => {
+        await assert.rejects(emitDeps(write('invalid.json', json)), error);
+      });
+    }
+  });
+
+  describe('building the main UI', () => {
+    let modDir;
+
+    before(() => {
+      modDir = fs.mkdtempSync(path.join(os.tmpdir(), 'powermanager-'));
+      fs.mkdirSync(path.join(modDir, 'ui'));
+      fs.writeFileSync(path.join(modDir, 'ui', 'pm.css'), '.pm-widget{color:red}\n');
+      fs.writeFileSync(path.join(modDir, 'ui', 'panel.htm'), '<p>power ##VERSION##</p>\n');
+      fs.writeFileSync(path.join(modDir, 'ui', 'pm.js'), 'console.log("pm"); // trailing\n');
+      fs.writeFileSync(path.join(modDir, 'cdata.json'), JSON.stringify({
+        schemaVersion: 1,
+        ui: [{ target: 'index', srcDir: 'ui', module: 'powermanager',
+               sources: ['pm.css', 'panel.htm', 'pm.js'] }],
+      }));
+    });
+
+    // These build the real wled00/html_ui.h, so regenerate it without the
+    // usermod afterwards -- otherwise the tree keeps a header carrying this
+    // temporary module's code.
+    after(async () => {
+      fs.rmSync(modDir, { recursive: true, force: true });
+      await runCdata('-f');
+    });
+
+    // Recover the page the firmware would serve: html_ui.h holds the gzipped
+    // payload as a C byte array.
+    function decodeIndexPage() {
+      const header = fs.readFileSync(path.join('wled00', 'html_ui.h'), 'utf8');
+      const m = header.match(/PAGE_index\[\] PROGMEM = \{([\s\S]*?)\n\};/);
+      assert(m, 'html_ui.h does not contain a PAGE_index array');
+      const bytes = m[1].trim().split(/,\s*/).map((b) => parseInt(b, 16));
+      return zlib.gunzipSync(Buffer.from(bytes)).toString('utf8');
+    }
+
+    it('compiles the contributed files into html_ui.h', async () => {
+      await runCdata(`-f --manifest "${path.join(modDir, 'cdata.json')}"`);
+      const html = decodeIndexPage();
+      assert.match(html, /WLED\.module\("powermanager"/, 'the module wrapper is missing from the page');
+      assert.match(html, /<template id=["']?um-powermanager-panel["']?/, 'the template is missing from the page');
+      assert.match(html, /\.pm-widget\{color:red\}/, 'the contributed css is missing from the page');
+      // Contributed files get the same ##VERSION## substitution as core sources.
+      assert.doesNotMatch(html, /##VERSION##/);
+    });
+
+    it('fails the build if a contributed script would close its own tag', async () => {
+      const evil = path.join(modDir, 'evil.json');
+      fs.writeFileSync(path.join(modDir, 'ui', 'evil.js'), 'var s = "</script>";\n');
+      fs.writeFileSync(evil, JSON.stringify({
+        ui: [{ target: 'index', srcDir: 'ui', module: 'evil', sources: ['evil.js'] }],
+      }));
+      await assert.rejects(runCdata(`-f --manifest "${evil}"`), /evil\.js: a contributed script file must not contain/);
+    });
+  });
 });
