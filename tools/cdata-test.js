@@ -13,7 +13,7 @@ const execPromise = util.promisify(child_process.exec);
 // Importing the build script must be side-effect free: with NODE_ENV=test it
 // defines its helpers but must not run a build.
 process.env.NODE_ENV = 'test';
-const { applyUiContributions } = require('./cdata.js');
+const { applyUiContributions, checkUiTargets } = require('./cdata.js');
 
 // The CLI decides whether to build from NODE_ENV, so child processes must not
 // inherit the test harness's NODE_ENV=test (which suppresses the build).
@@ -435,6 +435,38 @@ describe('Usermod UI contributions', () => {
           new RegExp(file.replace('.', '\\.') + ': a contributed ' + type + ' file must not contain'));
       });
     }
+
+    it('rejects a script that does not parse, naming the file', () => {
+      // The page minifier keeps JavaScript it cannot parse rather than failing,
+      // so nothing else would stop a broken contribution from being shipped.
+      assert.throws(
+        () => applyUiContributions(page, [contribution('pm', src('pm.js', 'script', 'function ( { oops'))]),
+        /pm\.js: contributed script does not parse/);
+    });
+
+    it('accepts a script that only parses inside the module wrapper', () => {
+      // The contents become a function body, so `return` at the top level of a
+      // contributed file is legal and must not be rejected.
+      assert.doesNotThrow(
+        () => applyUiContributions(page, [contribution('pm', src('pm.js', 'script', 'if (!WLED) return;\ngo();'))]));
+    });
+  });
+
+  describe('target wiring', () => {
+    // A ui target names the mainJobs entry that builds the bundle by its `page`,
+    // and nothing but convention links the two.  Importing cdata.js at all
+    // asserts the real table (the check runs at load); these cover both outcomes.
+    it('accepts a job list that builds every ui target', () => {
+      assert.doesNotThrow(() => checkUiTargets([{ kind: 'html', page: 'index' }]));
+    });
+
+    it('rejects a job list that has drifted away from a ui target', () => {
+      assert.throws(() => checkUiTargets([{ kind: 'html', page: 'renamed' }]),
+        /ui target 'index' names no html job/);
+      // A chunks job with a matching name is not a bundle contributions can go in.
+      assert.throws(() => checkUiTargets([{ kind: 'chunks', page: 'index' }]),
+        /ui target 'index' names no html job/);
+    });
   });
 
   describe('manifest validation', () => {
@@ -479,6 +511,32 @@ describe('Usermod UI contributions', () => {
       // into -- but dropping the usermod's UI in silence would look like a bug.
       const { stderr } = await runCdata(`"${write('legacy.json', uiOp({ sources: ['pm.js'] }))}"`);
       assert.match(stderr, /skipped in legacy single-manifest mode/);
+    });
+
+    it('rejects two usermods claiming the same module name', async () => {
+      // A module name namespaces template ids and WLED.module() registrations
+      // across the whole bundle, and it defaults to the folder name -- so a
+      // collision is something neither author necessarily chose, and the error
+      // has to name both manifests for either of them to act on it.
+      const mine = write('mine.json', uiOp({ module: 'shared', sources: ['pm.js'] }));
+      const theirs = write('theirs.json', uiOp({ module: 'shared', sources: ['pm.js'] }));
+      await assert.rejects(
+        runCdata(`--emit-deps --depfile "${depfile()}" --manifest "${mine}" --manifest "${theirs}"`),
+        (e) => {
+          assert.match(e.message, /Conflicting UI module name 'shared' for target 'index'/);
+          assert.match(e.message, /mine\.json/);
+          assert.match(e.message, /theirs\.json/);
+          assert.match(e.message, /Set an explicit 'module' in one of them/);
+          return true;
+        });
+    });
+
+    it('accepts two usermods contributing under different module names', async () => {
+      const mine = write('a.json', uiOp({ module: 'alpha', sources: ['pm.js'] }));
+      const theirs = write('b.json', uiOp({ module: 'beta', sources: ['pm.js'] }));
+      const { stdout } = await runCdata(
+        `--emit-deps --depfile "${depfile()}" --manifest "${mine}" --manifest "${theirs}"`);
+      assert.match(stdout, /Wrote dependency graph/);
     });
 
     it("rejects a folder name that cannot be used as the default module name", async () => {
