@@ -506,9 +506,16 @@ function resolveWithin(baseDir, rel, fail, what) {
   return abs;
 }
 
-// Turn a usermod manifest (cdata.json) into one chunks job per header op.
-// The manifest is an externally-tagged object: `header` is an array of
+// Turn a usermod manifest (cdata.json) into the build work it describes.
+// The manifest is an externally-tagged object whose top-level keys each name one
+// kind of contribution; today only `header` exists, an array of
 // header-operations, each of which produces one generated header file.
+//
+// Returns { jobs, ui }: `jobs` are self-contained build jobs the caller can hand
+// straight to buildJob(), `ui` collects contributions that have no output of
+// their own because they are folded into a job the caller owns.  Splitting the
+// two here keeps all manifest validation in one place while leaving the decision
+// of *which* job a contribution lands on to main().
 function manifestToJobs(manifestArg) {
   const manifestPath = path.resolve(manifestArg);
   const modDir = path.dirname(manifestPath);
@@ -541,7 +548,7 @@ function manifestToJobs(manifestArg) {
   }
 
   const seenOut = new Set();
-  return manifest.header.map((op, i) => {
+  const jobs = manifest.header.map((op, i) => {
     if (typeof op !== 'object' || op === null || Array.isArray(op)) {
       fail("header[" + i + "] must be an object");
     }
@@ -602,6 +609,8 @@ function manifestToJobs(manifestArg) {
       manifestPath: manifestPath, // the manifest itself is an input
     };
   });
+
+  return { jobs, ui: [] };
 }
 
 // A job's inputs, split by how a change to them is detected:
@@ -737,9 +746,18 @@ async function main() {
 
   // Assemble the job list.  Legacy single-manifest mode builds only that
   // manifest; otherwise we build the main UI plus any --manifest usermods.
-  const jobs = opts.legacyManifest
-    ? manifestToJobs(opts.legacyManifest)
-    : mainJobs.concat(opts.manifests.flatMap(manifestToJobs));
+  // The main job descriptions are copied rather than used directly: they are
+  // shared module state, and the copies get per-run data attached to them below.
+  let jobs;
+  if (opts.legacyManifest) {
+    jobs = manifestToJobs(opts.legacyManifest).jobs;
+  } else {
+    jobs = mainJobs.map((job) => ({ ...job }));
+    for (const manifestArg of opts.manifests) {
+      const parsed = manifestToJobs(manifestArg);
+      jobs.push(...parsed.jobs);
+    }
+  }
 
   if (opts.emitDepsOnly) {
     if (!opts.depfile) {
