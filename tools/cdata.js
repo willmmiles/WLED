@@ -25,6 +25,7 @@
 
 const fs = require("node:fs");
 const path = require("path");
+const vm = require("node:vm");
 const zlib = require("node:zlib");
 const packageJson = require("../package.json");
 
@@ -206,6 +207,18 @@ function applyUiContributions(html, contributions, apiScript = "") {
         throw new Error(s.file + ": a contributed " + s.type + " file must not contain '" +
                         forbidden.tag + "', which would terminate the enclosing tag early");
       }
+      if (s.type === 'script') {
+        // The page minifier keeps JavaScript it cannot parse instead of failing,
+        // so without this a contributed script with a syntax error would ship
+        // broken (and unminified) rather than stop the build.  Compile it as the
+        // function body it is about to become; compileFunction only compiles --
+        // the code is never run -- and reports the fault against its own file.
+        try {
+          vm.compileFunction(s.contents, ['WLED'], { filename: s.file });
+        } catch (e) {
+          throw new Error(s.file + ": contributed script does not parse: " + e.message);
+        }
+      }
       if (s.type === 'css') {
         head += "<style>" + s.contents + "</style>";
       } else if (s.type === 'template') {
@@ -248,7 +261,19 @@ async function writeHtmlGzipped(sourceFile, resultFile, page, inlineCss = true, 
     html = applyUiContributions(html, loadUiContributions(ui), apiScript);
   }
   const originalLength = html.length;
-  html = await minify(html, "html-minify");
+  try {
+    html = await minify(html, "html-minify");
+  } catch (e) {
+    // The minifier parses the page's JavaScript, so contributed code that does
+    // not parse fails here -- pointing at the core page, which is almost never
+    // the culprit.  Name the usermods that were folded in instead.
+    if (ui.length === 0) throw e;
+    const manifests = [...new Set(ui.map((c) => c.manifestPath))];
+    throw new Error("Failed to minify " + sourceFile + ", which carries UI contributions from:\n  " +
+                    manifests.join("\n  ") +
+                    "\nThis is most likely a syntax error in one of the contributed scripts rather than " +
+                    "in " + sourceFile + " itself.\nMinifier error: " + e.message);
+  }
   const result = zlib.gzipSync(html, { level: zlib.constants.Z_BEST_COMPRESSION });
   console.info("Minified and compressed " + sourceFile + " from " + originalLength + " to " + result.length + " bytes");
   const array = hexdump(result);
@@ -618,6 +643,20 @@ const UI_TYPE_BY_EXT = { '.css': 'css', '.htm': 'template', '.html': 'template',
 // additionally allows '.', which is common in names like "panel.tpl.htm".)
 const UI_MODULE_RE = /^[A-Za-z0-9][A-Za-z0-9_-]*$/;
 const UI_BASENAME_RE = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
+
+// UI_TARGETS names bundles by the `page` of the mainJobs entry that builds them,
+// and nothing but this convention links the two.  Renaming a page would leave
+// every contribution to it with no job to attach to, and the only symptom would
+// be a usermod's UI quietly missing from the firmware -- so check the invariant
+// up front, where it is what it is: a bug in this file, not in a manifest.
+function checkUiTargets(jobs) {
+  for (const target of UI_TARGETS) {
+    if (!jobs.some((job) => job.kind === 'html' && job.page === target)) {
+      throw new Error("ui target '" + target + "' names no html job; UI_TARGETS and mainJobs have drifted apart");
+    }
+  }
+}
+checkUiTargets(mainJobs);
 
 // Resolve `rel` (a manifest-supplied path) against `baseDir`, failing via `fail`
 // if it lands outside `baseDir`.  Usermod manifests are third-party build inputs,
@@ -995,6 +1034,10 @@ async function main() {
     jobs = parsed.jobs;
   } else {
     jobs = mainJobs.map((job) => ({ ...job }));
+    // Which manifest claimed each (target, module) pair, so a collision can name
+    // both sides.  This is the only check that spans manifests, hence its place
+    // here rather than in manifestToJobs.
+    const claimedModules = new Map();
     for (const manifestArg of opts.manifests) {
       const parsed = manifestToJobs(manifestArg);
       jobs.push(...parsed.jobs);
@@ -1002,6 +1045,19 @@ async function main() {
       // order the manifests were given in is the order their code lands in, so
       // nothing here reorders -- a build follows from its command line.
       for (const contribution of parsed.ui) {
+        // A module name namespaces a bundle's template ids and its
+        // WLED.module() registrations; two usermods claiming the same one would
+        // collide silently, and since the name defaults to the folder name it is
+        // not something either author necessarily chose.
+        const claim = contribution.target + "\0" + contribution.module;
+        const claimedBy = claimedModules.get(claim);
+        if (claimedBy) {
+          console.error("Conflicting UI module name '" + contribution.module + "' for target '" +
+                        contribution.target + "': claimed by both " + claimedBy + " and " +
+                        contribution.manifestPath + ". Set an explicit 'module' in one of them.");
+          process.exit(1);
+        }
+        claimedModules.set(claim, contribution.manifestPath);
         const target = jobs.find((job) => job.kind === 'html' && job.page === contribution.target);
         // Unreachable unless UI_TARGETS names a bundle mainJobs no longer builds.
         if (!target) throw new Error("no build job for ui target '" + contribution.target + "'");
@@ -1035,6 +1091,7 @@ async function main() {
 module.exports = {
   manifestToJobs,
   jobInputs,
+  checkUiTargets,
   loadUiContributions,
   applyUiContributions,
 };
