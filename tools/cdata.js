@@ -149,10 +149,92 @@ function inlineHtml(sourceFile, inlineCss) {
   });
 }
 
-async function writeHtmlGzipped(sourceFile, resultFile, page, inlineCss = true) {
+// A contributed file's own text must not terminate the tag it is wrapped in: a
+// "</script" inside a contributed script would end the <script> element early and
+// spill the remainder of the file into the document as markup.  Usermod sources
+// are third-party build inputs, so this is a hard error and not something we try
+// to escape our way out of.
+const UI_FORBIDDEN_TEXT = {
+  css:      { re: /<\/style/i,    tag: "</style>" },
+  template: { re: /<\/template/i, tag: "</template>" },
+  script:   { re: /<\/script/i,   tag: "</script>" },
+};
+
+// Read every file a set of ui contributions names, applying the same
+// ##VERSION## / repo-URL substitution the core UI sources get -- specToChunk does
+// it for a usermod's own headers, so contributed UI must not be the odd one out.
+// Kept separate from applyUiContributions so that the splicing itself stays a
+// pure (and directly testable) string operation.
+function loadUiContributions(contributions) {
+  return contributions.map((c) => ({
+    module: c.module,
+    sources: c.sources.map((s) => ({
+      file: s.file,
+      type: s.type,
+      basename: s.basename,
+      contents: adoptVersionAndRepo(fs.readFileSync(s.file, "utf8")),
+    })),
+  }));
+}
+
+// Splice loaded contributions into an inlined HTML document: styles before the
+// final </head>, templates and module scripts before the final </body>.
+//
+// Order is the order the contributions are given in (manifest order on the
+// command line) and, within one, the order of its sources -- nothing is sorted,
+// so the output follows from the inputs alone.  A contribution's templates are
+// emitted before its script, so the script can find them the moment it runs.
+function applyUiContributions(html, contributions) {
+  let head = "";
+  let body = "";
+  for (const c of contributions) {
+    let scripts = "";
+    for (const s of c.sources) {
+      const forbidden = UI_FORBIDDEN_TEXT[s.type];
+      if (forbidden.re.test(s.contents)) {
+        throw new Error(s.file + ": a contributed " + s.type + " file must not contain '" +
+                        forbidden.tag + "', which would terminate the enclosing tag early");
+      }
+      if (s.type === 'css') {
+        head += "<style>" + s.contents + "</style>";
+      } else if (s.type === 'template') {
+        body += '<template id="um-' + c.module + '-' + s.basename + '">' + s.contents + "</template>";
+      } else {
+        // The file's contents must start on their own line: a trailing // comment
+        // would otherwise swallow the closing brace of the wrapper.
+        scripts += '<script>WLED.module("' + c.module + '",function(WLED){\n' + s.contents + "\n});</script>";
+      }
+    }
+    body += scripts;
+  }
+  if (head === "" && body === "") return html;
+
+  // Both anchors are located in the original document, before anything is
+  // inserted, so text inside a contributed file can never be mistaken for the end
+  // of a section.  The *last* closing tag is used for the same reason.
+  const headAt = html.lastIndexOf("</head>");
+  const bodyAt = html.lastIndexOf("</body>");
+  if (head !== "" && headAt < 0) throw new Error("cannot add usermod styles: the page has no </head>");
+  if (body !== "" && bodyAt < 0) throw new Error("cannot add usermod templates or scripts: the page has no </body>");
+  if (head !== "" && body !== "" && headAt > bodyAt) throw new Error("cannot add usermod UI: the page's </head> follows its </body>");
+  let out = html;
+  // Insert at the later anchor first, so the earlier anchor's offset stays valid.
+  if (body !== "") out = out.slice(0, bodyAt) + body + out.slice(bodyAt);
+  if (head !== "") out = out.slice(0, headAt) + head + out.slice(headAt);
+  return out;
+}
+
+async function writeHtmlGzipped(sourceFile, resultFile, page, inlineCss = true, ui = []) {
   console.info("Reading " + sourceFile);
   let html = await inlineHtml(sourceFile, inlineCss);
   html = adoptVersionAndRepo(html);
+  // Usermod UI is folded in after inlining and substitution but before
+  // minification, so the whole page -- core and contributed alike -- is minified
+  // and compressed as a single payload.
+  if (ui.length > 0) {
+    console.info("Adding UI contributions from " + ui.length + " usermod(s) to " + sourceFile);
+    html = applyUiContributions(html, loadUiContributions(ui));
+  }
   const originalLength = html.length;
   html = await minify(html, "html-minify");
   const result = zlib.gzipSync(html, { level: zlib.constants.Z_BEST_COMPRESSION });
@@ -761,6 +843,12 @@ function jobInputs(job) {
     for (const s of job.specs) files.push(path.join(job.srcDir, s.file));
   }
   if (job.manifestPath) files.push(job.manifestPath);
+  // A ui contribution's sources feed this job's output as surely as its own
+  // sources do, and the manifest decides which they are -- so both belong in the
+  // file list, or an edit to a usermod's UI would not rebuild the bundle.
+  for (const c of job.ui || []) {
+    files.push(c.manifestPath, ...c.sources.map((s) => s.file));
+  }
   return { files, dirs };
 }
 
@@ -798,7 +886,7 @@ function isJobStale(job) {
 
 async function buildJob(job) {
   if (job.kind === 'html') {
-    await writeHtmlGzipped(job.src, job.out, job.page, job.inlineCss !== false);
+    await writeHtmlGzipped(job.src, job.out, job.page, job.inlineCss !== false, job.ui || []);
   } else {
     await writeChunks(job.srcDir, job.specs, job.out);
   }
@@ -875,12 +963,30 @@ async function main() {
   // shared module state, and the copies get per-run data attached to them below.
   let jobs;
   if (opts.legacyManifest) {
-    jobs = manifestToJobs(opts.legacyManifest).jobs;
+    const parsed = manifestToJobs(opts.legacyManifest);
+    // A ui contribution has no output of its own; it is spliced into a core UI
+    // bundle, which this mode deliberately does not build.  Say so instead of
+    // quietly dropping the usermod's UI, which would look like a build bug.
+    if (parsed.ui.length > 0) {
+      console.error("Warning: " + opts.legacyManifest + " contributes to the main web UI, but " +
+                    "ui contributions are skipped in legacy single-manifest mode. " +
+                    "Use 'node cdata.js --manifest " + opts.legacyManifest + "' to build them.");
+    }
+    jobs = parsed.jobs;
   } else {
     jobs = mainJobs.map((job) => ({ ...job }));
     for (const manifestArg of opts.manifests) {
       const parsed = manifestToJobs(manifestArg);
       jobs.push(...parsed.jobs);
+      // Hand each contribution to the job that builds its target bundle.  The
+      // order the manifests were given in is the order their code lands in, so
+      // nothing here reorders -- a build follows from its command line.
+      for (const contribution of parsed.ui) {
+        const target = jobs.find((job) => job.kind === 'html' && job.page === contribution.target);
+        // Unreachable unless UI_TARGETS names a bundle mainJobs no longer builds.
+        if (!target) throw new Error("no build job for ui target '" + contribution.target + "'");
+        (target.ui = target.ui || []).push(contribution);
+      }
     }
   }
 
@@ -903,6 +1009,15 @@ async function main() {
   // Refresh the dependency graph for the build system, if requested.
   if (opts.depfile) emitDepfile(opts.depfile, jobs);
 }
+
+// Internals the test suite drives directly.  Exporting them is unconditional and
+// harmless: importing this file never builds anything by itself (see below).
+module.exports = {
+  manifestToJobs,
+  jobInputs,
+  loadUiContributions,
+  applyUiContributions,
+};
 
 // Don't run the build when imported by the test harness.
 if (process.env.NODE_ENV !== 'test') {
