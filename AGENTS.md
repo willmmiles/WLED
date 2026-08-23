@@ -161,6 +161,7 @@ Background Info:
 
 - Use FreeRTOS mutexes, semaphores or queues when true concurrent access from multiple FreeRTOS tasks is possible, and race-conditions can lead to unexpected behaviour.
 - **Avoid `portENTER_CRITICAL()` / `portEXIT_CRITICAL()`**, as these functions stall the complete system and may cause LEDs flickering. Prefer FreeRTOS mutexes, semaphores or queues.
+- Don't use `portMAX_DELAY` when waiting to acquire a mutex - this can lock the task indefinitely. Find a reasonable max waiting time, and handle mutex timeouts gracefully.
 - **Important**: Not every shared resource needs a mutex. Some synchronization is guaranteed by the overall control flow, for example when function calls are sequenced within the same loop iteration.
 - Consider using `std::atomic` or RAII scoped guards as alternatives to mutexes, semaphores or queues.
 
@@ -172,9 +173,17 @@ Background Info:
 - After editing, run `npm run build` to regenerate headers
 - **Never edit** `wled00/html_*.h` or `wled00/js_*.h` directly
 
-## Usermod Pattern
+## Usermods
+ 
+### Source Code Location
 
-Usermods live in `usermods/<name>/` with a `.cpp`, optional `.h`, `library.json`, and `readme.md`.
+* **In-Tree Usermods** live in `usermods/<name>/` with a `.cpp`, optional `.h`, `library.json`, and `readme.md`.  An example is in `usermods/EXAMPLE`
+* **Out-Of-Tree Usermods** live in a separate public repository. They use the same pattern as in-tree usermods.
+
+* [Official out-of-tree usermods list](https://kno.wled.ge/advanced/community-usermods/#index)
+* [Writing an out-of-tree usermod](https://kno.wled.ge/advanced/custom-features/#writing-a-usermod)
+
+### Usermod Pattern
 
 ```cpp
 class MyUsermod : public Usermod {
@@ -219,6 +228,10 @@ If none of the above apply, the usermod may omit `getId()` (or return the defaul
     * up to 2000 times/sec with few LEDs and little background activity,
     * between 20 and 300 times/second during high workload from effects and other usermods,
     * (worst case) down to 1-3 times/sec during FS activity or when serving lots of network API requests.
+
+### See Also
+* https://kno.wled.ge/advanced/custom-features/#usermods
+* https://kno.wled.ge/advanced/community-usermods/#index
 
 ## CI/CD
 
