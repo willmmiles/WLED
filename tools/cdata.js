@@ -650,6 +650,13 @@ const MANIFEST_ALLOWED_KEYS = new Set(['header', 'ui', 'schemaVersion', '$schema
 const SPEC_METHODS = new Set(['plaintext', 'gzip', 'binary']);
 const SPEC_FILTERS = new Set(['plain', 'css-minify', 'js-minify', 'html-minify']);
 
+// The minifier a spec gets when it names no explicit 'filter', chosen from the
+// file's extension the same way the ui section infers a source's type -- so the
+// common case (serve this page, minified) needs only 'file' and 'name'.  An
+// extension not listed here falls back to 'plain'; override either way with an
+// explicit 'filter' (e.g. 'plain' for already-minified JS).
+const SPEC_FILTER_BY_EXT = { '.htm': 'html-minify', '.html': 'html-minify', '.css': 'css-minify', '.js': 'js-minify' };
+
 // A 'ui' op contributes source files to one of WLED's own web UI bundles instead
 // of generating a header of its own.  'target' names the bundle: the value is the
 // `page` of the mainJobs entry that builds it.  The enum is deliberately tiny --
@@ -876,15 +883,24 @@ function manifestToJobs(manifestArg) {
       if (typeof s.name !== 'string' || !/^[A-Za-z_][A-Za-z0-9_]*$/.test(s.name)) {
         fail(where + " needs a 'name' that is a valid C identifier");
       }
+      // 'method' defaults to gzip -- the encoding you want for serving a page;
+      // plaintext (runtime ##..## substitution) and binary are opt-in.  Resolve
+      // the default before validating, then write it back so specToChunk sees a
+      // concrete value.
+      if (s.method === undefined) s.method = 'gzip';
       if (!SPEC_METHODS.has(s.method)) {
         fail(where + " has an invalid 'method' " + JSON.stringify(s.method) +
              " (expected one of: " + [...SPEC_METHODS].join(', ') + ")");
       }
-      // filter is optional (absent means no minification); reject only a value
-      // that minify() would not understand.
+      // 'filter' defaults to what the file extension implies (see
+      // SPEC_FILTER_BY_EXT); reject only an explicit value minify() would not
+      // understand, then write the resolved filter back for specToChunk.
       if (s.filter !== undefined && !SPEC_FILTERS.has(s.filter)) {
         fail(where + " has an invalid 'filter' " + JSON.stringify(s.filter) +
              " (expected one of: " + [...SPEC_FILTERS].join(', ') + ")");
+      }
+      if (s.filter === undefined) {
+        s.filter = SPEC_FILTER_BY_EXT[path.extname(s.file).toLowerCase()] || 'plain';
       }
       // A plaintext spec's raw-string delimiters must be supplied as a matching
       // pair; supplying only one would emit an unbalanced R"delim(...)" .  Neither

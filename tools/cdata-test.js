@@ -296,6 +296,46 @@ describe('Usermod manifests', () => {
     fs.rmSync(path.join(modDir, 'html_plain.h'));
   });
 
+  it('defaults a spec method to gzip when none is given', async () => {
+    const g = path.join(modDir, 'gz.json');
+    fs.writeFileSync(g, JSON.stringify({
+      header: [{ output: 'html_gz.h', srcDir: 'data',
+        specs: [{ file: 'page.htm', name: 'PAGE_gz' }] }],
+    }));
+    await runCdata(`"${g}"`);
+    const out = fs.readFileSync(path.join(modDir, 'html_gz.h'), 'utf8');
+    // gzip encodes as a PROGMEM byte array with a _length, not a raw string.
+    assert.match(out, /const uint8_t PAGE_gz\[\] PROGMEM = \{/);
+    assert.match(out, /const uint16_t PAGE_gz_length =/);
+    fs.rmSync(g);
+    fs.rmSync(path.join(modDir, 'html_gz.h'));
+  });
+
+  it("infers a spec's filter from its extension, and honours an explicit override", async () => {
+    // A source with a strippable comment and collapsible whitespace, so the
+    // difference between css-minify and plain is visible in the output.
+    fs.writeFileSync(path.join(modDir, 'data', 'style.css'), '/* a comment */\n.pm {\n  color: red;\n}\n');
+    const c = path.join(modDir, 'css.json');
+    fs.writeFileSync(c, JSON.stringify({
+      header: [{ output: 'css_mod.h', srcDir: 'data', specs: [
+        // No filter: .css infers css-minify, so the comment is stripped.  (plaintext
+        // keeps the result human-readable in the header so the test can inspect it.)
+        { file: 'style.css', name: 'CSS_min', method: 'plaintext' },
+        // An explicit 'plain' overrides the inference and emits the file verbatim.
+        { file: 'style.css', name: 'CSS_raw', method: 'plaintext', filter: 'plain' },
+      ] }],
+    }));
+    await runCdata(`"${c}"`);
+    const out = fs.readFileSync(path.join(modDir, 'css_mod.h'), 'utf8');
+    const minChunk = out.slice(out.indexOf('const char CSS_min'), out.indexOf('const char CSS_raw'));
+    const rawChunk = out.slice(out.indexOf('const char CSS_raw'));
+    assert.doesNotMatch(minChunk, /a comment/);      // css-minify stripped it
+    assert.match(rawChunk, /\/\* a comment \*\//);   // plain kept it verbatim
+    fs.rmSync(c);
+    fs.rmSync(path.join(modDir, 'css_mod.h'));
+    fs.rmSync(path.join(modDir, 'data', 'style.css'));
+  });
+
   // The build hard-fails on any invalid manifest (cdata.js is the single
   // validator; the Python layer only forwards paths).  Each case asserts the
   // CLI exits non-zero with a message identifying the specific problem.

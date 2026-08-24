@@ -116,7 +116,7 @@
     "spec": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["file", "name", "method"],
+      "required": ["file", "name"],
       "properties": {
         "file": {
           "type": "string",
@@ -128,12 +128,12 @@
         },
         "method": {
           "enum": ["gzip", "plaintext", "binary"],
-          "description": "How the embedded data is encoded: gzip-compressed, verbatim text, or a raw byte array."
+          "default": "gzip",
+          "description": "How the embedded data is encoded: gzip-compressed, verbatim text, or a raw byte array. Defaults to gzip."
         },
         "filter": {
           "enum": ["html-minify", "css-minify", "js-minify", "plain"],
-          "default": "plain",
-          "description": "Pre-processing applied to the source before embedding. Defaults to plain (no minification)."
+          "description": "Pre-processing applied to the source before embedding. Defaults to what the file extension implies (.htm/.html -> html-minify, .css -> css-minify, .js -> js-minify, otherwise plain); set explicitly to override (e.g. \"plain\" for already-minified JS)."
         },
         "prepend": {
           "type": "string",
