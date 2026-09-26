@@ -313,7 +313,7 @@ void Segment::handleTransition() {
     since this would require careful sync to spatial transition, the segment is held in transition until global finishes (see handleTransition() & blendSegment())
   - On strip level, there are flags to check for global on/off transitions which are set in toggleOnOff()
   - A global transition is started in stateUpdated() and triggers segment transitions if needed for spatial transitions
-  - When a spatial on/off transition is triggered during an ongoing on/off transition, it is reversed (i.e. same number of LEDs are lit but flip position)
+  - When a spatial on/off transition is triggered during an ongoing on/off transition, it is reversed by inverting the transition style (e.g. swipe-right becomes swipe-left)
   - Fade transitions continue from the current blend state if issued during a running transition
   - If a spatial transition is running it is never restarted. A subsequent change is deferred to the fade channel instead
   - For more details, see the comments throughout the code
@@ -323,9 +323,36 @@ void Segment::handleTransition() {
 // note: _t has the temporary "from" segment value(s) and the current segment holds the "to" values which are set after the transition starts.
 //       the transition has two independent channels:
 //       the fade channel (_fadeStart/_fadeDur/_fadeProgress) crossfades colors, palette, CCT and opacity and never needs a segment copy
-//       the spatial channel (_start/_dur/_progress and _oldSegment) renders wipe/push/etc. using a copy of the current state (oldSegment)
+//       the spatial channel (_spatialStart/_spatialDur/_progress and _oldSegment) renders wipe/push/etc. using a copy of the current state (oldSegment)
 // kind: low nibble = TRANSITION_KIND_x identifying which change triggered the transition (determines whether a segment copy is needed)
 //       high nibble = TRANSITION_POWER_x flags: POWER_ON/POWER_OFF = global on/off, POWER_TOGGLE = segment on/off (both flags are set)
+
+// helper to return the opposite spatial transition style
+static uint8_t reverseBlendingStyle(uint8_t bs) {
+  switch (bs) {
+    case TRANSITION_SWIPE_RIGHT:  return TRANSITION_SWIPE_LEFT;
+    case TRANSITION_SWIPE_LEFT:   return TRANSITION_SWIPE_RIGHT;
+    case TRANSITION_SWIPE_UP:     return TRANSITION_SWIPE_DOWN;
+    case TRANSITION_SWIPE_DOWN:   return TRANSITION_SWIPE_UP;
+    case TRANSITION_SWIPE_TL:     return TRANSITION_SWIPE_BR;
+    case TRANSITION_SWIPE_BR:     return TRANSITION_SWIPE_TL;
+    case TRANSITION_SWIPE_TR:     return TRANSITION_SWIPE_BL;
+    case TRANSITION_SWIPE_BL:     return TRANSITION_SWIPE_TR;
+    case TRANSITION_PUSH_RIGHT:   return TRANSITION_PUSH_LEFT;
+    case TRANSITION_PUSH_LEFT:    return TRANSITION_PUSH_RIGHT;
+    case TRANSITION_PUSH_UP:      return TRANSITION_PUSH_DOWN;
+    case TRANSITION_PUSH_DOWN:    return TRANSITION_PUSH_UP;
+    case TRANSITION_PUSH_TL:      return TRANSITION_PUSH_BR;
+    case TRANSITION_PUSH_BR:      return TRANSITION_PUSH_TL;
+    case TRANSITION_PUSH_TR:      return TRANSITION_PUSH_BL;
+    case TRANSITION_PUSH_BL:      return TRANSITION_PUSH_TR;
+    case TRANSITION_OUTSIDE_IN:   return TRANSITION_INSIDE_OUT;
+    case TRANSITION_INSIDE_OUT:   return TRANSITION_OUTSIDE_IN;
+    case TRANSITION_CIRCULAR_OUT: return TRANSITION_CIRCULAR_IN;
+    case TRANSITION_CIRCULAR_IN:  return TRANSITION_CIRCULAR_OUT;
+    default: return bs; // OPEN_H and OPEN_V are symmetrical; FADE/FairyDust are unchanged
+  }
+}
 
 void Segment::startTransition(uint16_t dur, uint8_t kind) {
   const uint8_t power = kind & TRANSITION_POWER_MASK;       // power flags (TRANSITION_POWER_*)
@@ -369,8 +396,8 @@ void Segment::startTransition(uint16_t dur, uint8_t kind) {
       if (segmentCopy && _t->_oldSegment == nullptr) {
         // no old segment means a fade transition is going on (color, palette, opacity, cct), capture current state into the old segment
         if (createOldSegment(_t->_progress)) {
-          _t->_start = millis(); // start spatial transition (fading continues on current segment)
-          _t->_dur   = dur;
+          _t->_spatialStart = millis(); // start spatial transition (fading continues on current segment)
+          _t->_spatialDur   = dur;
           DEBUGFX_PRINTF_P(PSTR("-- Updated transition with segment copy: S=%p T(%p) O[%p] OP[%p]\n"), this, _t, _t->_oldSegment, _t->_oldSegment->pixels);
         } else {
           // not enough RAM for segment copy: degrade to pure fade instead of dropping the transition
@@ -386,7 +413,7 @@ void Segment::startTransition(uint16_t dur, uint8_t kind) {
           loadPalette(_t->_palT, palette);
         }
         captureBlend(millis()); // restart fade channel from the current visual state
-        if (segmentCopy) _t->_fadeDur = (_t->_dur * _t->_progress) / 0xFFFFU; // if this is a deferred spatial request align fade time with ongoing spatial channel
+        if (segmentCopy) _t->_fadeDur = (_t->_spatialDur * _t->_progress) / 0xFFFFU; // if this is a deferred spatial request align fade time with ongoing spatial channel
       }
       return;
     }
@@ -395,9 +422,11 @@ void Segment::startTransition(uint16_t dur, uint8_t kind) {
       // power transition request (per segment or global) during an ongoing power transition
       if (targetOn == ((_t->_flags & TRANSITION_FLAG_POWER_ON) != 0)) return; // same target re-issued, let the running transition finish
       if (blendingStyle != TRANSITION_FADE) {
-        // already in a power transition reverse in place: invert the spatial timeline (20%-completed swipe continues from 80%)
-        _t->_dur = dur;
-        _t->_start = millis() - (((unsigned)(0xFFFFU - _t->_progress) * dur) / 0xFFFFU);
+        // already in a power transition reverse the animation: setting the REVERSED flag inverts the transition style
+        // the timeline is flipped so it continues smoothly: e.g. 20%-on swipe-right becomes a 80% off swipe-left
+        _t->_flags ^= TRANSITION_FLAG_REVERSED;
+        _t->_spatialDur = dur;
+        _t->_spatialStart = millis() - (((unsigned)(0xFFFFU - _t->_progress) * dur) / 0xFFFFU);
         _t->_fadeDur = 0; // disable fading (any ongoing fade completes immediately)
         createOldSegment(0xFFFFU); // create a fresh copy from the final state which is currently displayed
       } else captureBlend(millis()); // capture current fade status and restart fade when toggling
@@ -417,17 +446,17 @@ void Segment::startTransition(uint16_t dur, uint8_t kind) {
       captureBlend(millis()); // rebase transition values to current visual blend before starting the new power transition
       if (segmentCopy) {
         if (createOldSegment(0xFFFFU)) { // spatial transition, need a fresh copy (colors as-is, old side captures the current transition brightness)
-          _t->_start = millis();
-          _t->_dur   = dur;
+          _t->_spatialStart = millis();
+          _t->_spatialDur   = dur;
           _t->_fadeDur = 0; // non-fade power transition, do not fade anything but reveal the final state (same as a fresh power start)
           DEBUGFX_PRINTF_P(PSTR("-- Restarted power transition: S=%p T(%p) O[%p] OP[%p]\n"), this, _t, _t->_oldSegment, _t->_oldSegment->pixels);
         } else {
           // not enough RAM for segment copy: degrade to pure fade (restarted above) instead of dropping the transition
-          _t->_start = 0; // disables the spatial channel and uses fade instead
+          _t->_spatialStart = 0; // disables the spatial channel and uses fade instead
         }
       } else {
         // FADE blending: the fade channel (restarted above) carries the power transition
-        _t->_start = 0; // FADE blending: disables the spatial channel and uses fade instead
+        _t->_spatialStart = 0; // FADE blending: disables the spatial channel and uses fade instead
       }
       _t->_flags = TRANSITION_FLAG_POWER | (targetOn ? TRANSITION_FLAG_POWER_ON : 0);
     }
@@ -449,7 +478,7 @@ void Segment::startTransition(uint16_t dur, uint8_t kind) {
     if (_t->_oldSegment) {
       DEBUGFX_PRINTF_P(PSTR("-- Started transition: S=%p T(%p) O[%p] OP[%p]\n"), this, _t, _t->_oldSegment, _t->_oldSegment->pixels);
     } else {
-      _t->_start = 0; // disables the spatial channel and use fade i.e. enable fadeTransitionActive()
+      _t->_spatialStart = 0; // disables the spatial channel and use fade i.e. enable fadeTransitionActive()
       DEBUGFX_PRINTF_P(PSTR("-- Started transition without old segment: S=%p T(%p)\n"), this, _t);
     }
   }
@@ -466,8 +495,8 @@ void Segment::stopTransition() {
 void Segment::updateTransitionProgress() const {
   if (isInTransition()) {
     _t->_progress = _t->_fadeProgress = 0xFFFF;
-    unsigned diff = millis() - _t->_start;
-    if (_t->_dur > 0 && diff < _t->_dur) _t->_progress = diff * 0xFFFFU / _t->_dur;
+    unsigned diff = millis() - _t->_spatialStart;
+    if (_t->_spatialDur > 0 && diff < _t->_spatialDur) _t->_progress = diff * 0xFFFFU / _t->_spatialDur;
     diff = millis() - _t->_fadeStart;
     if (_t->_fadeDur > 0 && diff < _t->_fadeDur) _t->_fadeProgress = diff * 0xFFFFU / _t->_fadeDur;
   }
@@ -857,16 +886,19 @@ uint16_t Segment::maxMappingLength() const {
 #endif
 // pixel is clipped if it falls outside clipping range
 // if clipping start > stop the clipping range is inverted
-bool Segment::isPixelClipped(int i) const {
-  if (blendingStyle != TRANSITION_FADE && isInTransition() && _clipStart != _clipStop) {
+bool Segment::isPixelClipped(int i, uint8_t style) const {
+  if (style != TRANSITION_FADE && isInTransition() && _clipStart != _clipStop) {
     bool invert = _clipStart > _clipStop;  // ineverted start & stop
     int start = invert ? _clipStop : _clipStart;
     int stop  = invert ? _clipStart : _clipStop;
-    if (blendingStyle == TRANSITION_FAIRY_DUST) {
+    if (style == TRANSITION_FAIRY_DUST) {
       unsigned len = stop - start;
       if (len < 2) return false;
       unsigned shuffled = hashInt(i) % len;
       unsigned pos = (shuffled * 0xFFFFU) / len;
+      if (isTransitionReversed()) {
+        return (0xFFFFU - progress()) > pos; // invert progress and invert mask -> plays animation in reverse
+      }
       return progress() <= pos;
     }
     const bool iInside = (i >= start && i < stop);
@@ -1576,7 +1608,9 @@ void WS2812FX::blendSegment(const Segment &topSegment) const {
   uint8_t       opacityOld = opacity;                 // we set this to opacity of old segment in non-FADE transitions below
   uint8_t       cct        = topSegment.currentCCT();
   const Segment *segO      = topSegment.getOldSegment();
-  if (segO && blendingStyle != TRANSITION_FADE) opacityOld = segO->currentBri();  // get old segment opacity note: can not use segO->opacity as that breaks off->on transition
+  uint8_t style = blendingStyle;
+  if (topSegment.isTransitionReversed()) style = reverseBlendingStyle(style);
+  if (segO && style != TRANSITION_FADE) opacityOld = segO->currentBri();  // get old segment opacity note: can not use segO->opacity as that breaks off->on transition
   if (gammaCorrectCol) {
     opacity = gamma8inv(opacity); // use inverse gamma on brightness for correct color scaling after gamma correction (see #5343 for details)
     opacityOld = gamma8inv(opacityOld);
@@ -1584,7 +1618,7 @@ void WS2812FX::blendSegment(const Segment &topSegment) const {
   const bool hasGrouping = topSegment.groupLength() != 1;
 
   // fast path: handle the default case - no transitions, no grouping/spacing, no mirroring, no CCT
-  if (!segO && blendingStyle == TRANSITION_FADE && !hasGrouping && !topSegment.mirror && !topSegment.mirror_y) {
+  if (!segO && style == TRANSITION_FADE && !hasGrouping && !topSegment.mirror && !topSegment.mirror_y) {
     if (isMatrix && stopIndx <= matrixSize && !_pixelCCT) {
 #ifndef WLED_DISABLE_2D
       // Calculate pointer steps to avoid 'if' and 'XY()' inside loops
@@ -1641,12 +1675,11 @@ void WS2812FX::blendSegment(const Segment &topSegment) const {
   Segment::setClippingRect(0, 0);  // disable clipping by default
   const unsigned progress = topSegment.progress();
   const unsigned progInv  = 0xFFFFU - progress;
-  const unsigned dw = (blendingStyle==TRANSITION_OUTSIDE_IN ? progInv : progress) * width / 0xFFFFU + 1;
-  const unsigned dh = (blendingStyle==TRANSITION_OUTSIDE_IN ? progInv : progress) * height / 0xFFFFU + 1;
-  const unsigned orgBS = blendingStyle;
+  const unsigned dw = (style==TRANSITION_OUTSIDE_IN ? progInv : progress) * width / 0xFFFFU + 1;
+  const unsigned dh = (style==TRANSITION_OUTSIDE_IN ? progInv : progress) * height / 0xFFFFU + 1;
   // single pixel segments or transitions without a rendered old segment: use fade
-  if (width*height == 1 || !segO) blendingStyle = TRANSITION_FADE;
-  switch (blendingStyle) {
+  if (width*height == 1 || !segO) style = TRANSITION_FADE;
+  switch (style) {
     case TRANSITION_CIRCULAR_IN: // (must set entire segment, see isPixelXYClipped())
     case TRANSITION_CIRCULAR_OUT:// (must set entire segment, see isPixelXYClipped())
     case TRANSITION_FAIRY_DUST:  // fairy dust (must set entire segment, see isPixelXYClipped())
@@ -1730,13 +1763,13 @@ void WS2812FX::blendSegment(const Segment &topSegment) const {
     };
 
     // if we blend using "push" style we need to "shift" canvas to left/right/up/down
-    unsigned offsetX = (blendingStyle == TRANSITION_PUSH_UP   || blendingStyle == TRANSITION_PUSH_DOWN)  ? 0 : progInv * nCols / 0xFFFFU;
-    unsigned offsetY = (blendingStyle == TRANSITION_PUSH_LEFT || blendingStyle == TRANSITION_PUSH_RIGHT) ? 0 : progInv * nRows / 0xFFFFU;
+    unsigned offsetX = (style == TRANSITION_PUSH_UP   || style == TRANSITION_PUSH_DOWN)  ? 0 : progInv * nCols / 0xFFFFU;
+    unsigned offsetY = (style == TRANSITION_PUSH_LEFT || style == TRANSITION_PUSH_RIGHT) ? 0 : progInv * nRows / 0xFFFFU;
     const unsigned groupLen = topSegment.groupLength();
     bool applyReverse = topSegment.reverse || topSegment.reverse_y || topSegment.transpose;
     int pushOffsetX = 0, pushOffsetY = 0;
     // if we blend using "push" style we need to "shift" canvas to left/right/up/down
-    switch (blendingStyle) {
+    switch (style) {
       case TRANSITION_PUSH_RIGHT: pushOffsetX = offsetX; break;
       case TRANSITION_PUSH_LEFT:  pushOffsetX = -offsetX + nCols; break;
       case TRANSITION_PUSH_DOWN:  pushOffsetY = offsetY; break;
@@ -1748,7 +1781,7 @@ void WS2812FX::blendSegment(const Segment &topSegment) const {
     }
     // we only traverse new segment, not old one
     for (int r = 0; r < nRows; r++) for (int c = 0; c < nCols; c++) {
-      const bool clipped = topSegment.isPixelXYClipped(c, r);
+      bool clipped = topSegment.isPixelXYClipped(c, r, style);
       uint8_t pixelOpacity = clipped ? opacityOld : opacity;
       // if segment is in transition and pixel is clipped take old segment's pixel and opacity
       const Segment *seg = clipped && segO ? segO : &topSegment;  // pixel is never clipped for FADE
@@ -1760,12 +1793,12 @@ void WS2812FX::blendSegment(const Segment &topSegment) const {
       if (pushOffsetY != 0) y = (y + pushOffsetY) % nRows;
       uint32_t c_a = BLACK;
       if (x < vCols && y < vRows) c_a = seg->getPixelColorRaw(x + y*vCols); // will get clipped pixel from old segment or unclipped pixel from new segment
-      if (segO && blendingStyle == TRANSITION_FADE
+      if (segO && style == TRANSITION_FADE
         && (topSegment.mode != segO->mode || (segO->name != topSegment.name && segO->name && topSegment.name && strncmp(segO->name, topSegment.name, WLED_MAX_SEGNAME_LEN) != 0))
         && x < oCols && y < oRows) {
         // we need to blend old segment using fade as pixels are not clipped
         c_a = color_blend16(c_a, segO->getPixelColorRaw(x + y*oCols), progInv);
-      } else if (blendingStyle != TRANSITION_FADE) {
+      } else if (style != TRANSITION_FADE) {
         // on/off transition workaround: pixels not yet revealed by a wipe-to-off are black, pixels still covered by a wipe-to-on are black
         if ((topSegment.isPowerOffTransition() && !clipped) || (topSegment.isPowerOnTransition() && clipped)) c_a = BLACK;
       }
@@ -1819,23 +1852,23 @@ void WS2812FX::blendSegment(const Segment &topSegment) const {
     unsigned offsetI = progInv * nLen / 0xFFFFU;
 
     for (int k = 0; k < nLen; k++) {
-      const bool clipped = topSegment.isPixelClipped(k);
+      bool clipped = topSegment.isPixelClipped(k, style);
       uint8_t pixelOpacity = clipped ? opacityOld : opacity;
       // if segment is in transition and pixel is clipped take old segment's pixel and opacity
       const Segment *seg = clipped && segO ? segO : &topSegment;  // pixel is never clipped for FADE
       const int vLen = seg == segO ? oLen : nLen;
       int i = k;
       // if we blend using "push" style we need to "shift" canvas to left or right
-      switch (blendingStyle) {
+      switch (style) {
         case TRANSITION_PUSH_RIGHT: i = (i + offsetI) % nLen;        break;
         case TRANSITION_PUSH_LEFT:  i = (i - offsetI + nLen) % nLen; break;
       }
       uint32_t c_a = BLACK;
       if (i < vLen) c_a = seg->getPixelColorRaw(i); // will get clipped pixel from old segment or unclipped pixel from new segment
-      if (segO && blendingStyle == TRANSITION_FADE && topSegment.mode != segO->mode && i < oLen) {
+      if (segO && style == TRANSITION_FADE && topSegment.mode != segO->mode && i < oLen) {
         // we need to blend old segment using fade as pixels are not clipped
         c_a = color_blend16(c_a, segO->getPixelColorRaw(i), progInv);
-      } else if (blendingStyle != TRANSITION_FADE) {
+      } else if (style != TRANSITION_FADE) {
         // on/off transition workaround: pixels not yet revealed by a wipe-to-off are black, pixels still covered by a wipe-to-on are black
         if ((topSegment.isPowerOffTransition() && !clipped) || (topSegment.isPowerOnTransition() && clipped)) c_a = BLACK;
       }
@@ -1850,7 +1883,6 @@ void WS2812FX::blendSegment(const Segment &topSegment) const {
     }
   }
 
-  blendingStyle = orgBS;
   Segment::setClippingRect(0, 0);             // disable clipping for overlays
 }
 

@@ -423,6 +423,7 @@ extern byte realtimeMode;           // used in getMappedPixelIndex()
 // transition flags (scope and target state of a power transition)
 #define TRANSITION_FLAG_POWER        0x01  // power (on/off) transition
 #define TRANSITION_FLAG_POWER_ON     0x02  // target state is "on"
+#define TRANSITION_FLAG_REVERSED     0x04  // use inverse spatial transition if set (e.g. swipe left -> swipe right)
 
 
 
@@ -522,11 +523,11 @@ class Segment {
     // transition data, holds values during transition (76 bytes/28 bytes)
     struct Transition {
       Segment      *_oldSegment;          // previous segment environment (may be nullptr if effect did not change)
-      unsigned long _start;               // spatial channel start, must accommodate millis()
+      unsigned long _spatialStart;        // spatial channel start, must accommodate millis()
       unsigned long _fadeStart;           // fade channel start
       uint32_t      _colors[NUM_COLORS];  // colors at the start of fade channel
       CRGBPalette16 _palT;                // temporary palette (slowly being morphed from old to new)
-      uint16_t      _dur;                 // duration of spatial channel in ms
+      uint16_t      _spatialDur;          // duration of spatial channel in ms
       uint16_t      _fadeDur;             // duration of fade channel in ms
       uint16_t      _progress;            // spatial channel progress (0-65535); pre-calculated in updateTransitionProgress()
       uint16_t      _fadeProgress;        // fade channel progress (0-65535)
@@ -535,11 +536,11 @@ class Segment {
       uint8_t       _flags;               // TRANSITION_FLAG_* power state
       Transition(uint16_t dur=750)
       : _oldSegment(nullptr)
-      , _start(millis())
-      , _fadeStart(_start)
+      , _spatialStart(millis())
+      , _fadeStart(_spatialStart)
       , _colors{0,0,0}
       , _palT(CRGBPalette16())
-      , _dur(dur)
+      , _spatialDur(dur)
       , _fadeDur(dur)
       , _progress(0)
       , _fadeProgress(0)
@@ -657,12 +658,13 @@ class Segment {
     inline bool     isInTransition()       const { return _t != nullptr; }
     inline uint16_t progress()             const { return isInTransition() ? _t->_progress : 0xFFFFU; } // spatial channel progress, relies on handleTransition()/updateTransitionProgress()
     inline uint16_t fadeProgress()         const { return isInTransition() ? _t->_fadeProgress : 0xFFFFU; } // fade channel progress, relies on handleTransition()/updateTransitionProgress()
-    inline unsigned long getTransitionStart() const { return isInTransition() ? _t->_start : 0; } // spatial channel start time
+    inline unsigned long getTransitionStart() const { return isInTransition() ? _t->_spatialStart : 0; } // spatial channel start time
     inline Segment *getOldSegment()        const { return isInTransition() ? _t->_oldSegment : nullptr; }
-    inline bool     fadeTransitionActive() const { return isInTransition() && _t->_fadeStart > _t->_start; } // true if fading during a spatial transition
+    inline bool     fadeTransitionActive() const { return isInTransition() && _t->_fadeStart > _t->_spatialStart; } // true if fading during a spatial transition
     inline bool     isPowerTransition()    const { return isInTransition() && (_t->_flags & TRANSITION_FLAG_POWER) && _t->_oldSegment != nullptr; }
     inline bool     isPowerOffTransition() const { return isPowerTransition() && !(_t->_flags & TRANSITION_FLAG_POWER_ON); } // spatial to off
     inline bool     isPowerOnTransition()  const { return isPowerTransition() && (_t->_flags & TRANSITION_FLAG_POWER_ON); }  // spatial to on
+    inline bool     isTransitionReversed() const { return isInTransition() && (_t->_flags & TRANSITION_FLAG_REVERSED); }
     inline bool     isActive()             const { return stop > start && pixels; }
     inline bool     hasRGB()               const { return _isRGB; }
     inline bool     hasWhite()             const { return _hasW; }
@@ -729,7 +731,7 @@ class Segment {
     inline void setPixelColor(float i, uint8_t r, uint8_t g, uint8_t b, uint8_t w = 0, bool aa = true) const { setPixelColor(i, RGBW32(r,g,b,w), aa); }
     inline void setPixelColor(float i, CRGB c, bool aa = true) const                                         { setPixelColor(i, RGBW32(c.r,c.g,c.b,0), aa); }
     #endif
-    [[gnu::hot]] bool isPixelClipped(int i) const;
+    [[gnu::hot]] bool isPixelClipped(int i, uint8_t style) const;
     [[gnu::hot]] uint32_t getPixelColor(int i) const;
     // 1D support functions (some implement 2D as well)
     void blur(uint8_t, bool smear = false) const;
@@ -776,7 +778,7 @@ class Segment {
     inline void setPixelColorXY(float x, float y, byte r, byte g, byte b, byte w = 0, bool aa = true) const { setPixelColorXY(x, y, RGBW32(r,g,b,w), aa); }
     inline void setPixelColorXY(float x, float y, CRGB c, bool aa = true) const                             { setPixelColorXY(x, y, RGBW32(c.r,c.g,c.b,0), aa); }
     #endif
-    [[gnu::hot]] bool isPixelXYClipped(int x, int y) const;
+    [[gnu::hot]] bool isPixelXYClipped(int x, int y, uint8_t style) const;
     [[gnu::hot]] uint32_t getPixelColorXY(int x, int y) const;
     // 2D support functions
     inline void blendPixelColorXY(uint16_t x, uint16_t y, uint32_t color, uint8_t blend) const { setPixelColorXY(x, y, color_blend(getPixelColorXY(x,y), color, blend)); }
@@ -813,7 +815,7 @@ class Segment {
     inline void setPixelColorXY(float x, float y, byte r, byte g, byte b, byte w = 0, bool aa = true) { setPixelColor(x, RGBW32(r,g,b,w), aa); }
     inline void setPixelColorXY(float x, float y, CRGB c, bool aa = true) const     { setPixelColor(x, RGBW32(c.r,c.g,c.b,0), aa); }
     #endif
-    inline bool isPixelXYClipped(int x, int y)                                    { return isPixelClipped(x); }
+    inline bool isPixelXYClipped(int x, int y, uint8_t style)                     { return isPixelClipped(x, style); }
     inline uint32_t getPixelColorXY(int x, int y)                                 { return getPixelColor(x); }
     inline void blendPixelColorXY(uint16_t x, uint16_t y, uint32_t c, uint8_t blend) { blendPixelColor(x, c, blend); }
     inline void blendPixelColorXY(uint16_t x, uint16_t y, CRGB c, uint8_t blend)  { blendPixelColor(x, RGBW32(c.r,c.g,c.b,0), blend); }
