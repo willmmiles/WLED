@@ -752,7 +752,7 @@ void WLED::initAP(bool resetAP)
   apActive = true;
 }
 
-#ifdef ARDUINO_ARCH_ESP32
+#if defined(ARDUINO_ARCH_ESP32) && ESP_IDF_VERSION < ESP_IDF_VERSION_VAL(5, 0, 0)
 // Declare internal Arduino library function to work around the fact that WiFi.setHostname() does not propagate the
 // hostname to the network interface if it's been previously used.  The underlying ESP-IDF layer supports this just
 // fine; it's an oversight in the Arduino layer that we can work around by calling the internal function directly.
@@ -786,7 +786,11 @@ void WLED::initConnection()
 
 #ifdef ARDUINO_ARCH_ESP32
   WiFi.setHostname(hostname); // Sets the hostname in the wifi lib; does not necessarily propagate it to the network interface
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)  
+  esp_netif_set_hostname(esp_netif_get_handle_from_ifkey("WIFI_STA_DEF"), hostname); // ensure hostname propagates to network interface for DHCP and mDNS
+#else
   set_esp_interface_hostname(ESP_IF_WIFI_STA, hostname); // ensure hostname propagates to network interface for DHCP and mDNS
+#endif  
 #endif
 
   if (multiWiFi.empty()) {                       // guard: handle empty WiFi list safely
