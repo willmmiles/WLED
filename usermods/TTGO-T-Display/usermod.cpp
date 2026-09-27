@@ -69,28 +69,28 @@ void setup() override {
     // or lines hardwired to GND/3V3) are simply left out of the array below.
     const static PinManagerPinType pins[] PROGMEM = {
 #ifdef TFT_MISO
-      { TFT_MISO, INPUT },
+      { TFT_MISO, false },
 #endif
 #ifdef TFT_MOSI
-      { TFT_MOSI, OUTPUT },
+      { TFT_MOSI, true },
 #endif
 #ifdef TFT_SCLK
-      { TFT_SCLK, OUTPUT },
+      { TFT_SCLK, true },
 #endif
 #ifdef TFT_CS
-      { TFT_CS, OUTPUT },
+      { TFT_CS, true },
 #endif
 #ifdef TFT_DC
-      { TFT_DC, OUTPUT },
+      { TFT_DC, true },
 #endif
 #ifdef TFT_RST
-      { TFT_RST, OUTPUT },
+      { TFT_RST, true },
 #endif
 #ifdef TFT_BL
-      { TFT_BL, OUTPUT },
+      { TFT_BL, true },
 #endif      
 #ifdef TOUCH_CS
-      { TOUCH_CS, OUTPUT },
+      { TOUCH_CS, true },
 #endif
     };
     if (!PinManager::allocateMultiplePins(pins, sizeof(pins)/sizeof(pins[0]), (PinOwner) getId())) {
