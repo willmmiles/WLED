@@ -88,44 +88,43 @@ void handleBriChange() {
     applyFinalBri();
   } else {
     uint32_t now = millis();
-    if (blendingStyle != TRANSITION_FADE) {
-      if (strip.isPoweringOff() && strip.isPoweringOn()) {
-        // if both flags are set, the power state was reversed during transition, invert the transition time to keep "overall brightness" i.e number of lit LEDs
-        // note: segments do the same, timing to finish the transition matches (more or less), segment blending is held in spatial transition until global transition finishes.
-        int progress = now - transitionStartTime;
-        int duration = strip.getTransition();
-        transitionStartTime = now - (duration - progress); // invert transition progress
-        if (bri > 0) strip.clearPowerFlag(TRANSITION_POWER_OFF);
-        else strip.clearPowerFlag(TRANSITION_POWER_ON);
-      }
-      else if (strip.isPoweringOn() && strip.isPowerTrigger() || (bri > 0 && briOld == 0)) {
-        // global power on from off state either through power button or brightness change
-        strip.setPowerFlag(TRANSITION_POWER_ON | TRANSITION_POWER_TRIGGER); // if powering on by brightness change, set power flag to inite spatial transition (if set)
-        strip.setTransitionMode(false); // stop any transition that is going on while in off mode and start clean (a segment power on prior to global on will continue otherwise)
-        strip.restartRuntime();         // and restart any running effect when powering on
-        if (blendingStyle != TRANSITION_FADE) applyFinalBri();; // set brightness immediately, otherwise it will fade-in -> this does not yet work. need to set to bri old? or bri last?
-      }
-    }
 
     if (strip.isPoweringOff() && bri > 0) {
       // powering off but brightness was changed -> switch to powering on, update is handled below
-      strip.clearPowerFlag(TRANSITION_POWER_OFF);
       strip.setPowerFlag(TRANSITION_POWER_ON | TRANSITION_POWER_TRIGGER);
     }
 
-    // if brightness changed, start a new global transition but do not reset the timer if powering off (unless powering back on i.e. triggered)
-    // Note: fading is omitted if segments run a spatial power off transition, see handleTransitions()
-    if ((bri != briOld && !strip.isPoweringOff()) || strip.isPowerTrigger()) {
-      if (transitionActive) {
-        briOld = briT; // capture transition value: starts brightness fade from current value
+    if (strip.isPoweringOff() && strip.isPoweringOn()) {
+      // if both flags are set, the power state was reversed during transition, invert the transition time to keep "overall brightness" i.e number of lit LEDs
+      // note: segments do the same, timing to finish the transition matches (more or less), segment blending is held in spatial transition until global transition finishes.
+      int progress = now - transitionStartTime;
+      int duration = strip.getTransition();
+      transitionStartTime = now - (duration - progress); // invert transition progress
+      //briOld = briT; // capture transition value: starts brightness fade from current value
+      strip.clearPowerFlag((bri > 0) ? TRANSITION_POWER_OFF : TRANSITION_POWER_ON); // bri carries the target state
+    }
+    else if (strip.isPoweringOn() && strip.isPowerTrigger() || (bri > 0 && briOld == 0)) {
+      // global power on from off state either through power button or brightness change
+      strip.setPowerFlag(TRANSITION_POWER_ON | TRANSITION_POWER_TRIGGER); // if powering on by brightness change, set power flag to inite spatial transition (if set)
+      strip.setTransitionMode(false); // stop any transition that is going on while in off mode and start clean (a segment power on prior to global on will continue otherwise)
+      strip.restartRuntime();         // and restart any running effect when powering on
+      if (blendingStyle != TRANSITION_FADE) applyFinalBri();; // set brightness immediately, otherwise it will fade-in -> this does not yet work. need to set to bri old? or bri last?
+    }
+
+    if (strip.isPowerTrigger()) {
+      if (!transitionActive) {
+        transitionStartTime = now;  // start global transition timer
       }
-      transitionActive = true;
-      transitionStartTime = now; // note: this only affects brightness fade, spatial transition continues as it is handled on segment level
+      if (blendingStyle != TRANSITION_FADE ) { // Note: fading is omitted if segments run a spatial power off transition, see handleTransitions()
+        strip.setTransitionMode(true); // force all segments to a spatial on/off transition, segments handle transition inversion (on during off or off during on)
+      }
+      strip.clearPowerFlag(TRANSITION_POWER_TRIGGER);
+    } else if (!strip.isPoweringOff()) {
+      // Any existing transition re-starts from where we are
+      briOld = briT;
+      transitionStartTime = now;
     }
-    if (blendingStyle != TRANSITION_FADE && (strip.isPoweringOn() || strip.isPoweringOff()) && strip.isPowerTrigger()) {
-      strip.setTransitionMode(true); // force all segments to a spatial on/off transition, segments handle transition inversion (on during off or off during on)
-    }
-    strip.clearPowerFlag(TRANSITION_POWER_TRIGGER);
+    transitionActive = true;
   }
 }
 
