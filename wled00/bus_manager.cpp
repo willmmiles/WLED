@@ -384,6 +384,20 @@ void BusDigital::begin() {
 
 void BusDigital::cleanup() {
   DEBUGBUS_PRINTLN(F("Digital Cleanup."));
+  
+  if (_valid) {
+    const auto hwLen = (_type == TYPE_WS2812_1CH_X3) ? NUM_ICS_WS2812_1CH_3X(_len) : _len;
+    // Blank all LEDs
+    for (unsigned i = 0; i < hwLen; ++i) {
+      PolyBus::setPixelColor(_busPtr, _iType, i, 0, 0);  // Zero out bus
+    }
+    // Synchronous show
+    // TODO: timeout
+    while (!canShow()) { delay(1); };
+    show();
+    while (!canShow()) { delay(1); };
+  }
+
   PolyBus::cleanup(_busPtr, _iType);
   _iType = I_NONE;
   _valid = false;
